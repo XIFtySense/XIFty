@@ -76,9 +76,11 @@ This repository now includes the first implementation slice for:
 - QuickTime textual metadata decoding for bounded media fixtures
 - normalized media fields for duration, codecs, and movie timestamps
 - JSON-only CLI output
-- checked-in fixtures
+- checked-in synthetic/minimal fixtures
+- optional local-only real camera regression fixtures under `fixtures/local/`
 - snapshot tests plus ExifTool differential tests for the currently supported oracle-backed fixtures
 - vendored real-world HEIF differential coverage for iteration three
+- dedicated vendor-specific metadata paths for Sony MakerNotes, Sony RTMD, and Apple MakerNotes
 
 Current CLI:
 
@@ -96,6 +98,10 @@ Verification:
 cargo test --workspace
 ```
 
+Large real-world camera/media examples are intentionally not stored in git.
+Keep those under `fixtures/local/` when you want the optional real-camera
+regression and differential tests to run.
+
 Fuzz targets are scaffolded under `fuzz/`. The earlier parser targets were smoke-tested with `cargo fuzz run` under a nightly Rust toolchain; the newer ISOBMFF and HEIF-routing targets are checked in and await a clean local nightly `cargo-fuzz` resolution on this machine.
 
 Planning docs:
@@ -111,6 +117,8 @@ Planning docs:
 - [ITERATION_THREE_CHECKLIST.md](./ITERATION_THREE_CHECKLIST.md)
 - [ITERATION_FOUR_PLAN.md](./ITERATION_FOUR_PLAN.md)
 - [ITERATION_FOUR_CHECKLIST.md](./ITERATION_FOUR_CHECKLIST.md)
+- [ITERATION_FIVE_PLAN.md](./ITERATION_FIVE_PLAN.md)
+- [ITERATION_FIVE_CHECKLIST.md](./ITERATION_FIVE_CHECKLIST.md)
 - [ENGINEERING_PRINCIPLES.md](./ENGINEERING_PRINCIPLES.md)
 - [CONTRIBUTING.md](./CONTRIBUTING.md)
 - [AGENTS.md](./AGENTS.md)

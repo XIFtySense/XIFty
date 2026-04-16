@@ -2,7 +2,8 @@
 
 ## Summary
 
-XIFty is in a strong architectural position.
+XIFty is in a strong architectural position and is now meaningfully into
+bounded media support.
 
 The project has already proven the core thesis from the vision:
 
@@ -12,7 +13,8 @@ The project has already proven the core thesis from the vision:
 - provenance, conflicts, and issues are first-class output concerns
 - the CLI and JSON envelope remain stable as capability expands
 
-The main remaining gap is not architecture. It is breadth.
+The main remaining gap is no longer "can the architecture hold?" It is breadth,
+deeper namespace coverage, and eventual embedding surfaces.
 
 ## What Is Proven
 
@@ -26,6 +28,7 @@ That rule is no longer theoretical. It has been exercised across:
 - JPEG / TIFF
 - PNG / WebP
 - HEIC / HEIF / ISOBMFF
+- MP4 / MOV / media-oriented ISOBMFF
 
 The same high-level extraction pipeline now survives segment-based, chunk-based,
 and atom/item-based container families without collapsing into container-specific
@@ -70,35 +73,83 @@ In particular, the project now supports:
 That is an important milestone because modern container complexity is where many
 clean designs begin to erode. XIFty held up.
 
+### 5. Bounded media support is now real
+
+Iteration four extended the same architecture into bounded media-container
+metadata rather than only still-image metadata.
+
+The repository now supports:
+
+- MP4 / MOV detection and routing through the existing CLI
+- media-aware ISOBMFF parsing for duration, track dimensions, and codec ids
+- constrained QuickTime textual/timestamp decoding
+- normalized media fields such as `duration`, `codec.video`, `codec.audio`,
+  `created_at`, `modified_at`, and selected editorial metadata when derivable
+- oracle-backed differential testing for the supported media subset
+
+This matters because it proves the design scales from still-image containers
+into broader media metadata without collapsing parser, namespace, policy, and
+normalization concerns together.
+
+### 6. Vendor-specific metadata has become a first-class concern
+
+XIFty is no longer limited to generic EXIF/XMP/QuickTime paths.
+
+The repo now contains dedicated vendor metadata decoders that preserve clean
+namespace boundaries:
+
+- Sony still-image MakerNote decoding
+- Sony non-real-time metadata (`rtmd`) decoding for camera MP4 files
+- Apple MakerNote decoding for iPhone JPEGs
+
+That is an important evolution in the project because real metadata quality
+depends heavily on vendor-specific ecosystems. XIFty is now proving that
+vendor depth can be added without turning the codebase into a pile of special
+cases.
+
 ## What Is Still Missing
 
 ### Breadth gaps relative to the vision
 
 The original MVP and long-term direction still include major areas that are not
-implemented yet:
+implemented yet or are only present in constrained form:
 
-- MP4 / MOV container support
-- QuickTime metadata interpretation
+- broader QuickTime metadata coverage beyond the bounded current subset
 - IPTC support
 - ICC support
-- broader video/audio-oriented normalized fields
+- broader video/audio-oriented normalized fields and richer timeline semantics
+- richer machine-readable capability reporting
 - public bindings for Python / Node / Swift
 - stable `C ABI`
 
 These are roadmap gaps, not architecture gaps.
+
+### Corpus and packaging gaps
+
+The project now distinguishes between small checked-in fixtures and large
+real-world example files used for optional local regression.
+
+That is the right repository policy, but it means some of the richest camera
+coverage is currently local-first rather than fully portable for every clone.
+The main remaining gap here is process, not code:
+
+- better documented local corpus conventions
+- optional fixture helpers beyond the current CLI contract coverage
+- a clearer long-term strategy for external/private corpora
 
 ### Verification gaps
 
 The project is in a good state, but a few validation areas are still less
 mature than the eventual vision:
 
-- HEIF oracle-backed differential coverage currently relies on a real vendored
+- HEIF oracle-backed differential coverage still relies on a real vendored
   sample because ExifTool does not surface metadata from the synthetic HEIC
   corpus
-- the newest HEIF fuzz targets are checked in, but local smoke execution is
-  still blocked by this machine's nightly `cargo-fuzz` resolution
-- capability reporting is implicit in docs and tests, not yet exposed as a
-  first-class machine-readable contract
+- the newest ISOBMFF / QuickTime fuzz targets are checked in, but local smoke
+  execution remains blocked by this machine's `cargo-fuzz` toolchain invocation
+  path
+- capability reporting is still implicit in docs and tests, not yet exposed as
+  a first-class machine-readable contract
 
 ## Assessment Against The Vision
 
@@ -116,10 +167,11 @@ That is exactly where an architecture-first project should be ahead.
 
 ### Where XIFty is behind
 
-XIFty is behind only in intentionally deferred capability breadth.
+XIFty is behind only in intentionally deferred capability breadth and
+operational polish.
 
-That includes namespace coverage, container breadth, bindings, and public
-embedding surfaces.
+That includes deeper namespace coverage, richer media semantics, bindings,
+public embedding surfaces, and more explicit corpus/capability management.
 
 This is acceptable and even desirable at this stage because the project is
 trying to become a durable metadata platform, not a shallow checklist of file
@@ -132,29 +184,23 @@ The next iteration should not redesign the core.
 The architecture has now been proven across the first three slices. The next
 best move is to extend capability while preserving the current boundaries.
 
-That suggests the next iteration should likely focus on one of two directions:
+That suggests the next iteration should likely focus on one of these directions:
 
-- `MP4 / MOV + QuickTime metadata`
 - `ICC / IPTC` namespace expansion for still-image fidelity
+- deeper `QuickTime / media` namespace coverage
+- machine-readable capability reporting and corpus discipline
 
-The stronger roadmap choice is probably `MP4 / MOV + QuickTime metadata`.
-
-Why:
-
-- it closes the largest remaining MVP-format gap in the vision
-- it reuses the ISOBMFF work from iteration three
-- it tests whether the current architecture can scale from modern still-image
-  containers into broader media containers without blending container and
-  namespace concerns
-- it opens the path toward `duration`, `codec.video`, `codec.audio`, and other
-  normalized fields already anticipated in the architecture plan
+The strongest roadmap choice is probably one of the first two, with capability
+reporting folded in as an architectural quality bar rather than a standalone
+iteration.
 
 ## Recommended Next-Step Framing
 
-Iteration four should probably be framed as:
+The next iteration should probably be framed as:
 
-**Expand from modern still-image containers into bounded media-container
-metadata, without taking on full playback/timeline semantics.**
+**Extend breadth from the now-proven core into either still-image fidelity
+namespaces (`ICC` / `IPTC`) or deeper media metadata, while making supported
+capabilities and corpus expectations more explicit.**
 
 That keeps XIFty on the path laid out in the original vision while preserving
-the discipline that has made the first three iterations successful.
+the discipline that has made the first four iterations successful.
