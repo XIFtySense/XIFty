@@ -1,7 +1,9 @@
 use insta::assert_json_snapshot;
 use serde_json::Value;
-use std::{path::Path, process::Command};
+use std::{path::Path, process::Command, sync::OnceLock};
 use xifty_core::ViewMode;
+
+static EXIFTOOL_AVAILABLE: OnceLock<bool> = OnceLock::new();
 
 fn fixture(name: &str) -> std::path::PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -58,6 +60,25 @@ fn probe_json(name: &str) -> Value {
 
 fn skip_missing_local_fixture(name: &str) {
     eprintln!("skipping optional local fixture test for {name}");
+}
+
+fn ensure_exiftool_available() -> bool {
+    let available = *EXIFTOOL_AVAILABLE.get_or_init(|| {
+        Command::new("exiftool")
+            .arg("-ver")
+            .output()
+            .map(|output| output.status.success())
+            .unwrap_or(false)
+    });
+
+    if !available {
+        if std::env::var("XIFTY_REQUIRE_EXIFTOOL").as_deref() == Ok("1") {
+            panic!("ExifTool is required for oracle-backed differential tests");
+        }
+        eprintln!("skipping ExifTool-backed differential test because exiftool is unavailable");
+    }
+
+    available
 }
 
 fn normalized_map(output: &Value) -> std::collections::BTreeMap<String, Value> {
@@ -961,6 +982,9 @@ fn apple_jpeg_interpreted_view_includes_apple_makernote_fields() {
 }
 
 fn differential_assert(name: &str, expect_gps: bool) {
+    if !ensure_exiftool_available() {
+        return;
+    }
     let ours = extract_json(name, ViewMode::Normalized);
     let ours = normalized_map(&ours);
 
@@ -1019,6 +1043,9 @@ fn differential_assert(name: &str, expect_gps: bool) {
 }
 
 fn differential_assert_xmp(name: &str, compare_dimensions: bool) {
+    if !ensure_exiftool_available() {
+        return;
+    }
     let ours = extract_json(name, ViewMode::Normalized);
     let ours = normalized_map(&ours);
 
@@ -1058,6 +1085,9 @@ fn differential_assert_xmp(name: &str, compare_dimensions: bool) {
 }
 
 fn differential_assert_heif(name: &str) {
+    if !ensure_exiftool_available() {
+        return;
+    }
     let ours = extract_json(name, ViewMode::Normalized);
     let ours = normalized_map(&ours);
 
@@ -1080,6 +1110,9 @@ fn differential_assert_heif(name: &str) {
 }
 
 fn differential_assert_media(name: &str) {
+    if !ensure_exiftool_available() {
+        return;
+    }
     let ours = extract_json(name, ViewMode::Normalized);
     let ours = normalized_map(&ours);
 
@@ -1131,6 +1164,9 @@ fn differential_assert_media(name: &str) {
 }
 
 fn differential_assert_icc(name: &str) {
+    if !ensure_exiftool_available() {
+        return;
+    }
     let ours_interpreted = extract_json(name, ViewMode::Interpreted);
     let ours_normalized = extract_json(name, ViewMode::Normalized);
     let ours_normalized = normalized_map(&ours_normalized);
@@ -1186,6 +1222,9 @@ fn differential_assert_icc(name: &str) {
 }
 
 fn differential_assert_iptc(name: &str) {
+    if !ensure_exiftool_available() {
+        return;
+    }
     let ours = extract_json(name, ViewMode::Normalized);
     let ours = normalized_map(&ours);
 
@@ -1229,6 +1268,9 @@ fn differential_assert_iptc(name: &str) {
 }
 
 fn assert_exiftool_sees_overlap_editorial_sources(name: &str) {
+    if !ensure_exiftool_available() {
+        return;
+    }
     let output = Command::new("exiftool")
         .args([
             "-json",
@@ -1268,6 +1310,9 @@ fn assert_exiftool_sees_overlap_editorial_sources(name: &str) {
 }
 
 fn differential_assert_camera_mp4(name: &str) {
+    if !ensure_exiftool_available() {
+        return;
+    }
     let ours = extract_optional_json(name, ViewMode::Normalized)
         .unwrap_or_else(|| panic!("missing optional local fixture {name}"));
     let ours = normalized_map(&ours);
@@ -1309,6 +1354,9 @@ fn differential_assert_camera_mp4(name: &str) {
 
 #[test]
 fn exiftool_differential_real_camera_jpeg_supported_fields() {
+    if !ensure_exiftool_available() {
+        return;
+    }
     let Some(ours) = extract_optional_json("DSC04504.JPG", ViewMode::Normalized) else {
         skip_missing_local_fixture("DSC04504.JPG");
         return;
@@ -1363,6 +1411,9 @@ fn exiftool_differential_real_camera_jpeg_supported_fields() {
 
 #[test]
 fn exiftool_differential_real_camera_jpeg_sony_makernote_fields() {
+    if !ensure_exiftool_available() {
+        return;
+    }
     let Some(ours) = extract_optional_json("DSC04504.JPG", ViewMode::Interpreted) else {
         skip_missing_local_fixture("DSC04504.JPG");
         return;
@@ -1474,6 +1525,9 @@ fn exiftool_differential_real_camera_jpeg_sony_makernote_fields() {
 
 #[test]
 fn exiftool_differential_apple_jpeg_supported_fields() {
+    if !ensure_exiftool_available() {
+        return;
+    }
     let Some(ours) = extract_optional_json(
         "IMG_5B74BABE-DF0A-48EB-A6A4-6AAA54D5198E.JPEG",
         ViewMode::Normalized,
@@ -1530,6 +1584,9 @@ fn exiftool_differential_apple_jpeg_supported_fields() {
 
 #[test]
 fn exiftool_differential_apple_jpeg_makernote_fields() {
+    if !ensure_exiftool_available() {
+        return;
+    }
     let Some(ours) = extract_optional_json(
         "IMG_5B74BABE-DF0A-48EB-A6A4-6AAA54D5198E.JPEG",
         ViewMode::Interpreted,

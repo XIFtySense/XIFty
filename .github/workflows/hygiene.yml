@@ -55,3 +55,5 @@ jobs:
 
       - name: Run ExifTool-backed differential tests
         run: cargo test -p xifty-cli exiftool_differential_ -- --nocapture
+        env:
+          XIFTY_REQUIRE_EXIFTOOL: "1"
