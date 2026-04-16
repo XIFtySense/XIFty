@@ -1,9 +1,9 @@
 [package]
-name = "xifty-normalize"
+name = "xifty-container-riff"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 
 [dependencies]
 xifty-core = { path = "../xifty-core" }
-xifty-policy = { path = "../xifty-policy" }
+xifty-source = { path = "../xifty-source" }

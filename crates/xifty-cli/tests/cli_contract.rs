@@ -58,6 +58,16 @@ fn probe_snapshot_happy_jpeg() {
 }
 
 #[test]
+fn probe_snapshot_happy_png() {
+    assert_json_snapshot!("probe_happy_png", probe_json("happy.png"));
+}
+
+#[test]
+fn probe_snapshot_happy_webp() {
+    assert_json_snapshot!("probe_happy_webp", probe_json("happy.webp"));
+}
+
+#[test]
 fn extract_snapshot_happy_jpeg() {
     assert_json_snapshot!(
         "extract_happy_jpeg",
@@ -98,6 +108,78 @@ fn malformed_jpeg_report_snapshot() {
 }
 
 #[test]
+fn extract_snapshot_happy_png_report() {
+    assert_json_snapshot!(
+        "extract_happy_png_report",
+        extract_json("happy.png", ViewMode::Report)
+    );
+}
+
+#[test]
+fn extract_snapshot_happy_webp_report() {
+    assert_json_snapshot!(
+        "extract_happy_webp_report",
+        extract_json("happy.webp", ViewMode::Report)
+    );
+}
+
+#[test]
+fn extract_snapshot_xmp_only_png_normalized() {
+    assert_json_snapshot!(
+        "extract_xmp_only_png_normalized",
+        extract_json("xmp_only.png", ViewMode::Normalized)
+    );
+}
+
+#[test]
+fn extract_snapshot_xmp_only_webp_normalized() {
+    assert_json_snapshot!(
+        "extract_xmp_only_webp_normalized",
+        extract_json("xmp_only.webp", ViewMode::Normalized)
+    );
+}
+
+#[test]
+fn extract_snapshot_mixed_png_normalized() {
+    assert_json_snapshot!(
+        "extract_mixed_png_normalized",
+        extract_json("mixed.png", ViewMode::Normalized)
+    );
+}
+
+#[test]
+fn extract_snapshot_mixed_webp_normalized() {
+    assert_json_snapshot!(
+        "extract_mixed_webp_normalized",
+        extract_json("mixed.webp", ViewMode::Normalized)
+    );
+}
+
+#[test]
+fn conflicting_png_report_snapshot() {
+    assert_json_snapshot!(
+        "conflicting_png_report",
+        extract_json("conflicting.png", ViewMode::Report)
+    );
+}
+
+#[test]
+fn malformed_png_report_snapshot() {
+    assert_json_snapshot!(
+        "malformed_png_report",
+        extract_json("malformed_chunk.png", ViewMode::Report)
+    );
+}
+
+#[test]
+fn malformed_webp_report_snapshot() {
+    assert_json_snapshot!(
+        "malformed_webp_report",
+        extract_json("malformed_chunk.webp", ViewMode::Report)
+    );
+}
+
+#[test]
 fn no_exif_file_surfaces_empty_metadata_issue() {
     let output = extract_json("no_exif.jpg", ViewMode::Report);
     let issues = output["report"]["issues"].as_array().unwrap();
@@ -121,6 +203,16 @@ fn exiftool_differential_gps_jpeg_supported_fields() {
 #[test]
 fn exiftool_differential_happy_tiff_supported_fields() {
     differential_assert("happy.tiff", false);
+}
+
+#[test]
+fn exiftool_differential_xmp_only_png_supported_fields() {
+    differential_assert_xmp("xmp_only.png", false);
+}
+
+#[test]
+fn exiftool_differential_xmp_only_webp_supported_fields() {
+    differential_assert_xmp("xmp_only.webp", true);
 }
 
 fn differential_assert(name: &str, expect_gps: bool) {
@@ -178,5 +270,44 @@ fn differential_assert(name: &str, expect_gps: bool) {
         );
     } else {
         assert!(!ours.contains_key("location"));
+    }
+}
+
+fn differential_assert_xmp(name: &str, compare_dimensions: bool) {
+    let ours = extract_json(name, ViewMode::Normalized);
+    let ours = normalized_map(&ours);
+
+    let output = Command::new("exiftool")
+        .args([
+            "-json",
+            "-n",
+            "-Make",
+            "-Model",
+            "-Orientation",
+            "-Creator",
+            "-Rights",
+            "-ImageWidth",
+            "-ImageHeight",
+        ])
+        .arg(fixture(name))
+        .output()
+        .expect("failed to run exiftool");
+    assert!(
+        output.status.success(),
+        "exiftool failed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let parsed: Value = serde_json::from_slice(&output.stdout).unwrap();
+    let first = &parsed.as_array().unwrap()[0];
+
+    assert_eq!(ours["device.make"]["value"], first["Make"]);
+    assert_eq!(ours["device.model"]["value"], first["Model"]);
+    assert_eq!(ours["orientation"]["value"], first["Orientation"]);
+    assert_eq!(ours["author"]["value"], first["Creator"]);
+    assert_eq!(ours["copyright"]["value"], first["Rights"]);
+
+    if compare_dimensions {
+        assert_eq!(ours["dimensions.width"]["value"], first["ImageWidth"]);
+        assert_eq!(ours["dimensions.height"]["value"], first["ImageHeight"]);
     }
 }

@@ -1,9 +1,8 @@
 [package]
-name = "xifty-normalize"
+name = "xifty-meta-xmp"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 
 [dependencies]
 xifty-core = { path = "../xifty-core" }
-xifty-policy = { path = "../xifty-policy" }

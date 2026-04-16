@@ -1,0 +1,36 @@
+---
+source: crates/xifty-cli/tests/cli_contract.rs
+expression: "extract_json(\"malformed_chunk.webp\", ViewMode::Report)"
+---
+{
+  "input": {
+    "container": "webp",
+    "detected_format": "webp",
+    "path": "malformed_chunk.webp"
+  },
+  "report": {
+    "conflicts": [],
+    "issues": [
+      {
+        "code": "riff_size_mismatch",
+        "context": "WEBP",
+        "message": "riff declared size 33 does not match actual size 24",
+        "offset": 4,
+        "severity": "warning"
+      },
+      {
+        "code": "riff_chunk_length_invalid",
+        "context": "EXIF",
+        "message": "riff chunk EXIF exceeds available bytes",
+        "offset": 12,
+        "severity": "warning"
+      },
+      {
+        "code": "no_metadata_entries",
+        "message": "no supported metadata entries were decoded",
+        "severity": "info"
+      }
+    ]
+  },
+  "schema_version": "0.1.0"
+}

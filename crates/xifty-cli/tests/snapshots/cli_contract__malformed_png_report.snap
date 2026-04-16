@@ -1,0 +1,34 @@
+---
+source: crates/xifty-cli/tests/cli_contract.rs
+expression: "extract_json(\"malformed_chunk.png\", ViewMode::Report)"
+---
+{
+  "input": {
+    "container": "png",
+    "detected_format": "png",
+    "path": "malformed_chunk.png"
+  },
+  "report": {
+    "conflicts": [],
+    "issues": [
+      {
+        "code": "png_chunk_length_invalid",
+        "context": "eXIf",
+        "message": "png chunk eXIf exceeds available bytes",
+        "offset": 33,
+        "severity": "warning"
+      },
+      {
+        "code": "png_missing_iend",
+        "message": "png stream ended without IEND chunk",
+        "severity": "warning"
+      },
+      {
+        "code": "no_metadata_entries",
+        "message": "no supported metadata entries were decoded",
+        "severity": "info"
+      }
+    ]
+  },
+  "schema_version": "0.1.0"
+}

@@ -1,0 +1,51 @@
+---
+source: crates/xifty-cli/tests/cli_contract.rs
+expression: "probe_json(\"happy.png\")"
+---
+{
+  "containers": [
+    {
+      "kind": "container",
+      "label": "png",
+      "offset_end": 263,
+      "offset_start": 0
+    },
+    {
+      "kind": "chunk",
+      "label": "IHDR",
+      "offset_end": 33,
+      "offset_start": 8,
+      "parent_label": "png"
+    },
+    {
+      "kind": "chunk",
+      "label": "eXIf",
+      "offset_end": 251,
+      "offset_start": 33,
+      "parent_label": "png"
+    },
+    {
+      "kind": "chunk",
+      "label": "IEND",
+      "offset_end": 263,
+      "offset_start": 251,
+      "parent_label": "png"
+    }
+  ],
+  "input": {
+    "container": "png",
+    "detected_format": "png",
+    "path": "happy.png"
+  },
+  "report": {
+    "conflicts": [],
+    "issues": [
+      {
+        "code": "no_metadata_entries",
+        "message": "no supported metadata entries were decoded",
+        "severity": "info"
+      }
+    ]
+  },
+  "schema_version": "0.1.0"
+}

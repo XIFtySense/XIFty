@@ -1,0 +1,263 @@
+---
+source: crates/xifty-cli/tests/cli_contract.rs
+expression: "extract_json(\"mixed.webp\", ViewMode::Normalized)"
+---
+{
+  "input": {
+    "container": "webp",
+    "detected_format": "webp",
+    "path": "mixed.webp"
+  },
+  "normalized": {
+    "fields": [
+      {
+        "confidence": 0.949999988079071,
+        "field": "captured_at",
+        "sources": [
+          {
+            "container": "webp",
+            "namespace": "exif",
+            "offset_end": 170,
+            "offset_start": 158,
+            "path": "exif_ifd"
+          }
+        ],
+        "value": {
+          "kind": "timestamp",
+          "value": "2024-04-16T12:34:56"
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
+        "field": "created_at",
+        "sources": [
+          {
+            "container": "webp",
+            "namespace": "exif",
+            "offset_end": 182,
+            "offset_start": 170,
+            "path": "exif_ifd"
+          }
+        ],
+        "value": {
+          "kind": "timestamp",
+          "value": "2024-04-16T12:34:56"
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
+        "field": "modified_at",
+        "sources": [
+          {
+            "container": "webp",
+            "namespace": "xmp",
+            "offset_end": 880,
+            "offset_start": 226,
+            "path": "xmp_packet"
+          }
+        ],
+        "value": {
+          "kind": "timestamp",
+          "value": "2024-04-16T13:00:00"
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
+        "field": "device.make",
+        "sources": [
+          {
+            "container": "webp",
+            "namespace": "exif",
+            "offset_end": 66,
+            "offset_start": 54,
+            "path": "ifd0"
+          }
+        ],
+        "value": {
+          "kind": "string",
+          "value": "XIFtyCam"
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
+        "field": "device.model",
+        "notes": [
+          "selected Model from exif over 1 competing candidate(s)"
+        ],
+        "sources": [
+          {
+            "container": "webp",
+            "namespace": "exif",
+            "offset_end": 78,
+            "offset_start": 66,
+            "path": "ifd0"
+          }
+        ],
+        "value": {
+          "kind": "string",
+          "value": "IterationOne"
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
+        "field": "software",
+        "notes": [
+          "selected Software from exif over 1 competing candidate(s)"
+        ],
+        "sources": [
+          {
+            "container": "webp",
+            "namespace": "exif",
+            "offset_end": 102,
+            "offset_start": 90,
+            "path": "ifd0"
+          }
+        ],
+        "value": {
+          "kind": "string",
+          "value": "XIFtyTestGen"
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
+        "field": "author",
+        "sources": [
+          {
+            "container": "webp",
+            "namespace": "xmp",
+            "offset_end": 880,
+            "offset_start": 226,
+            "path": "xmp_packet"
+          }
+        ],
+        "value": {
+          "kind": "string",
+          "value": "K"
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
+        "field": "copyright",
+        "sources": [
+          {
+            "container": "webp",
+            "namespace": "xmp",
+            "offset_end": 880,
+            "offset_start": 226,
+            "path": "xmp_packet"
+          }
+        ],
+        "value": {
+          "kind": "string",
+          "value": "XIFty"
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
+        "field": "orientation",
+        "sources": [
+          {
+            "container": "webp",
+            "namespace": "exif",
+            "offset_end": 90,
+            "offset_start": 78,
+            "path": "ifd0"
+          }
+        ],
+        "value": {
+          "kind": "integer",
+          "value": 1
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
+        "field": "dimensions.width",
+        "notes": [
+          "selected ImageWidth from exif over 1 competing candidate(s)"
+        ],
+        "sources": [
+          {
+            "container": "webp",
+            "namespace": "exif",
+            "offset_end": 42,
+            "offset_start": 30,
+            "path": "ifd0"
+          }
+        ],
+        "value": {
+          "kind": "integer",
+          "value": 800
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
+        "field": "dimensions.height",
+        "notes": [
+          "selected ImageHeight from exif over 1 competing candidate(s)"
+        ],
+        "sources": [
+          {
+            "container": "webp",
+            "namespace": "exif",
+            "offset_end": 54,
+            "offset_start": 42,
+            "path": "ifd0"
+          }
+        ],
+        "value": {
+          "kind": "integer",
+          "value": 600
+        }
+      },
+      {
+        "confidence": 0.8999999761581421,
+        "field": "location",
+        "sources": [
+          {
+            "container": "webp",
+            "namespace": "xmp",
+            "offset_end": 880,
+            "offset_start": 226,
+            "path": "xmp_packet"
+          },
+          {
+            "container": "webp",
+            "namespace": "xmp",
+            "offset_end": 880,
+            "offset_start": 226,
+            "path": "xmp_packet"
+          }
+        ],
+        "value": {
+          "kind": "coordinates",
+          "value": {
+            "latitude": 40.4462,
+            "longitude": -79.98
+          }
+        }
+      }
+    ]
+  },
+  "report": {
+    "conflicts": [
+      {
+        "field": "device.model",
+        "message": "multiple candidates disagreed; selected Model from exif"
+      },
+      {
+        "field": "software",
+        "message": "multiple candidates disagreed; selected Software from exif"
+      },
+      {
+        "field": "dimensions.width",
+        "message": "multiple candidates disagreed; selected ImageWidth from exif"
+      },
+      {
+        "field": "dimensions.height",
+        "message": "multiple candidates disagreed; selected ImageHeight from exif"
+      }
+    ],
+    "issues": []
+  },
+  "schema_version": "0.1.0"
+}

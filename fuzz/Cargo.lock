@@ -191,6 +191,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "xifty-container-png"
+version = "0.1.0"
+dependencies = [
+ "xifty-core",
+ "xifty-source",
+]
+
+[[package]]
+name = "xifty-container-riff"
+version = "0.1.0"
+dependencies = [
+ "xifty-core",
+ "xifty-source",
+]
+
+[[package]]
 name = "xifty-container-tiff"
 version = "0.1.0"
 dependencies = [
@@ -212,7 +228,17 @@ version = "0.0.0"
 dependencies = [
  "libfuzzer-sys",
  "xifty-container-jpeg",
+ "xifty-container-png",
+ "xifty-container-riff",
  "xifty-container-tiff",
+ "xifty-meta-xmp",
+]
+
+[[package]]
+name = "xifty-meta-xmp"
+version = "0.1.0"
+dependencies = [
+ "xifty-core",
 ]
 
 [[package]]

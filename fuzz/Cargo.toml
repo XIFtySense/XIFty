@@ -10,7 +10,10 @@ cargo-fuzz = true
 [dependencies]
 libfuzzer-sys = "0.4"
 xifty-container-jpeg = { path = "../crates/xifty-container-jpeg" }
+xifty-container-png = { path = "../crates/xifty-container-png" }
+xifty-container-riff = { path = "../crates/xifty-container-riff" }
 xifty-container-tiff = { path = "../crates/xifty-container-tiff" }
+xifty-meta-xmp = { path = "../crates/xifty-meta-xmp" }
 
 # Use independent workspace for fuzzers
 [workspace]
@@ -26,6 +29,27 @@ bench = false
 [[bin]]
 name = "tiff_parser"
 path = "fuzz_targets/tiff_parser.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "png_parser"
+path = "fuzz_targets/png_parser.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "riff_parser"
+path = "fuzz_targets/riff_parser.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "xmp_parser"
+path = "fuzz_targets/xmp_parser.rs"
 test = false
 doc = false
 bench = false

@@ -8,6 +8,8 @@ pub const SCHEMA_VERSION: &str = "0.1.0";
 pub enum Format {
     Jpeg,
     Tiff,
+    Png,
+    Webp,
 }
 
 impl Format {
@@ -15,6 +17,8 @@ impl Format {
         match self {
             Self::Jpeg => "jpeg",
             Self::Tiff => "tiff",
+            Self::Png => "png",
+            Self::Webp => "webp",
         }
     }
 }

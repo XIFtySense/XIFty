@@ -613,18 +613,38 @@ dependencies = [
  "insta",
  "serde_json",
  "xifty-container-jpeg",
+ "xifty-container-png",
+ "xifty-container-riff",
  "xifty-container-tiff",
  "xifty-core",
  "xifty-detect",
  "xifty-json",
  "xifty-meta-exif",
+ "xifty-meta-xmp",
  "xifty-normalize",
+ "xifty-policy",
  "xifty-source",
  "xifty-validate",
 ]
 
 [[package]]
 name = "xifty-container-jpeg"
+version = "0.1.0"
+dependencies = [
+ "xifty-core",
+ "xifty-source",
+]
+
+[[package]]
+name = "xifty-container-png"
+version = "0.1.0"
+dependencies = [
+ "xifty-core",
+ "xifty-source",
+]
+
+[[package]]
+name = "xifty-container-riff"
 version = "0.1.0"
 dependencies = [
  "xifty-core",
@@ -681,7 +701,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "xifty-meta-xmp"
+version = "0.1.0"
+dependencies = [
+ "xifty-core",
+]
+
+[[package]]
 name = "xifty-normalize"
+version = "0.1.0"
+dependencies = [
+ "xifty-core",
+ "xifty-policy",
+]
+
+[[package]]
+name = "xifty-policy"
 version = "0.1.0"
 dependencies = [
  "xifty-core",

@@ -1,44 +1,39 @@
 use xifty_core::{MetadataEntry, NormalizedField, Provenance, TypedValue};
+use xifty_policy::PolicyResult;
 
 pub fn normalize(entries: &[MetadataEntry]) -> Vec<NormalizedField> {
-    let mut fields = Vec::new();
+    normalize_with_policy(entries).fields
+}
 
-    maybe_push_string(
-        entries,
-        "DateTimeOriginal",
-        "captured_at",
-        &mut fields,
-        true,
-    );
-    maybe_push_string(entries, "Make", "device.make", &mut fields, false);
-    maybe_push_string(entries, "Model", "device.model", &mut fields, false);
-    maybe_push_string(entries, "Software", "software", &mut fields, false);
-    maybe_push_integer(entries, "Orientation", "orientation", &mut fields);
+pub fn normalize_with_policy(entries: &[MetadataEntry]) -> PolicyResult {
+    let mut result = xifty_policy::reconcile(entries);
 
-    let width = entry_integer(entries, "ImageWidth");
-    let height = entry_integer(entries, "ImageHeight");
+    let width = entry_integer(entries, &["ImageWidth"]);
+    let height = entry_integer(entries, &["ImageHeight"]);
     if let (Some((width_entry, width_value)), Some((height_entry, height_value))) = (width, height)
     {
-        fields.push(NormalizedField {
-            field: "dimensions.width".into(),
-            value: TypedValue::Integer(width_value),
-            confidence: 0.95,
-            sources: vec![width_entry.provenance.clone()],
-            notes: Vec::new(),
-        });
-        fields.push(NormalizedField {
-            field: "dimensions.height".into(),
-            value: TypedValue::Integer(height_value),
-            confidence: 0.95,
-            sources: vec![height_entry.provenance.clone()],
-            notes: Vec::new(),
-        });
+        ensure_field(
+            &mut result.fields,
+            "dimensions.width",
+            width_value,
+            &width_entry.provenance,
+        );
+        ensure_field(
+            &mut result.fields,
+            "dimensions.height",
+            height_value,
+            &height_entry.provenance,
+        );
     }
 
-    let lat = gps_coordinate(entries, "GPSLatitude", "GPSLatitudeRef");
-    let lon = gps_coordinate(entries, "GPSLongitude", "GPSLongitudeRef");
-    if let (Some((lat_src, latitude)), Some((lon_src, longitude))) = (lat, lon) {
-        fields.push(NormalizedField {
+    let coordinates = gps_coordinate(entries, "GPSLatitude", "GPSLatitudeRef")
+        .zip(gps_coordinate(entries, "GPSLongitude", "GPSLongitudeRef"))
+        .or_else(|| {
+            string_coordinate(entries, "GPSLatitude")
+                .zip(string_coordinate(entries, "GPSLongitude"))
+        });
+    if let Some(((lat_src, latitude), (lon_src, longitude))) = coordinates {
+        result.fields.push(NormalizedField {
             field: "location".into(),
             value: TypedValue::Coordinates {
                 latitude,
@@ -50,56 +45,47 @@ pub fn normalize(entries: &[MetadataEntry]) -> Vec<NormalizedField> {
         });
     }
 
-    fields
+    result
 }
 
-fn maybe_push_string(
-    entries: &[MetadataEntry],
-    tag_name: &str,
-    field_name: &str,
-    fields: &mut Vec<NormalizedField>,
-    timestamp: bool,
-) {
-    if let Some(entry) = entries.iter().find(|entry| entry.tag_name == tag_name) {
-        if let TypedValue::String(text) | TypedValue::Timestamp(text) = &entry.value {
-            let value = if timestamp {
-                TypedValue::Timestamp(normalize_exif_datetime(text))
-            } else {
-                TypedValue::String(text.clone())
-            };
-            fields.push(NormalizedField {
-                field: field_name.into(),
-                value,
-                confidence: 0.95,
-                sources: vec![entry.provenance.clone()],
-                notes: Vec::new(),
-            });
-        }
-    }
+fn string_coordinate(entries: &[MetadataEntry], tag_name: &str) -> Option<(Provenance, f64)> {
+    let entry = entries.iter().find(|entry| entry.tag_name == tag_name)?;
+    let TypedValue::String(value) = &entry.value else {
+        return None;
+    };
+    let parsed = parse_coordinate_string(value)?;
+    Some((entry.provenance.clone(), parsed))
 }
 
-fn maybe_push_integer(
-    entries: &[MetadataEntry],
-    tag_name: &str,
-    field_name: &str,
+fn parse_coordinate_string(input: &str) -> Option<f64> {
+    input.trim().parse::<f64>().ok()
+}
+
+fn ensure_field(
     fields: &mut Vec<NormalizedField>,
+    field_name: &str,
+    value: i64,
+    provenance: &Provenance,
 ) {
-    if let Some((entry, value)) = entry_integer(entries, tag_name) {
-        fields.push(NormalizedField {
-            field: field_name.into(),
-            value: TypedValue::Integer(value),
-            confidence: 0.95,
-            sources: vec![entry.provenance.clone()],
-            notes: Vec::new(),
-        });
+    if fields.iter().any(|field| field.field == field_name) {
+        return;
     }
+    fields.push(NormalizedField {
+        field: field_name.into(),
+        value: TypedValue::Integer(value),
+        confidence: 0.95,
+        sources: vec![provenance.clone()],
+        notes: Vec::new(),
+    });
 }
 
 fn entry_integer<'a>(
     entries: &'a [MetadataEntry],
-    tag_name: &str,
+    tag_names: &[&str],
 ) -> Option<(&'a MetadataEntry, i64)> {
-    let entry = entries.iter().find(|entry| entry.tag_name == tag_name)?;
+    let entry = entries
+        .iter()
+        .find(|entry| tag_names.iter().any(|tag_name| entry.tag_name == *tag_name))?;
     match entry.value {
         TypedValue::Integer(value) => Some((entry, value)),
         _ => None,
@@ -191,5 +177,29 @@ mod tests {
         }];
         let fields = normalize(&entries);
         assert_eq!(fields[0].field, "captured_at");
+    }
+
+    #[test]
+    fn normalizes_xmp_string_coordinates() {
+        let entries = vec![
+            MetadataEntry {
+                namespace: "xmp".into(),
+                tag_id: "GPSLatitude".into(),
+                tag_name: "GPSLatitude".into(),
+                value: TypedValue::String("40.4462".into()),
+                provenance: prov(),
+                notes: vec!["decoded from xmp attribute exif:GPSLatitude".into()],
+            },
+            MetadataEntry {
+                namespace: "xmp".into(),
+                tag_id: "GPSLongitude".into(),
+                tag_name: "GPSLongitude".into(),
+                value: TypedValue::String("-79.98".into()),
+                provenance: prov(),
+                notes: vec!["decoded from xmp attribute exif:GPSLongitude".into()],
+            },
+        ];
+        let fields = normalize(&entries);
+        assert!(fields.iter().any(|field| field.field == "location"));
     }
 }

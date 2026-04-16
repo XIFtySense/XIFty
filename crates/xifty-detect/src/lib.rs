@@ -11,6 +11,14 @@ pub fn detect(source: &SourceBytes) -> Result<Format, XiftyError> {
         return Ok(Format::Tiff);
     }
 
+    if bytes.len() >= 8 && &bytes[0..8] == b"\x89PNG\r\n\x1a\n" {
+        return Ok(Format::Png);
+    }
+
+    if bytes.len() >= 12 && &bytes[0..4] == b"RIFF" && &bytes[8..12] == b"WEBP" {
+        return Ok(Format::Webp);
+    }
+
     Err(XiftyError::UnsupportedFormat)
 }
 
@@ -38,6 +46,8 @@ mod tests {
     fn detects_formats() {
         let jpeg = temp_file("a.jpg", &[0xFF, 0xD8, 0xFF, 0xE1]);
         let tiff = temp_file("a.tif", b"II*\0\x08\0\0\0");
+        let png = temp_file("a.png", b"\x89PNG\r\n\x1a\n");
+        let webp = temp_file("a.webp", b"RIFF\x00\x00\x00\x00WEBP");
         assert_eq!(
             detect(&SourceBytes::from_path(&jpeg).unwrap()).unwrap(),
             Format::Jpeg
@@ -46,7 +56,17 @@ mod tests {
             detect(&SourceBytes::from_path(&tiff).unwrap()).unwrap(),
             Format::Tiff
         );
+        assert_eq!(
+            detect(&SourceBytes::from_path(&png).unwrap()).unwrap(),
+            Format::Png
+        );
+        assert_eq!(
+            detect(&SourceBytes::from_path(&webp).unwrap()).unwrap(),
+            Format::Webp
+        );
         let _ = fs::remove_file(jpeg);
         let _ = fs::remove_file(tiff);
+        let _ = fs::remove_file(png);
+        let _ = fs::remove_file(webp);
     }
 }

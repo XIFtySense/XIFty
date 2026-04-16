@@ -29,6 +29,23 @@ expression: "extract_json(\"big_endian.tiff\", ViewMode::Normalized)"
       },
       {
         "confidence": 0.949999988079071,
+        "field": "created_at",
+        "sources": [
+          {
+            "container": "tiff",
+            "namespace": "exif",
+            "offset_end": 162,
+            "offset_start": 150,
+            "path": "exif_ifd"
+          }
+        ],
+        "value": {
+          "kind": "timestamp",
+          "value": "2024-04-16T12:34:56"
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
         "field": "device.make",
         "sources": [
           {

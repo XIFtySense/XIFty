@@ -133,8 +133,93 @@ def build_jpeg(exif_payload=None, malformed=False):
     return bytes(out)
 
 
+def png_chunk(chunk_type, data):
+    return struct.pack(">I", len(data)) + chunk_type + data + b"\x00\x00\x00\x00"
+
+
+def build_xmp(
+    *,
+    make="XIFtyCam",
+    model="IterationTwo",
+    create_date="2024-04-16T12:34:56",
+    modify_date="2024-04-16T13:00:00",
+    width=640,
+    height=480,
+    author="K",
+    creator_tool="XIFtyXmpGen",
+    copyright_text="XIFty",
+    gps_latitude=None,
+    gps_longitude=None,
+):
+    gps_attrs = ""
+    if gps_latitude is not None:
+        gps_attrs += f'\n  exif:GPSLatitude="{gps_latitude}"'
+    if gps_longitude is not None:
+        gps_attrs += f'\n  exif:GPSLongitude="{gps_longitude}"'
+    return f"""<x:xmpmeta>
+<rdf:Description
+  xmlns:xmp="adobe:ns:meta/"
+  xmlns:tiff="http://ns.adobe.com/tiff/1.0/"
+  xmlns:exif="http://ns.adobe.com/exif/1.0/"
+  xmlns:dc="http://purl.org/dc/elements/1.1/"
+  xmp:CreateDate="{create_date}"
+  xmp:ModifyDate="{modify_date}"
+  xmp:CreatorTool="{creator_tool}"
+  tiff:Make="{make}"
+  tiff:Model="{model}"
+  tiff:ImageWidth="{width}"
+  tiff:ImageLength="{height}"
+  tiff:Orientation="1"{gps_attrs}>
+</rdf:Description>
+<dc:creator><rdf:Seq><rdf:li>{author}</rdf:li></rdf:Seq></dc:creator>
+<dc:rights><rdf:Alt><rdf:li>{copyright_text}</rdf:li></rdf:Alt></dc:rights>
+</x:xmpmeta>""".encode("utf-8")
+
+
+def build_png(exif_payload=None, xmp_payload=None, malformed=False):
+    signature = b"\x89PNG\r\n\x1a\n"
+    ihdr = png_chunk(b"IHDR", struct.pack(">IIBBBBB", 1, 1, 8, 2, 0, 0, 0))
+    chunks = [ihdr]
+    if exif_payload is not None:
+        if malformed:
+            chunks.append(struct.pack(">I", 128) + b"eXIf" + exif_payload[:4] + b"\x00\x00\x00\x00")
+        else:
+            chunks.append(png_chunk(b"eXIf", exif_payload))
+    if xmp_payload is not None:
+        text_data = b"XML:com.adobe.xmp\x00\x00\x00\x00\x00" + xmp_payload
+        chunks.append(png_chunk(b"iTXt", text_data))
+    chunks.append(png_chunk(b"IEND", b""))
+    return signature + b"".join(chunks)
+
+
+def riff_chunk(chunk_id, data):
+    chunk = chunk_id + struct.pack("<I", len(data)) + data
+    if len(data) % 2:
+        chunk += b"\x00"
+    return chunk
+
+
+def build_webp(exif_payload=None, xmp_payload=None, malformed=False):
+    chunks = []
+    if exif_payload is not None:
+        if malformed:
+            chunks.append(b"EXIF" + struct.pack("<I", 64) + exif_payload[:4])
+        else:
+            chunks.append(riff_chunk(b"EXIF", exif_payload))
+    if xmp_payload is not None:
+        chunks.append(riff_chunk(b"XMP ", xmp_payload))
+    body = b"WEBP" + b"".join(chunks)
+    declared_size = len(body)
+    if malformed:
+        declared_size += 9
+    return b"RIFF" + struct.pack("<I", declared_size) + body
+
+
 def main():
     ROOT.mkdir(parents=True, exist_ok=True)
+    xmp = build_xmp()
+    xmp_with_location = build_xmp(gps_latitude="40.4462", gps_longitude="-79.98")
+    xmp_conflict = build_xmp(model="IterationTwoXmp", create_date="2024-04-17T00:00:00")
     files = {
         "happy.jpg": build_jpeg(build_tiff(gps=False)),
         "gps.jpg": build_jpeg(build_tiff(gps=True)),
@@ -145,6 +230,18 @@ def main():
         "big_endian.tiff": build_tiff(endian="MM", gps=False, width=1024, height=768),
         "malformed_offsets.tiff": build_tiff(gps=True, bad_offsets=True),
         "no_exif.tiff": build_tiff(no_exif=True),
+        "happy.png": build_png(build_tiff(gps=False)),
+        "xmp_only.png": build_png(None, xmp_with_location),
+        "mixed.png": build_png(build_tiff(gps=False), xmp_with_location),
+        "conflicting.png": build_png(build_tiff(gps=False), xmp_conflict),
+        "no_exif.png": build_png(None),
+        "malformed_chunk.png": build_png(build_tiff(gps=False), malformed=True),
+        "happy.webp": build_webp(build_tiff(gps=False)),
+        "xmp_only.webp": build_webp(None, xmp_with_location),
+        "mixed.webp": build_webp(build_tiff(gps=False), xmp_with_location),
+        "conflicting.webp": build_webp(build_tiff(gps=False), xmp_conflict),
+        "no_exif.webp": build_webp(None),
+        "malformed_chunk.webp": build_webp(build_tiff(gps=False), malformed=True),
     }
 
     for name, data in files.items():

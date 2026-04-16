@@ -1,0 +1,41 @@
+---
+source: crates/xifty-cli/tests/cli_contract.rs
+expression: "extract_json(\"conflicting.png\", ViewMode::Report)"
+---
+{
+  "input": {
+    "container": "png",
+    "detected_format": "png",
+    "path": "conflicting.png"
+  },
+  "report": {
+    "conflicts": [
+      {
+        "field": "captured_at",
+        "message": "multiple candidates disagreed; selected DateTimeOriginal from exif"
+      },
+      {
+        "field": "created_at",
+        "message": "multiple candidates disagreed; selected CreateDate from exif"
+      },
+      {
+        "field": "device.model",
+        "message": "multiple candidates disagreed; selected Model from exif"
+      },
+      {
+        "field": "software",
+        "message": "multiple candidates disagreed; selected Software from exif"
+      },
+      {
+        "field": "dimensions.width",
+        "message": "multiple candidates disagreed; selected ImageWidth from exif"
+      },
+      {
+        "field": "dimensions.height",
+        "message": "multiple candidates disagreed; selected ImageHeight from exif"
+      }
+    ],
+    "issues": []
+  },
+  "schema_version": "0.1.0"
+}

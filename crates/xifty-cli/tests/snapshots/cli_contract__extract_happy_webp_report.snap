@@ -1,0 +1,16 @@
+---
+source: crates/xifty-cli/tests/cli_contract.rs
+expression: "extract_json(\"happy.webp\", ViewMode::Report)"
+---
+{
+  "input": {
+    "container": "webp",
+    "detected_format": "webp",
+    "path": "happy.webp"
+  },
+  "report": {
+    "conflicts": [],
+    "issues": []
+  },
+  "schema_version": "0.1.0"
+}

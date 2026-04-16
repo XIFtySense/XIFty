@@ -1,0 +1,37 @@
+---
+source: crates/xifty-cli/tests/cli_contract.rs
+expression: "probe_json(\"happy.webp\")"
+---
+{
+  "containers": [
+    {
+      "kind": "container",
+      "label": "webp",
+      "offset_end": 226,
+      "offset_start": 0
+    },
+    {
+      "kind": "chunk",
+      "label": "EXIF",
+      "offset_end": 226,
+      "offset_start": 12,
+      "parent_label": "webp"
+    }
+  ],
+  "input": {
+    "container": "webp",
+    "detected_format": "webp",
+    "path": "happy.webp"
+  },
+  "report": {
+    "conflicts": [],
+    "issues": [
+      {
+        "code": "no_metadata_entries",
+        "message": "no supported metadata entries were decoded",
+        "severity": "info"
+      }
+    ]
+  },
+  "schema_version": "0.1.0"
+}
