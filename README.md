@@ -114,6 +114,13 @@ cc examples/c/basic_usage.c -I include -L target/debug -lxifty_ffi -o target/bas
 ./target/basic_usage fixtures/minimal/happy.jpg
 ```
 
+Python binding example:
+
+```bash
+cargo build -p xifty-ffi
+PYTHONPATH=bindings/python python3 examples/python/basic_usage.py
+```
+
 Large real-world camera/media examples are intentionally not stored in git.
 Keep those under `fixtures/local/` when you want the optional real-camera
 regression and differential tests to run.
