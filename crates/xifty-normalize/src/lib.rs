@@ -47,6 +47,18 @@ pub fn normalize_with_policy(entries: &[MetadataEntry]) -> PolicyResult {
         });
     }
 
+    if let Some((entry, keywords)) = entry_strings(entries, "Keywords") {
+        if !result.fields.iter().any(|field| field.field == "keywords") {
+            result.fields.push(NormalizedField {
+                field: "keywords".into(),
+                value: TypedValue::String(keywords.join(", ")),
+                confidence: 0.9,
+                sources: vec![entry.provenance.clone()],
+                notes: vec!["derived from repeated Keywords metadata".into()],
+            });
+        }
+    }
+
     result
 }
 
@@ -166,6 +178,22 @@ fn entry_integer<'a>(
         TypedValue::Integer(value) => Some((entry, value)),
         _ => None,
     }
+}
+
+fn entry_strings<'a>(
+    entries: &'a [MetadataEntry],
+    tag_name: &str,
+) -> Option<(&'a MetadataEntry, Vec<String>)> {
+    let matches: Vec<_> = entries
+        .iter()
+        .filter(|entry| entry.tag_name == tag_name)
+        .filter_map(|entry| match &entry.value {
+            TypedValue::String(value) => Some((entry, value.clone())),
+            _ => None,
+        })
+        .collect();
+    let first = matches.first()?.0;
+    Some((first, matches.into_iter().map(|(_, value)| value).collect()))
 }
 
 fn gps_coordinate(

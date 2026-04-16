@@ -73,6 +73,46 @@ pub fn reconcile(entries: &[MetadataEntry]) -> PolicyResult {
         NamespacePreference::XmpFirst,
         false,
     );
+    maybe_choose_string(
+        entries,
+        &mut result,
+        "headline",
+        &["Headline"],
+        NamespacePreference::XmpFirst,
+        false,
+    );
+    maybe_choose_string(
+        entries,
+        &mut result,
+        "description",
+        &["Description"],
+        NamespacePreference::XmpFirst,
+        false,
+    );
+    maybe_choose_string(
+        entries,
+        &mut result,
+        "color.profile.name",
+        &["ProfileDescription"],
+        NamespacePreference::IccFirst,
+        false,
+    );
+    maybe_choose_string(
+        entries,
+        &mut result,
+        "color.profile.class",
+        &["ProfileClass"],
+        NamespacePreference::IccFirst,
+        false,
+    );
+    maybe_choose_string(
+        entries,
+        &mut result,
+        "color.space",
+        &["ColorSpace"],
+        NamespacePreference::IccFirst,
+        false,
+    );
     maybe_choose_integer(
         entries,
         &mut result,
@@ -127,6 +167,7 @@ enum NamespacePreference {
     XmpFirst,
     XmpThenQuickTime,
     QuickTimeFirst,
+    IccFirst,
 }
 
 fn maybe_choose_string(
@@ -259,6 +300,7 @@ fn choose_match<'a>(
         NamespacePreference::XmpFirst => &["xmp"],
         NamespacePreference::XmpThenQuickTime => &["xmp", "quicktime"],
         NamespacePreference::QuickTimeFirst => &["quicktime"],
+        NamespacePreference::IccFirst => &["icc"],
     };
 
     for namespace in preferred_namespaces {

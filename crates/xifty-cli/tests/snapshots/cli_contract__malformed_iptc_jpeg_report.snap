@@ -1,0 +1,29 @@
+---
+source: crates/xifty-cli/tests/cli_contract.rs
+expression: "extract_json(\"malformed_iptc.jpg\", ViewMode::Report)"
+---
+{
+  "input": {
+    "container": "jpeg",
+    "detected_format": "jpeg",
+    "path": "malformed_iptc.jpg"
+  },
+  "report": {
+    "conflicts": [],
+    "issues": [
+      {
+        "code": "iptc_decode_empty",
+        "context": "app13_iptc",
+        "message": "recognized IPTC payload but could not decode bounded IPTC datasets",
+        "offset": 6,
+        "severity": "warning"
+      },
+      {
+        "code": "no_metadata_entries",
+        "message": "no supported metadata entries were decoded",
+        "severity": "info"
+      }
+    ]
+  },
+  "schema_version": "0.1.0"
+}

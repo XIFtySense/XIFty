@@ -2,6 +2,7 @@
 
 from pathlib import Path
 import struct
+import zlib
 from datetime import datetime, timezone
 
 
@@ -134,8 +135,93 @@ def build_jpeg(exif_payload=None, malformed=False):
     return bytes(out)
 
 
+def build_jpeg_with_metadata(exif_payload=None, icc_payload=None, iptc_payload=None, malformed=False):
+    out = bytearray(b"\xFF\xD8")
+    if exif_payload is not None:
+        payload = b"Exif\x00\x00" + exif_payload
+        if malformed:
+            out += b"\xFF\xE1\x00\x40" + payload[:6]
+        else:
+            out += b"\xFF\xE1" + struct.pack(">H", len(payload) + 2) + payload
+    if icc_payload is not None:
+        payload = b"ICC_PROFILE\x00" + bytes([1, 1]) + icc_payload
+        out += b"\xFF\xE2" + struct.pack(">H", len(payload) + 2) + payload
+    if iptc_payload is not None:
+        out += b"\xFF\xED" + struct.pack(">H", len(iptc_payload) + 2) + iptc_payload
+    out += b"\xFF\xD9"
+    return bytes(out)
+
+
+def build_malformed_iptc_app13():
+    resource = bytearray()
+    resource += b"8BIM"
+    resource += struct.pack(">H", 0x0404)
+    resource += b"\x00"
+    if len(resource) % 2:
+        resource += b"\x00"
+    resource += struct.pack(">I", 32)
+    resource += b"\x1C\x02\x69\x00\x08Head"
+    return b"Photoshop 3.0\x00" + bytes(resource)
+
+
 def png_chunk(chunk_type, data):
     return struct.pack(">I", len(data)) + chunk_type + data + b"\x00\x00\x00\x00"
+
+
+def build_icc_profile(name="XIFty Display Profile", color_space=b"RGB ", profile_class=b"mntr"):
+    header = bytearray(128)
+    header[12:16] = profile_class
+    header[16:20] = color_space
+    header[20:24] = b"XYZ "
+    header[48:52] = b"XFTY"
+    header[52:56] = b"TEST"
+
+    desc_text = name.encode("ascii") + b"\x00"
+    desc = bytearray()
+    desc += b"desc" + b"\x00\x00\x00\x00"
+    desc += struct.pack(">I", len(desc_text))
+    desc += desc_text
+    while len(desc) % 4:
+        desc += b"\x00"
+
+    profile = bytearray(header)
+    profile += struct.pack(">I", 1)
+    profile += b"desc"
+    profile += struct.pack(">I", 144)
+    profile += struct.pack(">I", len(desc))
+    profile += desc
+    profile[0:4] = struct.pack(">I", len(profile))
+    return bytes(profile)
+
+
+def build_iptc_iim(*, headline="XIFty Headline", description="XIFty Caption", keywords=("xifty", "metadata"), author="Kai", copyright_text="XIFty"):
+    out = bytearray()
+    fields = [
+        (2, 105, headline),
+        (2, 120, description),
+        (2, 80, author),
+        (2, 116, copyright_text),
+    ]
+    for keyword in keywords:
+        fields.append((2, 25, keyword))
+    for record, dataset, text in fields:
+        data = text.encode("utf-8")
+        out += bytes([0x1C, record, dataset]) + struct.pack(">H", len(data)) + data
+    return bytes(out)
+
+
+def build_photoshop_iptc_app13(iptc_bytes):
+    resource = bytearray()
+    resource += b"8BIM"
+    resource += struct.pack(">H", 0x0404)
+    resource += b"\x00"
+    if len(resource) % 2:
+        resource += b"\x00"
+    resource += struct.pack(">I", len(iptc_bytes))
+    resource += iptc_bytes
+    if len(iptc_bytes) % 2:
+        resource += b"\x00"
+    return b"Photoshop 3.0\x00" + bytes(resource)
 
 
 def build_xmp(
@@ -193,6 +279,22 @@ def build_png(exif_payload=None, xmp_payload=None, malformed=False):
     return signature + b"".join(chunks)
 
 
+def build_png_with_icc(icc_payload):
+    signature = b"\x89PNG\r\n\x1a\n"
+    ihdr = png_chunk(b"IHDR", struct.pack(">IIBBBBB", 1, 1, 8, 2, 0, 0, 0))
+    iccp_payload = b"XIFty ICC\x00\x00" + zlib.compress(icc_payload)
+    iccp = png_chunk(b"iCCP", iccp_payload)
+    return signature + ihdr + iccp + png_chunk(b"IEND", b"")
+
+
+def build_png_with_malformed_icc():
+    signature = b"\x89PNG\r\n\x1a\n"
+    ihdr = png_chunk(b"IHDR", struct.pack(">IIBBBBB", 1, 1, 8, 2, 0, 0, 0))
+    iccp_payload = b"XIFty ICC\x00\x00" + b"not-zlib"
+    iccp = png_chunk(b"iCCP", iccp_payload)
+    return signature + ihdr + iccp + png_chunk(b"IEND", b"")
+
+
 def riff_chunk(chunk_id, data):
     chunk = chunk_id + struct.pack("<I", len(data)) + data
     if len(data) % 2:
@@ -214,6 +316,11 @@ def build_webp(exif_payload=None, xmp_payload=None, malformed=False):
     if malformed:
         declared_size += 9
     return b"RIFF" + struct.pack("<I", declared_size) + body
+
+
+def build_webp_with_icc(icc_payload):
+    body = b"WEBP" + riff_chunk(b"ICCP", icc_payload)
+    return b"RIFF" + struct.pack("<I", len(body)) + body
 
 
 def iso_box(box_type, data, *, force_size=None):
@@ -344,8 +451,13 @@ def main():
     xmp = build_xmp()
     xmp_with_location = build_xmp(gps_latitude="40.4462", gps_longitude="-79.98")
     xmp_conflict = build_xmp(model="IterationTwoXmp", create_date="2024-04-17T00:00:00")
+    icc = build_icc_profile()
+    iptc = build_photoshop_iptc_app13(build_iptc_iim())
     files = {
         "happy.jpg": build_jpeg(build_tiff(gps=False)),
+        "icc.jpg": build_jpeg_with_metadata(build_tiff(gps=False), icc_payload=icc),
+        "iptc.jpg": build_jpeg_with_metadata(None, iptc_payload=iptc),
+        "malformed_iptc.jpg": build_jpeg_with_metadata(None, iptc_payload=build_malformed_iptc_app13()),
         "gps.jpg": build_jpeg(build_tiff(gps=True)),
         "no_exif.jpg": build_jpeg(None),
         "malformed_app1.jpg": build_jpeg(build_tiff(gps=False), malformed=True),
@@ -355,12 +467,15 @@ def main():
         "malformed_offsets.tiff": build_tiff(gps=True, bad_offsets=True),
         "no_exif.tiff": build_tiff(no_exif=True),
         "happy.png": build_png(build_tiff(gps=False)),
+        "icc.png": build_png_with_icc(icc),
+        "malformed_icc.png": build_png_with_malformed_icc(),
         "xmp_only.png": build_png(None, xmp_with_location),
         "mixed.png": build_png(build_tiff(gps=False), xmp_with_location),
         "conflicting.png": build_png(build_tiff(gps=False), xmp_conflict),
         "no_exif.png": build_png(None),
         "malformed_chunk.png": build_png(build_tiff(gps=False), malformed=True),
         "happy.webp": build_webp(build_tiff(gps=False)),
+        "icc.webp": build_webp_with_icc(icc),
         "xmp_only.webp": build_webp(None, xmp_with_location),
         "mixed.webp": build_webp(build_tiff(gps=False), xmp_with_location),
         "conflicting.webp": build_webp(build_tiff(gps=False), xmp_conflict),

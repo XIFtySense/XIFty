@@ -15,6 +15,8 @@ xifty-container-png = { path = "../crates/xifty-container-png" }
 xifty-container-riff = { path = "../crates/xifty-container-riff" }
 xifty-container-tiff = { path = "../crates/xifty-container-tiff" }
 xifty-meta-exif = { path = "../crates/xifty-meta-exif" }
+xifty-meta-icc = { path = "../crates/xifty-meta-icc" }
+xifty-meta-iptc = { path = "../crates/xifty-meta-iptc" }
 xifty-meta-quicktime = { path = "../crates/xifty-meta-quicktime" }
 xifty-meta-xmp = { path = "../crates/xifty-meta-xmp" }
 
@@ -74,6 +76,20 @@ bench = false
 [[bin]]
 name = "xmp_parser"
 path = "fuzz_targets/xmp_parser.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "icc_parser"
+path = "fuzz_targets/icc_parser.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "iptc_parser"
+path = "fuzz_targets/iptc_parser.rs"
 test = false
 doc = false
 bench = false

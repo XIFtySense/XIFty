@@ -81,6 +81,7 @@ This repository now includes the first implementation slice for:
 - snapshot tests plus ExifTool differential tests for the currently supported oracle-backed fixtures
 - vendored real-world HEIF differential coverage for iteration three
 - dedicated vendor-specific metadata paths for Sony MakerNotes, Sony RTMD, and Apple MakerNotes
+- bounded ICC and IPTC namespace support with capability reporting in `CAPABILITIES.json`
 
 Current CLI:
 
@@ -103,6 +104,8 @@ Keep those under `fixtures/local/` when you want the optional real-camera
 regression and differential tests to run.
 
 Fuzz targets are scaffolded under `fuzz/`. The earlier parser targets were smoke-tested with `cargo fuzz run` under a nightly Rust toolchain; the newer ISOBMFF and HEIF-routing targets are checked in and await a clean local nightly `cargo-fuzz` resolution on this machine.
+
+Supported capability claims are recorded explicitly in [CAPABILITIES.json](./CAPABILITIES.json). Keep that artifact narrow and honest; it should describe what XIFty actually supports today, not intended future scope.
 
 Planning docs:
 

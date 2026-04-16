@@ -1,0 +1,29 @@
+---
+source: crates/xifty-cli/tests/cli_contract.rs
+expression: "extract_json(\"malformed_icc.png\", ViewMode::Report)"
+---
+{
+  "input": {
+    "container": "png",
+    "detected_format": "png",
+    "path": "malformed_icc.png"
+  },
+  "report": {
+    "conflicts": [],
+    "issues": [
+      {
+        "code": "png_icc_payload_invalid",
+        "context": "iCCP",
+        "message": "PNG iCCP payload could not be decompressed",
+        "offset": 33,
+        "severity": "warning"
+      },
+      {
+        "code": "no_metadata_entries",
+        "message": "no supported metadata entries were decoded",
+        "severity": "info"
+      }
+    ]
+  },
+  "schema_version": "0.1.0"
+}

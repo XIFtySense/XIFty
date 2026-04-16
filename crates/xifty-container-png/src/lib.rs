@@ -29,6 +29,12 @@ impl PngContainer {
             .iter()
             .filter(|chunk| &chunk.chunk_type == b"iTXt" || &chunk.chunk_type == b"tEXt")
     }
+
+    pub fn icc_payloads(&self) -> impl Iterator<Item = &PngChunk> {
+        self.chunks
+            .iter()
+            .filter(|chunk| &chunk.chunk_type == b"iCCP")
+    }
 }
 
 pub fn parse(source: &SourceBytes) -> Result<PngContainer, XiftyError> {

@@ -1,0 +1,109 @@
+{
+  "schema_version": "0.1.0",
+  "generated_for": "iteration_five",
+  "namespaces": {
+    "exif": {
+      "status": "bounded"
+    },
+    "xmp": {
+      "status": "bounded"
+    },
+    "icc": {
+      "status": "bounded",
+      "supported_tags": [
+        "ProfileClass",
+        "ColorSpace",
+        "ConnectionSpace",
+        "DeviceManufacturer",
+        "DeviceModel",
+        "ProfileDescription"
+      ]
+    },
+    "iptc": {
+      "status": "bounded",
+      "supported_tags": [
+        "Author",
+        "Headline",
+        "Description",
+        "Keywords",
+        "Copyright"
+      ]
+    }
+  },
+  "containers": {
+    "jpeg": {
+      "namespaces": {
+        "exif": "supported",
+        "xmp": "not_yet_supported",
+        "icc": "supported",
+        "iptc": "supported"
+      }
+    },
+    "tiff": {
+      "namespaces": {
+        "exif": "supported",
+        "xmp": "not_yet_supported",
+        "icc": "not_yet_supported",
+        "iptc": "not_yet_supported"
+      }
+    },
+    "png": {
+      "namespaces": {
+        "exif": "supported",
+        "xmp": "supported",
+        "icc": "supported",
+        "iptc": "not_yet_supported"
+      }
+    },
+    "webp": {
+      "namespaces": {
+        "exif": "supported",
+        "xmp": "supported",
+        "icc": "supported",
+        "iptc": "not_yet_supported"
+      }
+    },
+    "heif": {
+      "namespaces": {
+        "exif": "supported",
+        "xmp": "supported",
+        "icc": "not_yet_supported",
+        "iptc": "not_yet_supported"
+      }
+    },
+    "mp4": {
+      "namespaces": {
+        "quicktime": "bounded",
+        "rtmd": "bounded"
+      }
+    },
+    "mov": {
+      "namespaces": {
+        "quicktime": "bounded"
+      }
+    }
+  },
+  "normalized_fields": [
+    "captured_at",
+    "created_at",
+    "modified_at",
+    "device.make",
+    "device.model",
+    "dimensions.width",
+    "dimensions.height",
+    "orientation",
+    "location",
+    "software",
+    "author",
+    "copyright",
+    "headline",
+    "description",
+    "keywords",
+    "color.profile.name",
+    "color.profile.class",
+    "color.space",
+    "duration",
+    "codec.video",
+    "codec.audio"
+  ]
+}

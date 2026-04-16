@@ -259,6 +259,85 @@ fn extract_snapshot_video_only_mp4_normalized() {
 }
 
 #[test]
+fn icc_jpeg_normalization_includes_color_fields() {
+    let output = normalized_map(&extract_json("icc.jpg", ViewMode::Normalized));
+    assert_eq!(
+        output["color.profile.name"]["value"],
+        Value::String("XIFty Display Profile".into())
+    );
+    assert_eq!(
+        output["color.profile.class"]["value"],
+        Value::String("display".into())
+    );
+    assert_eq!(output["color.space"]["value"], Value::String("RGB".into()));
+}
+
+#[test]
+fn iptc_jpeg_normalization_includes_editorial_fields() {
+    let output = normalized_map(&extract_json("iptc.jpg", ViewMode::Normalized));
+    assert_eq!(output["author"]["value"], Value::String("Kai".into()));
+    assert_eq!(
+        output["headline"]["value"],
+        Value::String("XIFty Headline".into())
+    );
+    assert_eq!(
+        output["description"]["value"],
+        Value::String("XIFty Caption".into())
+    );
+    assert_eq!(output["copyright"]["value"], Value::String("XIFty".into()));
+    assert_eq!(
+        output["keywords"]["value"],
+        Value::String("xifty, metadata".into())
+    );
+}
+
+#[test]
+fn icc_png_interpreted_view_includes_icc_fields() {
+    let output = extract_json("icc.png", ViewMode::Interpreted);
+    assert_eq!(
+        interpreted_value(&output, "icc", "ProfileClass"),
+        Some(Value::String("display".into()))
+    );
+    assert_eq!(
+        interpreted_value(&output, "icc", "ColorSpace"),
+        Some(Value::String("RGB".into()))
+    );
+    assert_eq!(
+        interpreted_value(&output, "icc", "ProfileDescription"),
+        Some(Value::String("XIFty Display Profile".into()))
+    );
+}
+
+#[test]
+fn icc_webp_interpreted_view_includes_icc_fields() {
+    let output = extract_json("icc.webp", ViewMode::Interpreted);
+    assert_eq!(
+        interpreted_value(&output, "icc", "ProfileClass"),
+        Some(Value::String("display".into()))
+    );
+    assert_eq!(
+        interpreted_value(&output, "icc", "ColorSpace"),
+        Some(Value::String("RGB".into()))
+    );
+    assert_eq!(
+        interpreted_value(&output, "icc", "ConnectionSpace"),
+        Some(Value::String("XYZ".into()))
+    );
+    assert_eq!(
+        interpreted_value(&output, "icc", "DeviceManufacturer"),
+        Some(Value::String("XFTY".into()))
+    );
+    assert_eq!(
+        interpreted_value(&output, "icc", "DeviceModel"),
+        Some(Value::String("TEST".into()))
+    );
+    assert_eq!(
+        interpreted_value(&output, "icc", "ProfileDescription"),
+        Some(Value::String("XIFty Display Profile".into()))
+    );
+}
+
+#[test]
 fn extract_snapshot_real_camera_mp4_normalized() {
     let Some(output) = extract_optional_json("C0242.MP4", ViewMode::Normalized) else {
         skip_missing_local_fixture("C0242.MP4");
@@ -289,6 +368,22 @@ fn malformed_png_report_snapshot() {
     assert_json_snapshot!(
         "malformed_png_report",
         extract_json("malformed_chunk.png", ViewMode::Report)
+    );
+}
+
+#[test]
+fn malformed_icc_png_report_snapshot() {
+    assert_json_snapshot!(
+        "malformed_icc_png_report",
+        extract_json("malformed_icc.png", ViewMode::Report)
+    );
+}
+
+#[test]
+fn malformed_iptc_jpeg_report_snapshot() {
+    assert_json_snapshot!(
+        "malformed_iptc_jpeg_report",
+        extract_json("malformed_iptc.jpg", ViewMode::Report)
     );
 }
 
@@ -374,6 +469,39 @@ fn no_metadata_mp4_surfaces_empty_metadata_issue() {
 }
 
 #[test]
+fn capability_artifact_declares_iteration_five_support() {
+    let capabilities = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../CAPABILITIES.json");
+    let content = std::fs::read_to_string(capabilities).expect("missing CAPABILITIES.json");
+    let parsed: Value = serde_json::from_str(&content).expect("invalid CAPABILITIES.json");
+
+    assert_eq!(parsed["schema_version"], Value::String("0.1.0".into()));
+    assert_eq!(
+        parsed["namespaces"]["icc"]["status"],
+        Value::String("bounded".into())
+    );
+    assert_eq!(
+        parsed["namespaces"]["iptc"]["status"],
+        Value::String("bounded".into())
+    );
+    assert_eq!(
+        parsed["containers"]["jpeg"]["namespaces"]["icc"],
+        Value::String("supported".into())
+    );
+    assert_eq!(
+        parsed["containers"]["png"]["namespaces"]["icc"],
+        Value::String("supported".into())
+    );
+    assert_eq!(
+        parsed["containers"]["webp"]["namespaces"]["icc"],
+        Value::String("supported".into())
+    );
+    assert_eq!(
+        parsed["containers"]["jpeg"]["namespaces"]["iptc"],
+        Value::String("supported".into())
+    );
+}
+
+#[test]
 fn exiftool_differential_happy_jpeg_supported_fields() {
     differential_assert("happy.jpg", false);
 }
@@ -411,6 +539,26 @@ fn exiftool_differential_happy_mp4_supported_fields() {
 #[test]
 fn exiftool_differential_happy_mov_supported_fields() {
     differential_assert_media("happy.mov");
+}
+
+#[test]
+fn exiftool_differential_icc_jpeg_supported_fields() {
+    differential_assert_icc("icc.jpg");
+}
+
+#[test]
+fn exiftool_differential_icc_png_supported_fields() {
+    differential_assert_icc("icc.png");
+}
+
+#[test]
+fn exiftool_differential_icc_webp_supported_fields() {
+    differential_assert_icc("icc.webp");
+}
+
+#[test]
+fn exiftool_differential_iptc_jpeg_supported_fields() {
+    differential_assert_iptc("iptc.jpg");
 }
 
 #[test]
@@ -882,6 +1030,104 @@ fn differential_assert_media(name: &str) {
     assert_eq!(ours["dimensions.height"]["value"], first["ImageHeight"]);
     assert_eq!(ours["codec.video"]["value"], first["CompressorID"]);
     assert_eq!(ours["codec.audio"]["value"], first["AudioFormat"]);
+}
+
+fn differential_assert_icc(name: &str) {
+    let ours_interpreted = extract_json(name, ViewMode::Interpreted);
+    let ours_normalized = extract_json(name, ViewMode::Normalized);
+    let ours_normalized = normalized_map(&ours_normalized);
+
+    let output = Command::new("exiftool")
+        .args([
+            "-json",
+            "-n",
+            "-ProfileClass",
+            "-ColorSpaceData",
+            "-ProfileDescription",
+            "-DeviceManufacturer",
+            "-DeviceModel",
+        ])
+        .arg(fixture(name))
+        .output()
+        .expect("failed to run exiftool");
+    assert!(
+        output.status.success(),
+        "exiftool failed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let parsed: Value = serde_json::from_slice(&output.stdout).unwrap();
+    let first = &parsed.as_array().unwrap()[0];
+
+    assert_eq!(
+        ours_normalized["color.profile.class"]["value"],
+        Value::String("display".into())
+    );
+    assert_eq!(
+        ours_normalized["color.space"]["value"],
+        Value::String("RGB".into())
+    );
+    assert_eq!(
+        ours_normalized["color.profile.name"]["value"],
+        first["ProfileDescription"]
+    );
+
+    assert_eq!(
+        interpreted_value(&ours_interpreted, "icc", "ProfileDescription"),
+        Some(first["ProfileDescription"].clone())
+    );
+    assert_eq!(
+        interpreted_value(&ours_interpreted, "icc", "DeviceModel"),
+        Some(first["DeviceModel"].clone())
+    );
+
+    let manufacturer = json_stringified(&first["DeviceManufacturer"]).unwrap_or_default();
+    assert!(
+        manufacturer.contains("XFTY"),
+        "expected DeviceManufacturer to mention XFTY, got {manufacturer}"
+    );
+}
+
+fn differential_assert_iptc(name: &str) {
+    let ours = extract_json(name, ViewMode::Normalized);
+    let ours = normalized_map(&ours);
+
+    let output = Command::new("exiftool")
+        .args([
+            "-json",
+            "-n",
+            "-Headline",
+            "-Caption-Abstract",
+            "-By-line",
+            "-CopyrightNotice",
+            "-Keywords",
+        ])
+        .arg(fixture(name))
+        .output()
+        .expect("failed to run exiftool");
+    assert!(
+        output.status.success(),
+        "exiftool failed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let parsed: Value = serde_json::from_slice(&output.stdout).unwrap();
+    let first = &parsed.as_array().unwrap()[0];
+
+    assert_eq!(ours["headline"]["value"], first["Headline"]);
+    assert_eq!(ours["description"]["value"], first["Caption-Abstract"]);
+    assert_eq!(ours["author"]["value"], first["By-line"]);
+    assert_eq!(ours["copyright"]["value"], first["CopyrightNotice"]);
+
+    let keywords = first["Keywords"]
+        .as_array()
+        .map(|values| {
+            values
+                .iter()
+                .filter_map(json_stringified)
+                .collect::<Vec<_>>()
+                .join(", ")
+        })
+        .unwrap_or_default();
+    assert_eq!(ours["keywords"]["value"], Value::String(keywords));
 }
 
 fn differential_assert_camera_mp4(name: &str) {

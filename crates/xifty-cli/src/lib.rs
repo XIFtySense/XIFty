@@ -1,15 +1,19 @@
+use flate2::read::ZlibDecoder;
+use std::io::Read;
 use xifty_container_isobmff::parse as parse_isobmff;
 use xifty_container_jpeg::parse as parse_jpeg;
 use xifty_container_png::parse as parse_png;
 use xifty_container_riff::parse as parse_riff;
 use xifty_container_tiff::parse as parse_tiff;
 use xifty_core::{
-    AnalysisOutput, Format, InterpretedView, MetadataEntry, ProbeInput, ProbeOutput, Provenance,
-    RawView, SCHEMA_VERSION, TypedValue, ViewMode, XiftyError,
+    AnalysisOutput, Format, InterpretedView, Issue, MetadataEntry, ProbeInput, ProbeOutput,
+    Provenance, RawView, SCHEMA_VERSION, Severity, TypedValue, ViewMode, XiftyError,
 };
 use xifty_detect::detect;
 use xifty_meta_apple::decode_from_tiff as decode_apple_from_tiff;
 use xifty_meta_exif::{decode_from_tiff, exif_payload_from_jpeg};
+use xifty_meta_icc::{IccPayload, decode_payload as decode_icc_payload};
+use xifty_meta_iptc::{IptcPayload, decode_payload as decode_iptc_payload};
 use xifty_meta_quicktime::{QuickTimePayload, decode_payload as decode_quicktime_payload};
 use xifty_meta_rtmd::{RtmdPacket, decode_packet as decode_rtmd_packet};
 use xifty_meta_sony::decode_from_tiff as decode_sony_from_tiff;
@@ -74,28 +78,65 @@ pub fn extract_path(
         Format::Jpeg => {
             let jpeg = parse_jpeg(&source)?;
             let mut issues = jpeg.issues.clone();
-            let entries = if let Some((base_offset, exif_payload)) = exif_payload_from_jpeg(&jpeg) {
-                let tiff =
-                    xifty_container_tiff::parse_bytes(exif_payload, base_offset, "jpeg_exif")?;
-                issues.extend(tiff.issues.clone());
-                let mut entries = decode_from_tiff(exif_payload, base_offset, "jpeg", &tiff);
-                entries.extend(decode_apple_from_tiff(
-                    exif_payload,
-                    "jpeg",
-                    &tiff,
-                    &entries,
-                ));
-                entries.extend(decode_sony_from_tiff(
-                    exif_payload,
-                    base_offset,
-                    "jpeg",
-                    &tiff,
-                    &entries,
-                ));
-                entries
-            } else {
-                Vec::new()
-            };
+            let mut entries =
+                if let Some((base_offset, exif_payload)) = exif_payload_from_jpeg(&jpeg) {
+                    let tiff =
+                        xifty_container_tiff::parse_bytes(exif_payload, base_offset, "jpeg_exif")?;
+                    issues.extend(tiff.issues.clone());
+                    let mut entries = decode_from_tiff(exif_payload, base_offset, "jpeg", &tiff);
+                    entries.extend(decode_apple_from_tiff(
+                        exif_payload,
+                        "jpeg",
+                        &tiff,
+                        &entries,
+                    ));
+                    entries.extend(decode_sony_from_tiff(
+                        exif_payload,
+                        base_offset,
+                        "jpeg",
+                        &tiff,
+                        &entries,
+                    ));
+                    entries
+                } else {
+                    Vec::new()
+                };
+            for (offset_start, payload) in jpeg.icc_payloads() {
+                let decoded = decode_icc_payload(IccPayload {
+                    bytes: payload,
+                    container: "jpeg",
+                    path: "app2_icc",
+                    offset_start,
+                    offset_end: offset_start + payload.len() as u64,
+                });
+                if decoded.is_empty() {
+                    issues.push(namespace_issue(
+                        "icc_decode_empty",
+                        "recognized ICC payload but could not decode bounded ICC fields",
+                        offset_start,
+                        "app2_icc",
+                    ));
+                }
+                entries.extend(decoded);
+            }
+            for (offset_start, payload) in jpeg.iptc_payloads() {
+                let decoded = decode_iptc_payload(IptcPayload {
+                    bytes: payload,
+                    container: "jpeg",
+                    path: "app13_iptc",
+                    offset_start,
+                    offset_end: offset_start + payload.len() as u64,
+                });
+                if decoded.is_empty() {
+                    issues.push(namespace_issue(
+                        "iptc_decode_empty",
+                        "recognized IPTC payload but could not decode bounded IPTC datasets",
+                        offset_start,
+                        "app13_iptc",
+                    ));
+                }
+                entries.extend(decoded);
+            }
             ("jpeg".to_string(), jpeg.nodes, entries, issues)
         }
         Format::Tiff => {
@@ -119,6 +160,7 @@ pub fn extract_path(
         Format::Png => {
             let png = parse_png(&source)?;
             let mut entries = Vec::new();
+            let mut issues = png.issues.clone();
             for chunk in png.exif_payloads() {
                 if let Some(payload) = payload_slice(
                     source.bytes(),
@@ -146,11 +188,45 @@ pub fn extract_path(
                     ));
                 }
             }
-            ("png".to_string(), png.nodes, entries, png.issues)
+            for chunk in png.icc_payloads() {
+                if let Some(payload) = payload_slice(
+                    source.bytes(),
+                    chunk.data_offset,
+                    chunk.data_length as usize,
+                ) {
+                    if let Some(icc_bytes) = decode_png_iccp_payload(payload) {
+                        let decoded = decode_icc_payload(IccPayload {
+                            bytes: &icc_bytes,
+                            container: "png",
+                            path: "iCCP",
+                            offset_start: chunk.offset_start,
+                            offset_end: chunk.offset_end,
+                        });
+                        if decoded.is_empty() {
+                            issues.push(namespace_issue(
+                                "icc_decode_empty",
+                                "recognized ICC payload but could not decode bounded ICC fields",
+                                chunk.offset_start,
+                                "iCCP",
+                            ));
+                        }
+                        entries.extend(decoded);
+                    } else {
+                        issues.push(namespace_issue(
+                            "png_icc_payload_invalid",
+                            "PNG iCCP payload could not be decompressed",
+                            chunk.offset_start,
+                            "iCCP",
+                        ));
+                    }
+                }
+            }
+            ("png".to_string(), png.nodes, entries, issues)
         }
         Format::Webp => {
             let riff = parse_riff(&source)?;
             let mut entries = Vec::new();
+            let mut issues = riff.issues.clone();
             for chunk in riff.xmp_payloads() {
                 if let Some(payload) = payload_slice(
                     source.bytes(),
@@ -178,7 +254,31 @@ pub fn extract_path(
                     }
                 }
             }
-            ("webp".to_string(), riff.nodes, entries, riff.issues)
+            for chunk in riff.icc_payloads() {
+                if let Some(payload) = payload_slice(
+                    source.bytes(),
+                    chunk.data_offset,
+                    chunk.data_length as usize,
+                ) {
+                    let decoded = decode_icc_payload(IccPayload {
+                        bytes: payload,
+                        container: "webp",
+                        path: "ICCP",
+                        offset_start: chunk.offset_start,
+                        offset_end: chunk.offset_end,
+                    });
+                    if decoded.is_empty() {
+                        issues.push(namespace_issue(
+                            "icc_decode_empty",
+                            "recognized ICC payload but could not decode bounded ICC fields",
+                            chunk.offset_start,
+                            "ICCP",
+                        ));
+                    }
+                    entries.extend(decoded);
+                }
+            }
+            ("webp".to_string(), riff.nodes, entries, issues)
         }
         Format::Heif => {
             let isobmff = parse_isobmff(&source)?;
@@ -243,6 +343,29 @@ pub fn extract_path(
 fn payload_slice(bytes: &[u8], absolute_offset: u64, len: usize) -> Option<&[u8]> {
     let start = usize::try_from(absolute_offset).ok()?;
     bytes.get(start..start + len)
+}
+
+fn decode_png_iccp_payload(payload: &[u8]) -> Option<Vec<u8>> {
+    let separator = payload.iter().position(|byte| *byte == 0)?;
+    let compression_method = *payload.get(separator + 1)?;
+    if compression_method != 0 {
+        return None;
+    }
+    let compressed = payload.get(separator + 2..)?;
+    let mut decoder = ZlibDecoder::new(compressed);
+    let mut decoded = Vec::new();
+    decoder.read_to_end(&mut decoded).ok()?;
+    Some(decoded)
+}
+
+fn namespace_issue(code: &str, message: &str, offset: u64, context: &str) -> Issue {
+    Issue {
+        severity: Severity::Warning,
+        code: code.into(),
+        message: message.into(),
+        offset: Some(offset),
+        context: Some(context.into()),
+    }
 }
 
 fn heif_exif_tiff(payload: &[u8], absolute_offset: u64) -> Option<(u64, &[u8])> {

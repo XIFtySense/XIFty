@@ -26,6 +26,26 @@ impl JpegContainer {
             }
         })
     }
+
+    pub fn icc_payloads(&self) -> impl Iterator<Item = (u64, &[u8])> {
+        self.segments.iter().filter_map(|segment| {
+            if segment.marker == 0xE2 && segment.payload.starts_with(b"ICC_PROFILE\0") {
+                Some((segment.offset_start + 4, segment.payload.as_slice()))
+            } else {
+                None
+            }
+        })
+    }
+
+    pub fn iptc_payloads(&self) -> impl Iterator<Item = (u64, &[u8])> {
+        self.segments.iter().filter_map(|segment| {
+            if segment.marker == 0xED && segment.payload.starts_with(b"Photoshop 3.0\0") {
+                Some((segment.offset_start + 4, segment.payload.as_slice()))
+            } else {
+                None
+            }
+        })
+    }
 }
 
 pub fn parse(source: &SourceBytes) -> Result<JpegContainer, XiftyError> {

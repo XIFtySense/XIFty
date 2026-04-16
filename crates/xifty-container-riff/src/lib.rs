@@ -30,6 +30,12 @@ impl RiffContainer {
             .iter()
             .filter(|chunk| &chunk.chunk_id == b"XMP ")
     }
+
+    pub fn icc_payloads(&self) -> impl Iterator<Item = &RiffChunk> {
+        self.chunks
+            .iter()
+            .filter(|chunk| &chunk.chunk_id == b"ICCP")
+    }
 }
 
 pub fn parse(source: &SourceBytes) -> Result<RiffContainer, XiftyError> {
