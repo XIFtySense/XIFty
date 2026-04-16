@@ -9,6 +9,17 @@ fn fixture(name: &str) -> std::path::PathBuf {
         .join(name)
 }
 
+fn local_fixture(name: &str) -> std::path::PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../fixtures/local")
+        .join(name)
+}
+
+fn optional_fixture(name: &str) -> Option<std::path::PathBuf> {
+    let local = local_fixture(name);
+    local.exists().then_some(local)
+}
+
 fn scrub_path(value: &mut Value) {
     if let Some(path_value) = value
         .get_mut("input")
@@ -32,10 +43,21 @@ fn extract_json(name: &str, view: ViewMode) -> Value {
     value
 }
 
+fn extract_optional_json(name: &str, view: ViewMode) -> Option<Value> {
+    let path = optional_fixture(name)?;
+    let mut value = serde_json::to_value(xifty_cli::extract_path(path, view).unwrap()).unwrap();
+    scrub_path(&mut value);
+    Some(value)
+}
+
 fn probe_json(name: &str) -> Value {
     let mut value = serde_json::to_value(xifty_cli::probe_path(fixture(name)).unwrap()).unwrap();
     scrub_path(&mut value);
     value
+}
+
+fn skip_missing_local_fixture(name: &str) {
+    eprintln!("skipping optional local fixture test for {name}");
 }
 
 fn normalized_map(output: &Value) -> std::collections::BTreeMap<String, Value> {
@@ -238,18 +260,20 @@ fn extract_snapshot_video_only_mp4_normalized() {
 
 #[test]
 fn extract_snapshot_real_camera_mp4_normalized() {
-    assert_json_snapshot!(
-        "extract_real_camera_mp4_normalized",
-        extract_json("C0242.MP4", ViewMode::Normalized)
-    );
+    let Some(output) = extract_optional_json("C0242.MP4", ViewMode::Normalized) else {
+        skip_missing_local_fixture("C0242.MP4");
+        return;
+    };
+    assert_json_snapshot!("extract_real_camera_mp4_normalized", output);
 }
 
 #[test]
 fn extract_snapshot_real_camera_mp4_interpreted() {
-    assert_json_snapshot!(
-        "extract_real_camera_mp4_interpreted",
-        extract_json("C0242.MP4", ViewMode::Interpreted)
-    );
+    let Some(output) = extract_optional_json("C0242.MP4", ViewMode::Interpreted) else {
+        skip_missing_local_fixture("C0242.MP4");
+        return;
+    };
+    assert_json_snapshot!("extract_real_camera_mp4_interpreted", output);
 }
 
 #[test]
@@ -391,6 +415,10 @@ fn exiftool_differential_happy_mov_supported_fields() {
 
 #[test]
 fn exiftool_differential_real_camera_mp4_supported_fields() {
+    if optional_fixture("C0242.MP4").is_none() {
+        skip_missing_local_fixture("C0242.MP4");
+        return;
+    }
     differential_assert_camera_mp4("C0242.MP4");
 }
 
@@ -416,7 +444,11 @@ fn video_only_mp4_omits_audio_codec() {
 
 #[test]
 fn sony_jpeg_normalization_includes_richer_standard_exif_fields() {
-    let output = normalized_map(&extract_json("DSC04504.JPG", ViewMode::Normalized));
+    let Some(output) = extract_optional_json("DSC04504.JPG", ViewMode::Normalized) else {
+        skip_missing_local_fixture("DSC04504.JPG");
+        return;
+    };
+    let output = normalized_map(&output);
 
     assert_eq!(
         output["captured_at"]["value"],
@@ -441,7 +473,10 @@ fn sony_jpeg_normalization_includes_richer_standard_exif_fields() {
 
 #[test]
 fn sony_jpeg_interpreted_view_names_common_exif_camera_tags() {
-    let output = extract_json("DSC04504.JPG", ViewMode::Interpreted);
+    let Some(output) = extract_optional_json("DSC04504.JPG", ViewMode::Interpreted) else {
+        skip_missing_local_fixture("DSC04504.JPG");
+        return;
+    };
     let metadata = output["interpreted"]["metadata"].as_array().unwrap();
 
     let tag_names: std::collections::BTreeSet<_> = metadata
@@ -470,7 +505,10 @@ fn sony_jpeg_interpreted_view_names_common_exif_camera_tags() {
 
 #[test]
 fn sony_jpeg_interpreted_view_includes_sony_makernote_fields() {
-    let output = extract_json("DSC04504.JPG", ViewMode::Interpreted);
+    let Some(output) = extract_optional_json("DSC04504.JPG", ViewMode::Interpreted) else {
+        skip_missing_local_fixture("DSC04504.JPG");
+        return;
+    };
 
     assert_eq!(
         interpreted_value(&output, "sony", "SonyDateTime"),
@@ -524,10 +562,14 @@ fn sony_jpeg_interpreted_view_includes_sony_makernote_fields() {
 
 #[test]
 fn apple_jpeg_normalization_includes_standard_fields() {
-    let output = normalized_map(&extract_json(
+    let Some(output) = extract_optional_json(
         "IMG_5B74BABE-DF0A-48EB-A6A4-6AAA54D5198E.JPEG",
         ViewMode::Normalized,
-    ));
+    ) else {
+        skip_missing_local_fixture("IMG_5B74BABE-DF0A-48EB-A6A4-6AAA54D5198E.JPEG");
+        return;
+    };
+    let output = normalized_map(&output);
 
     assert_eq!(
         output["captured_at"]["value"],
@@ -557,10 +599,13 @@ fn apple_jpeg_normalization_includes_standard_fields() {
 
 #[test]
 fn apple_jpeg_interpreted_view_names_common_exif_camera_tags() {
-    let output = extract_json(
+    let Some(output) = extract_optional_json(
         "IMG_5B74BABE-DF0A-48EB-A6A4-6AAA54D5198E.JPEG",
         ViewMode::Interpreted,
-    );
+    ) else {
+        skip_missing_local_fixture("IMG_5B74BABE-DF0A-48EB-A6A4-6AAA54D5198E.JPEG");
+        return;
+    };
     let metadata = output["interpreted"]["metadata"].as_array().unwrap();
 
     let tag_names: std::collections::BTreeSet<_> = metadata
@@ -587,10 +632,13 @@ fn apple_jpeg_interpreted_view_names_common_exif_camera_tags() {
 
 #[test]
 fn apple_jpeg_interpreted_view_includes_apple_makernote_fields() {
-    let output = extract_json(
+    let Some(output) = extract_optional_json(
         "IMG_5B74BABE-DF0A-48EB-A6A4-6AAA54D5198E.JPEG",
         ViewMode::Interpreted,
-    );
+    ) else {
+        skip_missing_local_fixture("IMG_5B74BABE-DF0A-48EB-A6A4-6AAA54D5198E.JPEG");
+        return;
+    };
 
     assert_eq!(
         interpreted_value(&output, "apple", "MakerNoteVersion"),
@@ -837,7 +885,8 @@ fn differential_assert_media(name: &str) {
 }
 
 fn differential_assert_camera_mp4(name: &str) {
-    let ours = extract_json(name, ViewMode::Normalized);
+    let ours = extract_optional_json(name, ViewMode::Normalized)
+        .unwrap_or_else(|| panic!("missing optional local fixture {name}"));
     let ours = normalized_map(&ours);
 
     let output = Command::new("exiftool")
@@ -853,7 +902,10 @@ fn differential_assert_camera_mp4(name: &str) {
             "-DeviceManufacturer",
             "-DeviceModelName",
         ])
-        .arg(fixture(name))
+        .arg(
+            optional_fixture(name)
+                .unwrap_or_else(|| panic!("missing optional local fixture {name}")),
+        )
         .output()
         .expect("failed to run exiftool");
     assert!(
@@ -874,7 +926,10 @@ fn differential_assert_camera_mp4(name: &str) {
 
 #[test]
 fn exiftool_differential_real_camera_jpeg_supported_fields() {
-    let ours = extract_json("DSC04504.JPG", ViewMode::Normalized);
+    let Some(ours) = extract_optional_json("DSC04504.JPG", ViewMode::Normalized) else {
+        skip_missing_local_fixture("DSC04504.JPG");
+        return;
+    };
     let ours = normalized_map(&ours);
 
     let output = Command::new("exiftool")
@@ -892,7 +947,7 @@ fn exiftool_differential_real_camera_jpeg_supported_fields() {
             "-Orientation",
             "-LensModel",
         ])
-        .arg(fixture("DSC04504.JPG"))
+        .arg(optional_fixture("DSC04504.JPG").unwrap())
         .output()
         .expect("failed to run exiftool");
     assert!(
@@ -925,7 +980,10 @@ fn exiftool_differential_real_camera_jpeg_supported_fields() {
 
 #[test]
 fn exiftool_differential_real_camera_jpeg_sony_makernote_fields() {
-    let ours = extract_json("DSC04504.JPG", ViewMode::Interpreted);
+    let Some(ours) = extract_optional_json("DSC04504.JPG", ViewMode::Interpreted) else {
+        skip_missing_local_fixture("DSC04504.JPG");
+        return;
+    };
 
     let output = Command::new("exiftool")
         .args([
@@ -948,7 +1006,7 @@ fn exiftool_differential_real_camera_jpeg_sony_makernote_fields() {
             "-FlashMode",
             "-Quality2",
         ])
-        .arg(fixture("DSC04504.JPG"))
+        .arg(optional_fixture("DSC04504.JPG").unwrap())
         .output()
         .expect("failed to run exiftool");
     assert!(
@@ -1033,10 +1091,13 @@ fn exiftool_differential_real_camera_jpeg_sony_makernote_fields() {
 
 #[test]
 fn exiftool_differential_apple_jpeg_supported_fields() {
-    let ours = extract_json(
+    let Some(ours) = extract_optional_json(
         "IMG_5B74BABE-DF0A-48EB-A6A4-6AAA54D5198E.JPEG",
         ViewMode::Normalized,
-    );
+    ) else {
+        skip_missing_local_fixture("IMG_5B74BABE-DF0A-48EB-A6A4-6AAA54D5198E.JPEG");
+        return;
+    };
     let ours = normalized_map(&ours);
 
     let output = Command::new("exiftool")
@@ -1053,7 +1114,7 @@ fn exiftool_differential_apple_jpeg_supported_fields() {
             "-ImageHeight",
             "-Orientation",
         ])
-        .arg(fixture("IMG_5B74BABE-DF0A-48EB-A6A4-6AAA54D5198E.JPEG"))
+        .arg(optional_fixture("IMG_5B74BABE-DF0A-48EB-A6A4-6AAA54D5198E.JPEG").unwrap())
         .output()
         .expect("failed to run exiftool");
     assert!(
@@ -1086,10 +1147,13 @@ fn exiftool_differential_apple_jpeg_supported_fields() {
 
 #[test]
 fn exiftool_differential_apple_jpeg_makernote_fields() {
-    let ours = extract_json(
+    let Some(ours) = extract_optional_json(
         "IMG_5B74BABE-DF0A-48EB-A6A4-6AAA54D5198E.JPEG",
         ViewMode::Interpreted,
-    );
+    ) else {
+        skip_missing_local_fixture("IMG_5B74BABE-DF0A-48EB-A6A4-6AAA54D5198E.JPEG");
+        return;
+    };
 
     let output = Command::new("exiftool")
         .args([
@@ -1117,7 +1181,7 @@ fn exiftool_differential_apple_jpeg_makernote_fields() {
             "-AFMeasuredDepth",
             "-AFConfidence",
         ])
-        .arg(fixture("IMG_5B74BABE-DF0A-48EB-A6A4-6AAA54D5198E.JPEG"))
+        .arg(optional_fixture("IMG_5B74BABE-DF0A-48EB-A6A4-6AAA54D5198E.JPEG").unwrap())
         .output()
         .expect("failed to run exiftool");
     assert!(
