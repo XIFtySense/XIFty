@@ -42,6 +42,7 @@ This checklist turns the public-readiness and CI/CD plan into executable work.
 - [x] Add `concurrency` to cancel superseded runs
 - [x] Use dependency caching intentionally
 - [x] Keep local-only fixture tests out of required CI
+- [x] Keep ExifTool-backed oracle checks out of the default core CI path
 
 ## Workflow Hygiene
 
@@ -71,3 +72,5 @@ This checklist turns the public-readiness and CI/CD plan into executable work.
 - The main repo now treats language packages as external, canonical repos.
 - `xifty-ffi` remains the single embedding seam inside the core repo.
 - The in-repo example surface is intentionally minimal and centered on the ABI.
+- Oracle-backed ExifTool differentials now belong to optional hygiene
+  verification, not the default core CI workflow.

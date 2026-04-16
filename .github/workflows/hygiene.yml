@@ -35,3 +35,23 @@ jobs:
 
       - name: Verify checked-in header matches generated output
         run: cargo test -p xifty-ffi checked_in_header_matches_generated_output -- --exact
+
+  oracle-differentials:
+    name: Oracle Differentials
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo artifacts
+        uses: Swatinem/rust-cache@v2
+
+      - name: Install ExifTool
+        run: sudo apt-get update && sudo apt-get install -y libimage-exiftool-perl
+
+      - name: Run ExifTool-backed differential tests
+        run: cargo test -p xifty-cli exiftool_differential_ -- --nocapture
