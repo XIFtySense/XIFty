@@ -4,9 +4,9 @@ This checklist turns the iteration-two plan into executable work.
 
 ## Goal
 
-- [ ] Prove still-image metadata reconciliation across multiple containers and namespaces
-- [ ] Keep the CLI and JSON contract backward compatible
-- [ ] Preserve clean separation between parsing, interpretation, policy, and normalization
+- [x] Prove still-image metadata reconciliation across multiple containers and namespaces
+- [x] Keep the CLI and JSON contract backward compatible
+- [x] Preserve clean separation between parsing, interpretation, policy, and normalization
 
 ## New Crates
 
@@ -111,4 +111,11 @@ Supported XMP-derived fields for iteration two:
 - [x] XMP appears in raw and interpreted output with provenance
 - [x] Normalized output can reconcile EXIF and XMP candidates
 - [x] Conflicts are explicit and test-covered
-- [ ] The codebase remains cleanly layered
+- [x] The codebase remains cleanly layered
+
+## Closeout Notes
+
+- Reconciliation is now proven across JPEG, TIFF, PNG, and WebP, with EXIF-only, XMP-only, mixed-source, and conflicting-source fixtures covered by snapshot and differential tests.
+- The CLI contract remains backward compatible: `probe`, `extract`, and `--view` are unchanged, and iteration-two additions are additive within the existing JSON envelope.
+- Layering remains intact in code: `xifty-container-*` crates surface payload locations, `xifty-meta-*` crates decode namespace data, `xifty-policy` makes precedence decisions, `xifty-normalize` derives normalized fields, and `xifty-cli` stays orchestration-only.
+- Verification for this closeout pass: `cargo test --workspace`.
