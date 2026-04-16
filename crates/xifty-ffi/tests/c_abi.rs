@@ -26,7 +26,9 @@ fn cbindgen_bin() -> PathBuf {
 #[test]
 fn checked_in_header_matches_generated_output() {
     if std::env::var("XIFTY_REQUIRE_CBINDGEN").as_deref() != Ok("1") {
-        eprintln!("skipping checked_in_header_matches_generated_output because cbindgen is not required in this test context");
+        eprintln!(
+            "skipping checked_in_header_matches_generated_output because cbindgen is not required in this test context"
+        );
         return;
     }
 
