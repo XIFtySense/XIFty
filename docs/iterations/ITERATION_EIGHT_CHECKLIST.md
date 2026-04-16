@@ -55,17 +55,17 @@ This checklist turns the public-readiness and CI/CD plan into executable work.
 
 - [x] Confirm README works for first-time visitors
 - [x] Confirm contributor entry docs are clear
-- [ ] Confirm CI is green on `main`
+- [x] Confirm CI is green on `main`
 - [x] Confirm branch/PR expectations are documented
 - [x] Confirm no sensitive or oversized local fixtures are tracked
-- [ ] Confirm the repo can be opened without immediate follow-up cleanup
+- [x] Confirm the repo can be opened without immediate follow-up cleanup
 
 ## Done Criteria
 
 - [x] The root repo presents XIFty clearly to outsiders
-- [ ] The CLI is the obvious first product surface
-- [ ] GitHub Actions validates the project cleanly before the visibility flip
-- [ ] Making the repo public is a deliberate release step, not a cleanup step
+- [x] The CLI is the obvious first product surface
+- [x] GitHub Actions validates the project cleanly before the visibility flip
+- [x] Making the repo public is a deliberate release step, not a cleanup step
 
 ## Closeout Notes
 
