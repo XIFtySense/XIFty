@@ -2,98 +2,110 @@
 
 XIFty is a modern metadata engine for media files.
 
-It is being designed as a better architectural foundation for metadata work, not just a smaller clone of ExifTool. The focus is on portable parsing, clean layering, stable normalized output, provenance, conflict handling, and validation.
+It is being built as a cleaner architectural foundation for metadata work, not
+as a smaller clone of ExifTool. The goal is to make metadata more
+understandable, trustworthy, and embeddable by separating parsing,
+interpretation, normalization, validation, and conflict reporting.
 
-## Vision
+## Why XIFty
 
-Metadata in real files is messy. Multiple namespaces can overlap, timestamps can conflict, tags can be malformed, and app-facing systems still need a stable answer.
+Metadata in real files is messy:
 
-XIFty is intended to expose four useful views of an asset:
+- multiple namespaces can overlap
+- timestamps can conflict
+- vendor-specific metadata can matter as much as standards metadata
+- applications still need stable, app-facing answers
 
-- `raw` source tags and namespaces
-- `interpreted` typed and decoded values
-- `normalized` stable app-facing fields
-- `report` warnings, conflicts, provenance, and confidence notes
+XIFty makes that model explicit through four views of the same asset:
 
-That makes it useful for both pipelines and humans.
+- `raw`
+- `interpreted`
+- `normalized`
+- `report`
 
-For the fuller product framing, see [VISION.md](./VISION.md).
+## Quickstart
 
-## Technical Direction
-
-The current direction is:
-
-- `Rust` core
-- `C ABI` as the stable embedding surface
-- bindings for `Node`, `Python`, and `Swift`
-- `TypeScript` for docs, SDK ergonomics, and inspector UI
-- `Python` tooling for corpus analysis, fuzz triage, and ExifTool comparison
-
-## Architecture
-
-XIFty is expected to follow a layered architecture:
-
-- source and IO adapters
-- format and container parsers
-- metadata namespace parsers
-- semantic model
-- normalization layer
-- policy and precedence rules
-- validation and reporting
-- CLI and FFI surfaces
-
-One core rule shapes the design:
-
-container parsing and metadata interpretation must stay separate
-
-## MVP
-
-The initial target scope is:
-
-- JPEG / TIFF
-- PNG / WebP
-- HEIC / HEIF
-- MP4 / MOV
-- EXIF / XMP / IPTC / ICC / QuickTime keys
-- raw + normalized JSON output
-- validation and conflict reporting
-- ExifTool differential comparison tooling
-
-Write support is intentionally out of scope for v1.
-
-## Status
-
-This repository now includes the first implementation slice for:
-
-- JPEG / TIFF detection
-- JPEG APP1 EXIF extraction
-- TIFF / IFD traversal
-- PNG / WebP EXIF and XMP routing
-- HEIC / HEIF detection and initial ISOBMFF routing
-- MP4 / MOV detection and bounded media metadata routing
-- EXIF decoding for the initial normalized fields
-- XMP decoding and EXIF/XMP reconciliation
-- QuickTime textual metadata decoding for bounded media fixtures
-- normalized media fields for duration, codecs, and movie timestamps
-- JSON-only CLI output
-- checked-in synthetic/minimal fixtures
-- optional local-only real camera regression fixtures under `fixtures/local/`
-- snapshot tests plus ExifTool differential tests for the currently supported oracle-backed fixtures
-- vendored real-world HEIF differential coverage for iteration three
-- dedicated vendor-specific metadata paths for Sony MakerNotes, Sony RTMD, and Apple MakerNotes
-- bounded ICC and IPTC namespace support with capability reporting in `CAPABILITIES.json`
-
-Current CLI:
+Build and run the CLI directly from the repo:
 
 ```bash
 cargo run -p xifty-cli -- probe fixtures/minimal/happy.jpg
 cargo run -p xifty-cli -- extract fixtures/minimal/happy.jpg
 cargo run -p xifty-cli -- extract fixtures/minimal/gps.jpg --view normalized
-cargo run -p xifty-cli -- extract fixtures/minimal/mixed.heic --view normalized
-cargo run -p xifty-cli -- extract fixtures/minimal/happy.mp4 --view normalized
 ```
 
-Verification:
+Or install the CLI locally from the workspace:
+
+```bash
+cargo install --path crates/xifty-cli
+xifty-cli probe fixtures/minimal/happy.jpg
+```
+
+The two core commands are:
+
+- `probe <path>`: detect the container and surface top-level issues
+- `extract <path> [--view raw|interpreted|normalized|report]`: emit the JSON
+  envelope or a selected view
+
+## What XIFty Supports Today
+
+Current container coverage:
+
+- JPEG / TIFF
+- PNG / WebP
+- HEIF / HEIC
+- MP4 / MOV
+
+Current namespace coverage:
+
+- EXIF
+- XMP
+- bounded ICC
+- bounded IPTC
+- bounded QuickTime
+- selected Sony and Apple vendor metadata paths
+
+Current product surfaces:
+
+- CLI
+- JSON-first `C ABI`
+- a minimal C example proving the ABI seam locally
+- extracted org repos for Node, Swift, Python, Go, Rust, and C++
+
+Support claims are tracked explicitly in [CAPABILITIES.json](./CAPABILITIES.json).
+Keep that artifact narrow and honest.
+
+## What Makes It Different
+
+XIFty is opinionated about structure:
+
+- container parsing and metadata interpretation stay separate
+- normalized fields are policy-driven
+- provenance, conflicts, and issues are first-class output concerns
+- malformed files are reported explicitly instead of hand-waved away
+- embeddability matters as much as CLI ergonomics
+
+## Repository Map
+
+Start here:
+
+- [VISION.md](./VISION.md): product thesis and long-term ambition
+- [STATE_OF_THE_PROJECT.md](./STATE_OF_THE_PROJECT.md): honest current-state assessment
+- [CONTRIBUTING.md](./CONTRIBUTING.md): contributor entry point
+- [ENGINEERING_PRINCIPLES.md](./ENGINEERING_PRINCIPLES.md): clean-code and clean-architecture expectations
+- [FFI_CONTRACT.md](./FFI_CONTRACT.md): embedding contract for the `C ABI`
+- [docs/README.md](./docs/README.md): architecture, research, and iteration history
+
+Important directories:
+
+- `crates/`: Rust workspace crates
+- `fixtures/minimal/`: checked-in fixtures for examples and tests
+- `fixtures/local/`: local-only larger real-world regression fixtures
+- `examples/`: minimal core-repo examples, currently centered on the C ABI seam
+- `fuzz/`: parser and routing fuzz targets
+
+## Verification
+
+Core verification:
 
 ```bash
 cargo test --workspace
@@ -106,66 +118,28 @@ cbindgen --config cbindgen.toml --crate xifty-ffi --output include/xifty.h --lan
 cargo test -p xifty-ffi
 ```
 
-FFI example:
+## Public Binding Repos
 
-```bash
-cargo build -p xifty-ffi
-cc examples/c/basic_usage.c -I include -L target/debug -lxifty_ffi -o target/basic_usage
-./target/basic_usage fixtures/minimal/happy.jpg
-```
+- [XIFtyNode](https://github.com/XIFtySense/XIFtyNode)
+- [XIFtySwift](https://github.com/XIFtySense/XIFtySwift)
+- [XIFtyPython](https://github.com/XIFtySense/XIFtyPython)
+- [XIFtyGo](https://github.com/XIFtySense/XIFtyGo)
+- [XIFtyRust](https://github.com/XIFtySense/XIFtyRust)
+- [XIFtyCpp](https://github.com/XIFtySense/XIFtyCpp)
 
-Python binding example:
+Several of those repos still build against a sibling checkout of this core
+repository today. Distribution hardening is an active next-stage concern.
 
-```bash
-cargo build -p xifty-ffi
-PYTHONPATH=bindings/python python3 examples/python/basic_usage.py
-```
+The main XIFty repository is intentionally the core engine repo. Canonical
+language package implementations now live in their own repositories rather than
+remaining duplicated under this repo.
 
-Node binding example:
-
-```bash
-cargo build -p xifty-ffi
-cd bindings/node
-npm install
-node ../../examples/node/basic_usage.js
-```
-
-Swift binding example:
-
-```bash
-cargo build -p xifty-ffi
-cd bindings/swift
-DYLD_LIBRARY_PATH=../../target/debug swift test
-```
+## Notes
 
 Large real-world camera/media examples are intentionally not stored in git.
-Keep those under `fixtures/local/` when you want the optional real-camera
+Keep those under `fixtures/local/` when you want optional real-camera
 regression and differential tests to run.
 
-Fuzz targets are scaffolded under `fuzz/`. The earlier parser targets were smoke-tested with `cargo fuzz run` under a nightly Rust toolchain; the newer ISOBMFF and HEIF-routing targets are checked in and await a clean local nightly `cargo-fuzz` resolution on this machine.
-
-Supported capability claims are recorded explicitly in [CAPABILITIES.json](./CAPABILITIES.json). Keep that artifact narrow and honest; it should describe what XIFty actually supports today, not intended future scope.
-
-Planning docs:
-
-- [VISION.md](./VISION.md)
-- [RESEARCH.md](./RESEARCH.md)
-- [ARCHITECTURE_PLAN.md](./ARCHITECTURE_PLAN.md)
-- [STATE_OF_THE_PROJECT.md](./STATE_OF_THE_PROJECT.md)
-- [ITERATION_ONE_CHECKLIST.md](./ITERATION_ONE_CHECKLIST.md)
-- [ITERATION_TWO_PLAN.md](./ITERATION_TWO_PLAN.md)
-- [ITERATION_TWO_CHECKLIST.md](./ITERATION_TWO_CHECKLIST.md)
-- [ITERATION_THREE_PLAN.md](./ITERATION_THREE_PLAN.md)
-- [ITERATION_THREE_CHECKLIST.md](./ITERATION_THREE_CHECKLIST.md)
-- [ITERATION_FOUR_PLAN.md](./ITERATION_FOUR_PLAN.md)
-- [ITERATION_FOUR_CHECKLIST.md](./ITERATION_FOUR_CHECKLIST.md)
-- [ITERATION_FIVE_PLAN.md](./ITERATION_FIVE_PLAN.md)
-- [ITERATION_FIVE_CHECKLIST.md](./ITERATION_FIVE_CHECKLIST.md)
-- [ITERATION_SIX_PLAN.md](./ITERATION_SIX_PLAN.md)
-- [ITERATION_SIX_CHECKLIST.md](./ITERATION_SIX_CHECKLIST.md)
-- [ITERATION_SEVEN_PLAN.md](./ITERATION_SEVEN_PLAN.md)
-- [ITERATION_SEVEN_CHECKLIST.md](./ITERATION_SEVEN_CHECKLIST.md)
-- [FFI_CONTRACT.md](./FFI_CONTRACT.md)
-- [ENGINEERING_PRINCIPLES.md](./ENGINEERING_PRINCIPLES.md)
-- [CONTRIBUTING.md](./CONTRIBUTING.md)
-- [AGENTS.md](./AGENTS.md)
+Fuzz targets are checked in under `fuzz/`. The earlier parser targets were
+smoke-tested with `cargo fuzz run` under nightly Rust; some newer targets are
+still awaiting a cleaner local nightly `cargo-fuzz` resolution on this machine.

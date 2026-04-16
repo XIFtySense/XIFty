@@ -3,7 +3,11 @@ use xifty_core::{ViewMode, XiftyError};
 use xifty_json::{to_json_analysis, to_json_probe};
 
 #[derive(Debug, Parser)]
-#[command(name = "xifty")]
+#[command(
+    name = "xifty",
+    about = "Inspect media metadata through raw, interpreted, normalized, and report views",
+    long_about = None
+)]
 struct Cli {
     #[command(subcommand)]
     command: Command,
@@ -11,12 +15,16 @@ struct Cli {
 
 #[derive(Debug, Subcommand)]
 enum Command {
+    /// Detect the container and surface top-level issues.
     Probe {
+        /// Path to the media file to inspect.
         path: std::path::PathBuf,
     },
+    /// Extract metadata as JSON, optionally selecting a single view.
     Extract {
+        /// Path to the media file to inspect.
         path: std::path::PathBuf,
-        #[arg(long, value_enum)]
+        #[arg(long, value_enum, help = "Select a single output view")]
         view: Option<ViewArg>,
     },
 }

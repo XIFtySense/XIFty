@@ -1,6 +1,6 @@
 {
   "schema_version": "0.1.0",
-  "generated_for": "iteration_five",
+  "generated_for": "current_project_state",
   "namespaces": {
     "exif": {
       "status": "bounded"
@@ -105,5 +105,35 @@
     "duration",
     "codec.video",
     "codec.audio"
-  ]
+  ],
+  "surfaces": {
+    "cli": {
+      "status": "supported",
+      "views": [
+        "raw",
+        "interpreted",
+        "normalized",
+        "report"
+      ]
+    },
+    "ffi": {
+      "status": "supported",
+      "abi": "c",
+      "exchange_format": "json",
+      "functions": [
+        "xifty_version",
+        "xifty_probe_json",
+        "xifty_extract_json",
+        "xifty_free_buffer"
+      ]
+    },
+    "bindings": {
+      "python": "public_wrapper_repo",
+      "node": "public_wrapper_repo",
+      "swift": "public_wrapper_repo",
+      "go": "public_wrapper_repo",
+      "rust": "public_wrapper_repo",
+      "cpp": "public_wrapper_repo"
+    }
+  }
 }

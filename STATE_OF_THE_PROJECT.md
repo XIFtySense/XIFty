@@ -2,39 +2,39 @@
 
 ## Summary
 
-XIFty is in a strong architectural position and is now meaningfully into
-bounded media support.
+XIFty is now in a strong architectural and product-shaping position.
 
-The project has already proven the core thesis from the vision:
+The core thesis from the vision has been proven in code:
 
 - metadata is not treated as a flat tag dump
-- container parsing is kept separate from metadata interpretation
+- container parsing stays separate from metadata interpretation
 - normalization is policy-driven
-- provenance, conflicts, and issues are first-class output concerns
-- the CLI and JSON envelope remain stable as capability expands
+- provenance, conflicts, and issues are first-class concerns
+- the JSON envelope and four-view model remain stable as capability expands
+- the engine is now embeddable through a real `C ABI`
 
-The main remaining gap is no longer "can the architecture hold?" It is breadth,
-deeper namespace coverage, and eventual embedding surfaces.
+The main remaining gaps are no longer architectural. They are breadth,
+distribution maturity, and ecosystem polish relative to the full vision.
 
 ## What Is Proven
 
-### 1. The core architectural rule is working
+### 1. The core architectural rule is holding
 
-The most important design constraint in the project is that container parsing
-and metadata interpretation remain separate.
+The most important design constraint in XIFty is that container parsing and
+metadata interpretation remain separate.
 
-That rule is no longer theoretical. It has been exercised across:
+That rule is now exercised across:
 
 - JPEG / TIFF
 - PNG / WebP
 - HEIC / HEIF / ISOBMFF
 - MP4 / MOV / media-oriented ISOBMFF
 
-The same high-level extraction pipeline now survives segment-based, chunk-based,
-and atom/item-based container families without collapsing into container-specific
-logic in normalization or policy.
+The same high-level extraction model survives segment-based, chunk-based,
+box-based, and item-based containers without collapsing normalization or policy
+into parser code.
 
-### 2. The four-view model is real
+### 2. The four-view model is real and stable
 
 The vision called for:
 
@@ -43,164 +43,227 @@ The vision called for:
 - `normalized`
 - `report`
 
-That shape is now implemented and stable in the CLI contract.
+That shape now exists in the CLI contract, the JSON-first ABI, and the first
+binding layers. This is a meaningful milestone because it proves XIFty is
+becoming a metadata engine with a clear product model, not a parser that merely
+emits JSON.
 
-This matters because it proves XIFty is becoming a metadata engine with a clear
-mental model, not just a parser that happens to emit JSON.
+### 3. Reconciliation is no longer speculative
 
-### 3. Reconciliation is real
+XIFty already reconciles overlapping metadata across namespaces and containers.
 
-Iteration two established that XIFty can reconcile overlapping EXIF and XMP
-metadata across multiple still-image containers.
+What is now proven:
 
-That means the project has already moved beyond "can we decode bytes?" into the
-more valuable product question: "can we derive stable, explainable fields from
-messy real-world metadata?"
+- EXIF and XMP coexistence
+- policy-driven normalized field selection
+- explicit conflict reporting
+- provenance-preserving normalized derivation
+- bounded editorial precedence such as XMP-over-IPTC where explicitly modeled
 
-### 4. Modern-container support is no longer speculative
+That moves the project beyond "can we decode bytes?" into "can we derive
+explainable, stable application fields from messy real-world metadata?"
 
-Iteration three proved that XIFty can handle modern still-image containers
-without abandoning its clean boundaries.
+### 4. Modern still-image and bounded media support are real
 
-In particular, the project now supports:
+The repository now supports meaningful coverage across:
 
-- ISOBMFF / HEIF brand detection
-- box-tree parsing with offsets and paths
-- HEIF metadata routing for EXIF and XMP
-- primary-item dimension derivation from HEIF property structures
-- differential validation against a real-world HEIC sample
+- still-image formats: JPEG, TIFF, PNG, WebP, HEIF / HEIC
+- bounded media containers: MP4, MOV
+- namespaces: EXIF, XMP, bounded ICC, bounded IPTC, bounded QuickTime
+- vendor-specific metadata paths: Sony MakerNotes, Sony RTMD, Apple MakerNotes
 
-That is an important milestone because modern container complexity is where many
-clean designs begin to erode. XIFty held up.
+This matters because modern metadata systems get hard precisely where formats,
+namespaces, and vendor ecosystems overlap. XIFty is no longer only proving a
+clean design on simple cases.
 
-### 5. Bounded media support is now real
+### 5. XIFty is now an embeddable engine, not just a CLI
 
-Iteration four extended the same architecture into bounded media-container
-metadata rather than only still-image metadata.
+The largest roadmap gap after the metadata iterations was embeddability.
 
-The repository now supports:
+That gap is now materially closed at the core level:
 
-- MP4 / MOV detection and routing through the existing CLI
-- media-aware ISOBMFF parsing for duration, track dimensions, and codec ids
-- constrained QuickTime textual/timestamp decoding
-- normalized media fields such as `duration`, `codec.video`, `codec.audio`,
-  `created_at`, `modified_at`, and selected editorial metadata when derivable
-- oracle-backed differential testing for the supported media subset
+- `xifty-ffi` is a real `C ABI`
+- the ABI is narrow, JSON-first, and explicitly documented
+- ownership and status/error semantics are defined
+- checked-in headers are generated and tested deterministically
+- a C harness proves non-Rust callers can probe, extract, handle errors, and
+  free returned buffers correctly
 
-This matters because it proves the design scales from still-image containers
-into broader media metadata without collapsing parser, namespace, policy, and
-normalization concerns together.
+This is a major vision milestone because the project now has the stable low-
+level seam required to support multiple languages and embedding environments.
 
-### 6. Vendor-specific metadata has become a first-class concern
+### 6. The binding ecosystem has started to exist
 
-XIFty is no longer limited to generic EXIF/XMP/QuickTime paths.
+The vision called for thin bindings above a stable core seam.
 
-The repo now contains dedicated vendor metadata decoders that preserve clean
-namespace boundaries:
+That now exists as extracted organization repos for language-facing packages:
 
-- Sony still-image MakerNote decoding
-- Sony non-real-time metadata (`rtmd`) decoding for camera MP4 files
-- Apple MakerNote decoding for iPhone JPEGs
+- `XIFtyNode`
+- `XIFtySwift`
+- `XIFtyPython`
+- `XIFtyGo`
+- `XIFtyRust`
+- `XIFtyCpp`
 
-That is an important evolution in the project because real metadata quality
-depends heavily on vendor-specific ecosystems. XIFty is now proving that
-vendor depth can be added without turning the codebase into a pile of special
-cases.
+This is important because XIFty is no longer only a core-engine project. It is
+beginning to become a small ecosystem centered on the same `C ABI`.
+
+### 7. Capability discipline is improving
+
+The repository is doing a better job of being honest about what it supports:
+
+- `CAPABILITIES.json` records bounded capability claims explicitly
+- local-only large camera/media fixtures are kept out of git
+- differential testing exists for supported oracle-backed slices
+- iteration checklists have been used to close scope honestly instead of
+  implying completeness
+
+This matters because a metadata engine can easily overclaim. XIFty has been
+moving in the healthier direction.
+
+## Where XIFty Now Stands Relative To The Vision
+
+### Vision areas that are substantially achieved
+
+These parts of the vision are now materially real:
+
+- a modular Rust core
+- a stable JSON-based CLI contract
+- a real `C ABI` embedding seam
+- four explicit metadata views
+- first-class provenance, validation, conflicts, and normalized fields
+- support across the intended first container families
+- thin language-facing wrappers built above the ABI rather than around it
+
+In other words: the project's architectural promises are mostly no longer
+aspirational.
+
+### Vision areas that are partially achieved
+
+These parts are present, but still deliberately bounded:
+
+- EXIF support
+- XMP support
+- ICC support
+- IPTC support
+- QuickTime/media support
+- vendor-specific metadata support
+- capability reporting
+- multi-language package ecosystem
+
+XIFty is now on the board in all of these areas, but it is not yet broad or
+deep enough to claim exhaustive support.
+
+### Vision areas that remain clearly unfinished
+
+The clearest remaining gaps relative to the original vision are:
+
+- broader QuickTime metadata coverage and richer media semantics
+- broader ICC and IPTC coverage beyond the current bounded slice
+- more complete vendor ecosystems beyond the current Sony and Apple paths
+- stronger machine-readable capability reporting tied to generated facts/tests
+- a TypeScript-facing SDK and future inspector/documentation tooling
+- distribution maturity for the public package repos
+- eventual write/repair-oriented workflows, which remain intentionally out of
+  scope for now
 
 ## What Is Still Missing
 
-### Breadth gaps relative to the vision
+### Breadth gaps
 
-The original MVP and long-term direction still include major areas that are not
-implemented yet or are only present in constrained form:
+The core architecture is proven, but the supported metadata breadth is still
+narrow compared with the long-term ambition.
 
-- broader QuickTime metadata coverage beyond the bounded current subset
-- IPTC support
-- ICC support
-- broader video/audio-oriented normalized fields and richer timeline semantics
-- richer machine-readable capability reporting
-- public bindings for Python / Node / Swift
-- stable `C ABI`
+Important remaining breadth gaps include:
 
-These are roadmap gaps, not architecture gaps.
+- deeper QuickTime atoms and metadata semantics
+- more editorial / rights-oriented IPTC coverage
+- broader ICC tag coverage and richer color normalization
+- deeper audio/video metadata normalization
+- richer HEIF and ISOBMFF metadata families
+- more vendor-specific namespaces and camera ecosystems
 
-### Corpus and packaging gaps
+These are product-capability gaps, not design gaps.
 
-The project now distinguishes between small checked-in fixtures and large
-real-world example files used for optional local regression.
+### Distribution and packaging gaps
 
-That is the right repository policy, but it means some of the richest camera
-coverage is currently local-first rather than fully portable for every clone.
-The main remaining gap here is process, not code:
+This is now one of the biggest practical gaps.
 
-- better documented local corpus conventions
-- optional fixture helpers beyond the current CLI contract coverage
-- a clearer long-term strategy for external/private corpora
+The binding repos exist, but the public package story is still immature:
 
-### Verification gaps
+- several bindings still depend on a sibling checkout of the private core repo
+- Node does not yet have prebuilt binary distribution
+- Swift does not yet have a cleaner artifact/package distribution strategy
+- Python/Go/Rust/C++ are wrapper repos, but not yet polished as independently
+  consumable packages
 
-The project is in a good state, but a few validation areas are still less
-mature than the eventual vision:
+This means XIFty has proven embeddability, but not yet frictionless adoption.
 
-- HEIF oracle-backed differential coverage still relies on a real vendored
-  sample because ExifTool does not surface metadata from the synthetic HEIC
-  corpus
-- the newest ISOBMFF / QuickTime fuzz targets are checked in, but local smoke
-  execution remains blocked by this machine's `cargo-fuzz` toolchain invocation
-  path
-- capability reporting is still implicit in docs and tests, not yet exposed as
-  a first-class machine-readable contract
+### Corpus and verification gaps
 
-## Assessment Against The Vision
+The project has strong discipline here, but there is still room to improve:
+
+- richer local/private corpora need clearer long-term process and tooling
+- some of the strongest real-camera regression coverage remains local-only by
+  design
+- the newest fuzz targets are checked in, but local smoke execution is still
+  environment-sensitive on this machine
+- capability reporting is explicit, but not yet obviously generated from the
+  same source of truth as tests and fixtures
+
+## Assessment
 
 ### Where XIFty is ahead
 
 XIFty is ahead of where many projects would be at this stage in:
 
 - architectural discipline
-- separation of concerns
+- layering and separation of concerns
 - honesty about supported capabilities
-- test-backed iteration closure
-- conflict/provenance/report modeling
+- provenance/conflict/report modeling
+- incremental iteration closure
+- embeddability design
 
 That is exactly where an architecture-first project should be ahead.
 
 ### Where XIFty is behind
 
-XIFty is behind only in intentionally deferred capability breadth and
-operational polish.
+XIFty is behind mainly in:
 
-That includes deeper namespace coverage, richer media semantics, bindings,
-public embedding surfaces, and more explicit corpus/capability management.
+- breadth of supported metadata families
+- distribution maturity for public consumer packages
+- higher-level SDK/documentation surface area
+- broader external-corpus and capability automation
 
-This is acceptable and even desirable at this stage because the project is
-trying to become a durable metadata platform, not a shallow checklist of file
-formats.
+This is a healthy trade so far. The project chose to prove durable structure
+before chasing superficial completeness.
 
 ## Roadmap Implication
 
-The next iteration should not redesign the core.
+The next phase should not redesign the core.
 
-The architecture has now been proven across the first three slices. The next
-best move is to extend capability while preserving the current boundaries.
+The main architecture is already doing the job it was meant to do. The highest-
+leverage work now is to convert that proven core into a more complete and more
+consumable platform.
 
-That suggests the next iteration should likely focus on one of these directions:
+That suggests the next roadmap focus should likely be one of these:
 
-- `ICC / IPTC` namespace expansion for still-image fidelity
-- deeper `QuickTime / media` namespace coverage
-- machine-readable capability reporting and corpus discipline
-
-The strongest roadmap choice is probably one of the first two, with capability
-reporting folded in as an architectural quality bar rather than a standalone
-iteration.
+- package/distribution hardening for the public binding repos
+- deeper media and QuickTime metadata coverage
+- stronger capability-generation and corpus-discipline tooling
+- selected namespace-depth work where the product value is highest
 
 ## Recommended Next-Step Framing
 
-The next iteration should probably be framed as:
+The best framing now is:
 
-**Extend breadth from the now-proven core into either still-image fidelity
-namespaces (`ICC` / `IPTC`) or deeper media metadata, while making supported
-capabilities and corpus expectations more explicit.**
+**XIFty has largely proven its core architecture and first embedding seam. The
+next stage should focus on turning that proven engine into a broader, easier-
+to-consume metadata platform without sacrificing capability honesty.**
 
-That keeps XIFty on the path laid out in the original vision while preserving
-the discipline that has made the first four iterations successful.
+That means:
+
+- keep the current architecture
+- deepen support deliberately
+- improve packaging and adoption ergonomics
+- keep capability claims narrow, explicit, and test-backed

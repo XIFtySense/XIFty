@@ -104,6 +104,30 @@ Please aim for:
 - direct explanation of tradeoffs
 - explicit mention of remaining risks or uncertainty
 
+## Branch And Pull Request Expectations
+
+For the public-facing repository, contributors should assume this workflow:
+
+- open a focused branch for each coherent change
+- open a pull request before merging
+- keep pull requests small enough to review thoughtfully
+- link the change to the relevant docs, fixtures, or capability claims when
+  those are affected
+
+Pull requests should make it easy for a reviewer to answer:
+
+- what changed?
+- why does it belong in XIFty?
+- what was verified?
+- what remains intentionally out of scope?
+
+If a change affects supported behavior, please call out any impact on:
+
+- CLI output
+- `CAPABILITIES.json`
+- fixtures or differential coverage
+- FFI or external package expectations
+
 ## What We Will Push Back On
 
 We will usually reject or ask to revise changes that:
