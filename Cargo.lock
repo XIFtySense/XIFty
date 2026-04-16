@@ -804,6 +804,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "xifty-meta-icc"
+version = "0.1.0"
+dependencies = [
+ "xifty-core",
+]
+
+[[package]]
+name = "xifty-meta-iptc"
+version = "0.1.0"
+dependencies = [
+ "xifty-core",
+]
+
+[[package]]
 name = "xifty-meta-quicktime"
 version = "0.1.0"
 dependencies = [
