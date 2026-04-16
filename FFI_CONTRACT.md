@@ -105,3 +105,15 @@ cargo test --workspace
 The Rust integration test in `crates/xifty-ffi/tests/c_abi.rs` also regenerates
 the header, checks it against the checked-in copy, compiles a small C harness,
 and runs it against checked-in minimal fixtures.
+
+## Example Consumer
+
+A minimal C example is checked in at `examples/c/basic_usage.c`.
+
+Build it against a debug library build with:
+
+```bash
+cargo build -p xifty-ffi
+cc examples/c/basic_usage.c -I include -L target/debug -lxifty_ffi -o target/basic_usage
+./target/basic_usage fixtures/minimal/happy.jpg
+```

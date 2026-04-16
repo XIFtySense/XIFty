@@ -106,6 +106,14 @@ cbindgen --config cbindgen.toml --crate xifty-ffi --output include/xifty.h --lan
 cargo test -p xifty-ffi
 ```
 
+FFI example:
+
+```bash
+cargo build -p xifty-ffi
+cc examples/c/basic_usage.c -I include -L target/debug -lxifty_ffi -o target/basic_usage
+./target/basic_usage fixtures/minimal/happy.jpg
+```
+
 Large real-world camera/media examples are intentionally not stored in git.
 Keep those under `fixtures/local/` when you want the optional real-camera
 regression and differential tests to run.
