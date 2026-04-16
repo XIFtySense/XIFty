@@ -19,7 +19,11 @@ xifty-container-png = { path = "../xifty-container-png" }
 xifty-container-riff = { path = "../xifty-container-riff" }
 xifty-container-isobmff = { path = "../xifty-container-isobmff" }
 xifty-meta-exif = { path = "../xifty-meta-exif" }
+xifty-meta-apple = { path = "../xifty-meta-apple" }
+xifty-meta-sony = { path = "../xifty-meta-sony" }
 xifty-meta-xmp = { path = "../xifty-meta-xmp" }
+xifty-meta-quicktime = { path = "../xifty-meta-quicktime" }
+xifty-meta-rtmd = { path = "../xifty-meta-rtmd" }
 xifty-normalize = { path = "../xifty-normalize" }
 xifty-policy = { path = "../xifty-policy" }
 xifty-validate = { path = "../xifty-validate" }

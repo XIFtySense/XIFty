@@ -1,0 +1,24 @@
+---
+source: crates/xifty-cli/tests/cli_contract.rs
+expression: "extract_json(\"unsupported.mp4\", ViewMode::Report)"
+---
+{
+  "input": {
+    "container": "isobmff",
+    "detected_format": "mp4",
+    "path": "unsupported.mp4"
+  },
+  "report": {
+    "conflicts": [],
+    "issues": [
+      {
+        "code": "isobmff_structure_recognized_uninterpreted",
+        "context": "moov/iref",
+        "message": "recognized iref structure but do not yet interpret its full semantics",
+        "offset": 635,
+        "severity": "info"
+      }
+    ]
+  },
+  "schema_version": "0.1.0"
+}

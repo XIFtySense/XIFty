@@ -1,0 +1,8 @@
+[package]
+name = "xifty-meta-rtmd"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+xifty-core = { path = "../xifty-core" }

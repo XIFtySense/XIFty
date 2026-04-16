@@ -14,6 +14,8 @@ xifty-container-isobmff = { path = "../crates/xifty-container-isobmff" }
 xifty-container-png = { path = "../crates/xifty-container-png" }
 xifty-container-riff = { path = "../crates/xifty-container-riff" }
 xifty-container-tiff = { path = "../crates/xifty-container-tiff" }
+xifty-meta-exif = { path = "../crates/xifty-meta-exif" }
+xifty-meta-quicktime = { path = "../crates/xifty-meta-quicktime" }
 xifty-meta-xmp = { path = "../crates/xifty-meta-xmp" }
 
 # Use independent workspace for fuzzers
@@ -58,6 +60,13 @@ bench = false
 [[bin]]
 name = "heif_metadata_routing"
 path = "fuzz_targets/heif_metadata_routing.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "quicktime_metadata"
+path = "fuzz_targets/quicktime_metadata.rs"
 test = false
 doc = false
 bench = false

@@ -91,14 +91,14 @@ pub fn parse_bytes(bytes: &[u8], base_offset: u64) -> Result<JpegContainer, Xift
             break;
         }
         let payload = cursor.slice(offset + 4, length - 2)?.to_vec();
-        let label = format!("APP{:X}", marker - 0xE0);
+        let label = if (0xE0..=0xEF).contains(&marker) {
+            format!("APP{:X}", marker - 0xE0)
+        } else {
+            format!("marker_{marker:02X}")
+        };
         nodes.push(ContainerNode {
             kind: "segment".into(),
-            label: if (0xE0..=0xEF).contains(&marker) {
-                label
-            } else {
-                format!("marker_{marker:02X}")
-            },
+            label,
             offset_start: offset as u64,
             offset_end: (offset + 2 + length) as u64,
             parent_label: Some("jpeg".into()),
@@ -144,5 +144,16 @@ mod tests {
         assert!(parsed.exif_payload().is_some());
         assert!(!parsed.nodes.is_empty());
         let _ = fs::remove_file(path);
+    }
+
+    #[test]
+    fn parses_non_app_segments_without_overflow() {
+        let bytes = [
+            0xFF, 0xD8, 0xFF, 0xDB, 0x00, 0x04, 0x00, 0x00, 0xFF, 0xC0, 0x00, 0x05, 0x08, 0x00,
+            0x00, 0xFF, 0xD9,
+        ];
+        let parsed = parse_bytes(&bytes, 0).unwrap();
+        assert!(parsed.nodes.iter().any(|node| node.label == "marker_DB"));
+        assert!(parsed.nodes.iter().any(|node| node.label == "marker_C0"));
     }
 }

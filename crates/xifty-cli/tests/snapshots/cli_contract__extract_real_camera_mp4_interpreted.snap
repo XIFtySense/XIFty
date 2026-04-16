@@ -1,0 +1,413 @@
+---
+source: crates/xifty-cli/tests/cli_contract.rs
+expression: "extract_json(\"C0242.MP4\", ViewMode::Interpreted)"
+---
+{
+  "input": {
+    "container": "isobmff",
+    "detected_format": "mp4",
+    "path": "C0242.MP4"
+  },
+  "interpreted": {
+    "metadata": [
+      {
+        "namespace": "rtmd",
+        "notes": [
+          "decoded from NonRealTimeMeta lastUpdate"
+        ],
+        "provenance": {
+          "container": "mp4",
+          "namespace": "rtmd",
+          "offset_end": 25170432,
+          "offset_start": 25168484,
+          "path": "non_real_time_meta"
+        },
+        "tag_id": "MetadataDate",
+        "tag_name": "MetadataDate",
+        "value": {
+          "kind": "timestamp",
+          "value": "2026-04-16T06:34:34-08:00"
+        }
+      },
+      {
+        "namespace": "rtmd",
+        "notes": [
+          "decoded from NonRealTimeMeta CreationDate"
+        ],
+        "provenance": {
+          "container": "mp4",
+          "namespace": "rtmd",
+          "offset_end": 25170432,
+          "offset_start": 25168484,
+          "path": "non_real_time_meta"
+        },
+        "tag_id": "CreateDate",
+        "tag_name": "CreateDate",
+        "value": {
+          "kind": "timestamp",
+          "value": "2026-04-16T06:34:34-08:00"
+        }
+      },
+      {
+        "namespace": "rtmd",
+        "notes": [
+          "decoded from NonRealTimeMeta Device manufacturer"
+        ],
+        "provenance": {
+          "container": "mp4",
+          "namespace": "rtmd",
+          "offset_end": 25170432,
+          "offset_start": 25168484,
+          "path": "non_real_time_meta"
+        },
+        "tag_id": "Make",
+        "tag_name": "Make",
+        "value": {
+          "kind": "string",
+          "value": "Sony"
+        }
+      },
+      {
+        "namespace": "rtmd",
+        "notes": [
+          "decoded from NonRealTimeMeta Device modelName"
+        ],
+        "provenance": {
+          "container": "mp4",
+          "namespace": "rtmd",
+          "offset_end": 25170432,
+          "offset_start": 25168484,
+          "path": "non_real_time_meta"
+        },
+        "tag_id": "Model",
+        "tag_name": "Model",
+        "value": {
+          "kind": "string",
+          "value": "ZV-E10"
+        }
+      },
+      {
+        "namespace": "rtmd",
+        "notes": [
+          "decoded from NonRealTimeMeta VideoFrame captureFps"
+        ],
+        "provenance": {
+          "container": "mp4",
+          "namespace": "rtmd",
+          "offset_end": 25170432,
+          "offset_start": 25168484,
+          "path": "non_real_time_meta"
+        },
+        "tag_id": "CaptureFps",
+        "tag_name": "CaptureFps",
+        "value": {
+          "kind": "string",
+          "value": "23.98p"
+        }
+      },
+      {
+        "namespace": "rtmd",
+        "notes": [
+          "decoded from NonRealTimeMeta VideoFrame formatFps"
+        ],
+        "provenance": {
+          "container": "mp4",
+          "namespace": "rtmd",
+          "offset_end": 25170432,
+          "offset_start": 25168484,
+          "path": "non_real_time_meta"
+        },
+        "tag_id": "FormatFps",
+        "tag_name": "FormatFps",
+        "value": {
+          "kind": "string",
+          "value": "23.98p"
+        }
+      },
+      {
+        "namespace": "rtmd",
+        "notes": [
+          "decoded from NonRealTimeMeta VideoFrame videoCodec"
+        ],
+        "provenance": {
+          "container": "mp4",
+          "namespace": "rtmd",
+          "offset_end": 25170432,
+          "offset_start": 25168484,
+          "path": "non_real_time_meta"
+        },
+        "tag_id": "VideoCodecProfile",
+        "tag_name": "VideoCodecProfile",
+        "value": {
+          "kind": "string",
+          "value": "AVC_3840_2160_HP@L51"
+        }
+      },
+      {
+        "namespace": "rtmd",
+        "notes": [
+          "decoded from NonRealTimeMeta VideoLayout pixel"
+        ],
+        "provenance": {
+          "container": "mp4",
+          "namespace": "rtmd",
+          "offset_end": 25170432,
+          "offset_start": 25168484,
+          "path": "non_real_time_meta"
+        },
+        "tag_id": "ImageWidth",
+        "tag_name": "ImageWidth",
+        "value": {
+          "kind": "integer",
+          "value": 3840
+        }
+      },
+      {
+        "namespace": "rtmd",
+        "notes": [
+          "decoded from NonRealTimeMeta VideoLayout numOfVerticalLine"
+        ],
+        "provenance": {
+          "container": "mp4",
+          "namespace": "rtmd",
+          "offset_end": 25170432,
+          "offset_start": 25168484,
+          "path": "non_real_time_meta"
+        },
+        "tag_id": "ImageHeight",
+        "tag_name": "ImageHeight",
+        "value": {
+          "kind": "integer",
+          "value": 2160
+        }
+      },
+      {
+        "namespace": "rtmd",
+        "notes": [
+          "decoded from NonRealTimeMeta VideoLayout aspectRatio"
+        ],
+        "provenance": {
+          "container": "mp4",
+          "namespace": "rtmd",
+          "offset_end": 25170432,
+          "offset_start": 25168484,
+          "path": "non_real_time_meta"
+        },
+        "tag_id": "AspectRatio",
+        "tag_name": "AspectRatio",
+        "value": {
+          "kind": "string",
+          "value": "16:9"
+        }
+      },
+      {
+        "namespace": "rtmd",
+        "notes": [
+          "decoded from NonRealTimeMeta AudioFormat numOfChannel"
+        ],
+        "provenance": {
+          "container": "mp4",
+          "namespace": "rtmd",
+          "offset_end": 25170432,
+          "offset_start": 25168484,
+          "path": "non_real_time_meta"
+        },
+        "tag_id": "AudioChannels",
+        "tag_name": "AudioChannels",
+        "value": {
+          "kind": "integer",
+          "value": 2
+        }
+      },
+      {
+        "namespace": "rtmd",
+        "notes": [
+          "decoded from NonRealTimeMeta AudioRecPort audioCodec"
+        ],
+        "provenance": {
+          "container": "mp4",
+          "namespace": "rtmd",
+          "offset_end": 25170432,
+          "offset_start": 25168484,
+          "path": "non_real_time_meta"
+        },
+        "tag_id": "AudioCodecName",
+        "tag_name": "AudioCodecName",
+        "value": {
+          "kind": "string",
+          "value": "LPCM16"
+        }
+      },
+      {
+        "namespace": "rtmd",
+        "notes": [
+          "decoded from NonRealTimeMeta RecordingMode type"
+        ],
+        "provenance": {
+          "container": "mp4",
+          "namespace": "rtmd",
+          "offset_end": 25170432,
+          "offset_start": 25168484,
+          "path": "non_real_time_meta"
+        },
+        "tag_id": "RecordingMode",
+        "tag_name": "RecordingMode",
+        "value": {
+          "kind": "string",
+          "value": "normal"
+        }
+      },
+      {
+        "namespace": "rtmd",
+        "notes": [
+          "decoded from NonRealTimeMeta AcquisitionRecord item"
+        ],
+        "provenance": {
+          "container": "mp4",
+          "namespace": "rtmd",
+          "offset_end": 25170432,
+          "offset_start": 25168484,
+          "path": "non_real_time_meta"
+        },
+        "tag_id": "CaptureGammaEquation",
+        "tag_name": "CaptureGammaEquation",
+        "value": {
+          "kind": "string",
+          "value": "rec709-xvycc"
+        }
+      },
+      {
+        "namespace": "quicktime",
+        "provenance": {
+          "container": "mp4",
+          "namespace": "quicktime",
+          "notes": [
+            "derived from visual track header"
+          ],
+          "offset_end": 0,
+          "offset_start": 0,
+          "path": "moov/trak@25165940/tkhd"
+        },
+        "tag_id": "ImageWidth",
+        "tag_name": "ImageWidth",
+        "value": {
+          "kind": "integer",
+          "value": 3840
+        }
+      },
+      {
+        "namespace": "quicktime",
+        "provenance": {
+          "container": "mp4",
+          "namespace": "quicktime",
+          "notes": [
+            "derived from visual track header"
+          ],
+          "offset_end": 0,
+          "offset_start": 0,
+          "path": "moov/trak@25165940/tkhd"
+        },
+        "tag_id": "ImageHeight",
+        "tag_name": "ImageHeight",
+        "value": {
+          "kind": "integer",
+          "value": 2160
+        }
+      },
+      {
+        "namespace": "quicktime",
+        "provenance": {
+          "container": "mp4",
+          "namespace": "quicktime",
+          "notes": [
+            "derived from mvhd or media track timing"
+          ]
+        },
+        "tag_id": "DurationSeconds",
+        "tag_name": "DurationSeconds",
+        "value": {
+          "kind": "float",
+          "value": 2.005
+        }
+      },
+      {
+        "namespace": "quicktime",
+        "provenance": {
+          "container": "mp4",
+          "namespace": "quicktime",
+          "notes": [
+            "derived from video track sample description"
+          ]
+        },
+        "tag_id": "VideoCodec",
+        "tag_name": "VideoCodec",
+        "value": {
+          "kind": "string",
+          "value": "avc1"
+        }
+      },
+      {
+        "namespace": "quicktime",
+        "provenance": {
+          "container": "mp4",
+          "namespace": "quicktime",
+          "notes": [
+            "derived from audio track sample description"
+          ]
+        },
+        "tag_id": "AudioCodec",
+        "tag_name": "AudioCodec",
+        "value": {
+          "kind": "string",
+          "value": "twos"
+        }
+      },
+      {
+        "namespace": "quicktime",
+        "provenance": {
+          "container": "mp4",
+          "namespace": "quicktime",
+          "notes": [
+            "derived from movie header creation time"
+          ]
+        },
+        "tag_id": "CreateDate",
+        "tag_name": "CreateDate",
+        "value": {
+          "kind": "timestamp",
+          "value": "2026-04-16T14:34:34"
+        }
+      },
+      {
+        "namespace": "quicktime",
+        "provenance": {
+          "container": "mp4",
+          "namespace": "quicktime",
+          "notes": [
+            "derived from movie header modification time"
+          ]
+        },
+        "tag_id": "ModifyDate",
+        "tag_name": "ModifyDate",
+        "value": {
+          "kind": "timestamp",
+          "value": "2026-04-16T14:34:34"
+        }
+      }
+    ]
+  },
+  "report": {
+    "conflicts": [
+      {
+        "field": "captured_at",
+        "message": "multiple candidates disagreed; selected CreateDate from rtmd"
+      },
+      {
+        "field": "created_at",
+        "message": "multiple candidates disagreed; selected CreateDate from rtmd"
+      }
+    ],
+    "issues": []
+  },
+  "schema_version": "0.1.0"
+}

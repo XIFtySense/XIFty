@@ -70,8 +70,11 @@ This repository now includes the first implementation slice for:
 - TIFF / IFD traversal
 - PNG / WebP EXIF and XMP routing
 - HEIC / HEIF detection and initial ISOBMFF routing
+- MP4 / MOV detection and bounded media metadata routing
 - EXIF decoding for the initial normalized fields
 - XMP decoding and EXIF/XMP reconciliation
+- QuickTime textual metadata decoding for bounded media fixtures
+- normalized media fields for duration, codecs, and movie timestamps
 - JSON-only CLI output
 - checked-in fixtures
 - snapshot tests plus ExifTool differential tests for the currently supported oracle-backed fixtures
@@ -84,6 +87,7 @@ cargo run -p xifty-cli -- probe fixtures/minimal/happy.jpg
 cargo run -p xifty-cli -- extract fixtures/minimal/happy.jpg
 cargo run -p xifty-cli -- extract fixtures/minimal/gps.jpg --view normalized
 cargo run -p xifty-cli -- extract fixtures/minimal/mixed.heic --view normalized
+cargo run -p xifty-cli -- extract fixtures/minimal/happy.mp4 --view normalized
 ```
 
 Verification:
@@ -99,11 +103,14 @@ Planning docs:
 - [VISION.md](./VISION.md)
 - [RESEARCH.md](./RESEARCH.md)
 - [ARCHITECTURE_PLAN.md](./ARCHITECTURE_PLAN.md)
+- [STATE_OF_THE_PROJECT.md](./STATE_OF_THE_PROJECT.md)
 - [ITERATION_ONE_CHECKLIST.md](./ITERATION_ONE_CHECKLIST.md)
 - [ITERATION_TWO_PLAN.md](./ITERATION_TWO_PLAN.md)
 - [ITERATION_TWO_CHECKLIST.md](./ITERATION_TWO_CHECKLIST.md)
 - [ITERATION_THREE_PLAN.md](./ITERATION_THREE_PLAN.md)
 - [ITERATION_THREE_CHECKLIST.md](./ITERATION_THREE_CHECKLIST.md)
+- [ITERATION_FOUR_PLAN.md](./ITERATION_FOUR_PLAN.md)
+- [ITERATION_FOUR_CHECKLIST.md](./ITERATION_FOUR_CHECKLIST.md)
 - [ENGINEERING_PRINCIPLES.md](./ENGINEERING_PRINCIPLES.md)
 - [CONTRIBUTING.md](./CONTRIBUTING.md)
 - [AGENTS.md](./AGENTS.md)

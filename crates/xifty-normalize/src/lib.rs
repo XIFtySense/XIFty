@@ -8,8 +8,10 @@ pub fn normalize(entries: &[MetadataEntry]) -> Vec<NormalizedField> {
 pub fn normalize_with_policy(entries: &[MetadataEntry]) -> PolicyResult {
     let mut result = xifty_policy::reconcile(entries);
 
-    let width = entry_integer(entries, &["ImageWidth"]);
-    let height = entry_integer(entries, &["ImageHeight"]);
+    enrich_exif_timestamps(entries, &mut result.fields);
+
+    let width = entry_integer(entries, &["ImageWidth", "ExifImageWidth"]);
+    let height = entry_integer(entries, &["ImageHeight", "ExifImageHeight"]);
     if let (Some((width_entry, width_value)), Some((height_entry, height_value))) = (width, height)
     {
         ensure_field(
@@ -48,6 +50,72 @@ pub fn normalize_with_policy(entries: &[MetadataEntry]) -> PolicyResult {
     result
 }
 
+fn enrich_exif_timestamps(entries: &[MetadataEntry], fields: &mut [NormalizedField]) {
+    enrich_timestamp_field(
+        entries,
+        fields,
+        "captured_at",
+        "DateTimeOriginal",
+        "SubSecTimeOriginal",
+        "OffsetTimeOriginal",
+    );
+    enrich_timestamp_field(
+        entries,
+        fields,
+        "created_at",
+        "CreateDate",
+        "SubSecTimeDigitized",
+        "OffsetTimeDigitized",
+    );
+    enrich_timestamp_field(
+        entries,
+        fields,
+        "modified_at",
+        "ModifyDate",
+        "SubSecTime",
+        "OffsetTime",
+    );
+}
+
+fn enrich_timestamp_field(
+    entries: &[MetadataEntry],
+    fields: &mut [NormalizedField],
+    field_name: &str,
+    base_tag: &str,
+    subsec_tag: &str,
+    offset_tag: &str,
+) {
+    let Some(field) = fields.iter_mut().find(|field| field.field == field_name) else {
+        return;
+    };
+    let Some(base_value) = entry_string(entries, base_tag) else {
+        return;
+    };
+    let subsec = entry_string(entries, subsec_tag);
+    let offset = entry_string(entries, offset_tag);
+    let Some(enriched) = compose_exif_timestamp(base_value, subsec, offset) else {
+        return;
+    };
+
+    field.value = TypedValue::Timestamp(enriched);
+    if subsec.is_some() || offset.is_some() {
+        field.notes.push(format!(
+            "enriched from EXIF {}{}{}",
+            base_tag,
+            if subsec.is_some() {
+                format!(", {subsec_tag}")
+            } else {
+                String::new()
+            },
+            if offset.is_some() {
+                format!(", {offset_tag}")
+            } else {
+                String::new()
+            }
+        ));
+    }
+}
+
 fn string_coordinate(entries: &[MetadataEntry], tag_name: &str) -> Option<(Provenance, f64)> {
     let entry = entries.iter().find(|entry| entry.tag_name == tag_name)?;
     let TypedValue::String(value) = &entry.value else {
@@ -59,6 +127,14 @@ fn string_coordinate(entries: &[MetadataEntry], tag_name: &str) -> Option<(Prove
 
 fn parse_coordinate_string(input: &str) -> Option<f64> {
     input.trim().parse::<f64>().ok()
+}
+
+fn entry_string<'a>(entries: &'a [MetadataEntry], tag_name: &str) -> Option<&'a str> {
+    let entry = entries.iter().find(|entry| entry.tag_name == tag_name)?;
+    match &entry.value {
+        TypedValue::String(value) | TypedValue::Timestamp(value) => Some(value.as_str()),
+        _ => None,
+    }
 }
 
 fn ensure_field(
@@ -149,6 +225,33 @@ pub fn normalize_exif_datetime(input: &str) -> String {
     input.to_string()
 }
 
+fn compose_exif_timestamp(
+    base: &str,
+    subsec: Option<&str>,
+    offset: Option<&str>,
+) -> Option<String> {
+    let normalized = normalize_exif_datetime(base);
+    let mut timestamp = normalized;
+
+    if let Some(subsec) = subsec.map(str::trim).filter(|value| !value.is_empty()) {
+        let fractional = subsec.trim_start_matches('.');
+        if !fractional.is_empty() {
+            timestamp.push('.');
+            timestamp.push_str(fractional);
+        }
+    }
+
+    if let Some(offset) = offset.map(str::trim).filter(|value| !value.is_empty()) {
+        if offset.starts_with('+') || offset.starts_with('-') {
+            timestamp.push_str(offset);
+        } else {
+            return None;
+        }
+    }
+
+    Some(timestamp)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -201,5 +304,75 @@ mod tests {
         ];
         let fields = normalize(&entries);
         assert!(fields.iter().any(|field| field.field == "location"));
+    }
+
+    #[test]
+    fn enriches_exif_timestamp_with_subseconds_and_offset() {
+        let entries = vec![
+            MetadataEntry {
+                namespace: "exif".into(),
+                tag_id: "0x9003".into(),
+                tag_name: "DateTimeOriginal".into(),
+                value: TypedValue::Timestamp("2025:08:07 10:44:16".into()),
+                provenance: prov(),
+                notes: Vec::new(),
+            },
+            MetadataEntry {
+                namespace: "exif".into(),
+                tag_id: "0x9291".into(),
+                tag_name: "SubSecTimeOriginal".into(),
+                value: TypedValue::String("046".into()),
+                provenance: prov(),
+                notes: Vec::new(),
+            },
+            MetadataEntry {
+                namespace: "exif".into(),
+                tag_id: "0x9011".into(),
+                tag_name: "OffsetTimeOriginal".into(),
+                value: TypedValue::String("-08:00".into()),
+                provenance: prov(),
+                notes: Vec::new(),
+            },
+        ];
+
+        let fields = normalize(&entries);
+        let captured = fields
+            .iter()
+            .find(|field| field.field == "captured_at")
+            .unwrap();
+        assert_eq!(
+            captured.value,
+            TypedValue::Timestamp("2025-08-07T10:44:16.046-08:00".into())
+        );
+    }
+
+    #[test]
+    fn uses_exif_dimensions_as_fallback() {
+        let entries = vec![
+            MetadataEntry {
+                namespace: "exif".into(),
+                tag_id: "0xA002".into(),
+                tag_name: "ExifImageWidth".into(),
+                value: TypedValue::Integer(6000),
+                provenance: prov(),
+                notes: Vec::new(),
+            },
+            MetadataEntry {
+                namespace: "exif".into(),
+                tag_id: "0xA003".into(),
+                tag_name: "ExifImageHeight".into(),
+                value: TypedValue::Integer(4000),
+                provenance: prov(),
+                notes: Vec::new(),
+            },
+        ];
+
+        let fields = normalize(&entries);
+        assert!(fields.iter().any(|field| field.field == "dimensions.width"));
+        assert!(
+            fields
+                .iter()
+                .any(|field| field.field == "dimensions.height")
+        );
     }
 }

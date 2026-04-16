@@ -6,6 +6,7 @@ use xifty_source::{Cursor, Endian, SourceBytes};
 #[derive(Debug, Clone)]
 pub struct IsobmffPayload {
     pub kind: &'static str,
+    pub tag: Option<String>,
     pub offset_start: u64,
     pub offset_end: u64,
     pub data_offset: u64,
@@ -29,6 +30,12 @@ pub struct IsobmffContainer {
     pub nodes: Vec<ContainerNode>,
     pub payloads: Vec<IsobmffPayload>,
     pub primary_item_dimensions: Option<IsobmffDimensions>,
+    pub media_duration_seconds: Option<f64>,
+    pub media_created_at: Option<String>,
+    pub media_modified_at: Option<String>,
+    pub video_codec: Option<String>,
+    pub audio_codec: Option<String>,
+    pub primary_visual_dimensions: Option<IsobmffDimensions>,
     pub issues: Vec<Issue>,
 }
 
@@ -41,6 +48,12 @@ impl IsobmffContainer {
 
     pub fn xmp_payloads(&self) -> impl Iterator<Item = &IsobmffPayload> {
         self.payloads.iter().filter(|payload| payload.kind == "xmp")
+    }
+
+    pub fn quicktime_payloads(&self) -> impl Iterator<Item = &IsobmffPayload> {
+        self.payloads
+            .iter()
+            .filter(|payload| payload.kind == "quicktime")
     }
 
     pub fn is_heif_still_image(&self) -> bool {
@@ -84,6 +97,21 @@ struct PropertyAssociation {
     property_indexes: Vec<u16>,
 }
 
+#[derive(Debug, Clone, Default)]
+struct MovieHeader {
+    created_at: Option<String>,
+    modified_at: Option<String>,
+    duration_seconds: Option<f64>,
+}
+
+#[derive(Debug, Clone, Default)]
+struct TrackFacts {
+    handler_type: Option<[u8; 4]>,
+    duration_seconds: Option<f64>,
+    codec: Option<String>,
+    dimensions: Option<(u32, u32)>,
+}
+
 #[derive(Debug, Clone)]
 struct ParseState {
     item_infos: Vec<ItemInfo>,
@@ -92,6 +120,8 @@ struct ParseState {
     property_dimensions: HashMap<u16, IsobmffDimensions>,
     primary_item_id: Option<u32>,
     idat_payloads: Vec<(u64, u64, String)>,
+    movie_header: MovieHeader,
+    tracks: HashMap<String, TrackFacts>,
 }
 
 pub fn parse(source: &SourceBytes) -> Result<IsobmffContainer, XiftyError> {
@@ -113,6 +143,8 @@ pub fn parse_bytes(bytes: &[u8], base_offset: u64) -> Result<IsobmffContainer, X
         property_dimensions: HashMap::new(),
         primary_item_id: None,
         idat_payloads: Vec::new(),
+        movie_header: MovieHeader::default(),
+        tracks: HashMap::new(),
     };
     let mut nodes = Vec::new();
     let mut payloads = Vec::new();
@@ -125,6 +157,7 @@ pub fn parse_bytes(bytes: &[u8], base_offset: u64) -> Result<IsobmffContainer, X
         0,
         cursor.len(),
         None,
+        None,
         &mut state,
         &mut nodes,
         &mut payloads,
@@ -135,13 +168,24 @@ pub fn parse_bytes(bytes: &[u8], base_offset: u64) -> Result<IsobmffContainer, X
 
     payloads.extend(payloads_from_items(&cursor, &state, &mut issues));
     let primary_item_dimensions = primary_item_dimensions(&state);
+    let primary_visual_dimensions = primary_visual_dimensions(&state);
+    let video_codec = state
+        .tracks
+        .values()
+        .find(|track| track.handler_type == Some(*b"vide"))
+        .and_then(|track| track.codec.clone());
+    let audio_codec = state
+        .tracks
+        .values()
+        .find(|track| track.handler_type == Some(*b"soun"))
+        .and_then(|track| track.codec.clone());
 
-    if !heif_brand(major_brand) && !compatible_brands.iter().copied().any(heif_brand) {
+    if !supported_brand(major_brand) && !compatible_brands.iter().copied().any(supported_brand) {
         issues.push(issue(
             Severity::Info,
-            "isobmff_non_heif_brand",
+            "isobmff_unrecognized_brand",
             format!(
-                "isobmff major brand {} is not a recognized still-image HEIF brand",
+                "isobmff major brand {} is not a recognized supported brand",
                 fourcc(major_brand)
             ),
         ));
@@ -153,6 +197,18 @@ pub fn parse_bytes(bytes: &[u8], base_offset: u64) -> Result<IsobmffContainer, X
         nodes,
         payloads,
         primary_item_dimensions,
+        media_duration_seconds: state.movie_header.duration_seconds.or_else(|| {
+            state
+                .tracks
+                .values()
+                .filter_map(|track| track.duration_seconds)
+                .max_by(f64::total_cmp)
+        }),
+        media_created_at: state.movie_header.created_at,
+        media_modified_at: state.movie_header.modified_at,
+        video_codec,
+        audio_codec,
+        primary_visual_dimensions,
         issues,
     })
 }
@@ -162,6 +218,7 @@ fn parse_children(
     start: usize,
     end: usize,
     parent: Option<&ParsedBox>,
+    current_track: Option<String>,
     state: &mut ParseState,
     nodes: &mut Vec<ContainerNode>,
     payloads: &mut Vec<IsobmffPayload>,
@@ -183,6 +240,12 @@ fn parse_children(
             parent_label: parent.map(|item| item.path.clone()),
         });
 
+        let child_track = if &parsed.box_type == b"trak" {
+            Some(format!("{}@{}", parsed.path, parsed.start))
+        } else {
+            current_track.clone()
+        };
+
         match &parsed.box_type {
             b"ftyp" => parse_ftyp(cursor, &parsed, major_brand, compatible_brands)?,
             b"meta" => {
@@ -200,6 +263,7 @@ fn parse_children(
                         parsed.data_offset + 4,
                         parsed.end,
                         Some(&parsed),
+                        child_track.clone(),
                         state,
                         nodes,
                         payloads,
@@ -210,12 +274,13 @@ fn parse_children(
                 }
             }
             b"dinf" | b"dref" | b"moov" | b"trak" | b"mdia" | b"minf" | b"stbl" | b"edts"
-            | b"udta" | b"iprp" | b"ipco" => {
+            | b"udta" | b"iprp" | b"ipco" | b"ilst" => {
                 parse_children(
                     cursor,
                     parsed.data_offset,
                     parsed.end,
                     Some(&parsed),
+                    child_track.clone(),
                     state,
                     nodes,
                     payloads,
@@ -232,6 +297,7 @@ fn parse_children(
                         child_start,
                         parsed.end,
                         Some(&parsed),
+                        child_track.clone(),
                         state,
                         nodes,
                         payloads,
@@ -241,11 +307,21 @@ fn parse_children(
                     )?;
                 }
             }
+            b"mvhd" => parse_mvhd(cursor, &parsed, state, issues)?,
+            b"tkhd" => parse_tkhd(cursor, &parsed, current_track.as_deref(), state, issues)?,
+            b"mdhd" => parse_mdhd(cursor, &parsed, current_track.as_deref(), state, issues)?,
+            b"hdlr" => parse_hdlr(cursor, &parsed, current_track.as_deref(), state, issues)?,
+            b"stsd" => parse_stsd(cursor, &parsed, current_track.as_deref(), state, issues)?,
             b"infe" => parse_infe(cursor, &parsed, state, issues)?,
             b"pitm" => parse_pitm(cursor, &parsed, state, issues)?,
             b"iloc" => parse_iloc(cursor, &parsed, state, issues)?,
             b"ipma" => parse_ipma(cursor, &parsed, state, issues)?,
             b"ispe" => parse_ispe(cursor, &parsed, state, issues)?,
+            b"\xa9ART" | b"\xa9too" | b"\xa9nam" => {
+                if let Some(payload) = parse_quicktime_item(cursor, &parsed) {
+                    payloads.push(payload);
+                }
+            }
             b"idat" => {
                 state.idat_payloads.push((
                     cursor.absolute_offset(parsed.data_offset),
@@ -263,6 +339,7 @@ fn parse_children(
             b"Exif" => {
                 payloads.push(IsobmffPayload {
                     kind: "exif",
+                    tag: None,
                     offset_start: cursor.absolute_offset(offset),
                     offset_end: cursor.absolute_offset(parsed.end),
                     data_offset: cursor.absolute_offset(parsed.data_offset),
@@ -288,6 +365,7 @@ fn parse_children(
             b"xml " => {
                 payloads.push(IsobmffPayload {
                     kind: "xmp",
+                    tag: None,
                     offset_start: cursor.absolute_offset(offset),
                     offset_end: cursor.absolute_offset(parsed.end),
                     data_offset: cursor.absolute_offset(parsed.data_offset),
@@ -698,6 +776,242 @@ fn parse_ispe(
     Ok(())
 }
 
+fn parse_mvhd(
+    cursor: &Cursor<'_>,
+    parsed: &ParsedBox,
+    state: &mut ParseState,
+    issues: &mut Vec<Issue>,
+) -> Result<(), XiftyError> {
+    let Some(header) = read_time_header(cursor, parsed, issues, "mvhd")? else {
+        return Ok(());
+    };
+    state.movie_header.created_at = qt_seconds_to_iso_string(header.created_at);
+    state.movie_header.modified_at = qt_seconds_to_iso_string(header.modified_at);
+    state.movie_header.duration_seconds = duration_seconds(header.timescale, header.duration);
+    Ok(())
+}
+
+fn parse_tkhd(
+    cursor: &Cursor<'_>,
+    parsed: &ParsedBox,
+    track_key: Option<&str>,
+    state: &mut ParseState,
+    _issues: &mut Vec<Issue>,
+) -> Result<(), XiftyError> {
+    if parsed.end < parsed.data_offset + 8 {
+        return Ok(());
+    }
+    let width_raw = cursor.read_u32(parsed.end - 8, Endian::Big)?;
+    let height_raw = cursor.read_u32(parsed.end - 4, Endian::Big)?;
+    let width = width_raw >> 16;
+    let height = height_raw >> 16;
+    if width == 0 || height == 0 {
+        return Ok(());
+    }
+    if let Some(key) = track_key {
+        state.tracks.entry(key.to_string()).or_default().dimensions = Some((width, height));
+    }
+    Ok(())
+}
+
+fn parse_mdhd(
+    cursor: &Cursor<'_>,
+    parsed: &ParsedBox,
+    track_key: Option<&str>,
+    state: &mut ParseState,
+    issues: &mut Vec<Issue>,
+) -> Result<(), XiftyError> {
+    let Some(header) = read_time_header(cursor, parsed, issues, "mdhd")? else {
+        return Ok(());
+    };
+    if let Some(key) = track_key {
+        state
+            .tracks
+            .entry(key.to_string())
+            .or_default()
+            .duration_seconds = duration_seconds(header.timescale, header.duration);
+    }
+    Ok(())
+}
+
+fn parse_hdlr(
+    cursor: &Cursor<'_>,
+    parsed: &ParsedBox,
+    track_key: Option<&str>,
+    state: &mut ParseState,
+    _issues: &mut Vec<Issue>,
+) -> Result<(), XiftyError> {
+    if parsed.data_offset + 12 > parsed.end {
+        return Ok(());
+    }
+    let handler = cursor.slice(parsed.data_offset + 8, 4)?;
+    let handler_type = [handler[0], handler[1], handler[2], handler[3]];
+    if let Some(key) = track_key {
+        state
+            .tracks
+            .entry(key.to_string())
+            .or_default()
+            .handler_type = Some(handler_type);
+    }
+    Ok(())
+}
+
+fn parse_stsd(
+    cursor: &Cursor<'_>,
+    parsed: &ParsedBox,
+    track_key: Option<&str>,
+    state: &mut ParseState,
+    _issues: &mut Vec<Issue>,
+) -> Result<(), XiftyError> {
+    if parsed.data_offset + 16 > parsed.end {
+        return Ok(());
+    }
+    let sample_type = cursor.slice(parsed.data_offset + 12, 4)?;
+    let codec = String::from_utf8_lossy(sample_type).into_owned();
+    if let Some(key) = track_key {
+        state.tracks.entry(key.to_string()).or_default().codec = Some(codec);
+    }
+    Ok(())
+}
+
+fn parse_quicktime_item(cursor: &Cursor<'_>, parsed: &ParsedBox) -> Option<IsobmffPayload> {
+    let payload = cursor.bytes().get(parsed.data_offset..parsed.end)?;
+    if payload.len() < 16 || payload.get(4..8)? != b"data" {
+        return None;
+    }
+    let tag = quicktime_tag_name(parsed.box_type)?;
+    Some(IsobmffPayload {
+        kind: "quicktime",
+        tag: Some(tag.to_string()),
+        offset_start: cursor.absolute_offset(parsed.start),
+        offset_end: cursor.absolute_offset(parsed.end),
+        data_offset: cursor.absolute_offset(parsed.data_offset),
+        data_length: (parsed.end - parsed.data_offset) as u64,
+        path: parsed.path.clone(),
+    })
+}
+
+#[derive(Debug, Clone, Copy)]
+struct TimeHeader {
+    created_at: u64,
+    modified_at: u64,
+    timescale: u32,
+    duration: u64,
+}
+
+fn read_time_header(
+    cursor: &Cursor<'_>,
+    parsed: &ParsedBox,
+    issues: &mut Vec<Issue>,
+    box_name: &str,
+) -> Result<Option<TimeHeader>, XiftyError> {
+    if parsed.data_offset + 20 > parsed.end {
+        issues.push(Issue {
+            severity: Severity::Warning,
+            code: format!("isobmff_{box_name}_truncated"),
+            message: format!("{box_name} box is truncated"),
+            offset: Some(cursor.absolute_offset(parsed.data_offset)),
+            context: Some(parsed.path.clone()),
+        });
+        return Ok(None);
+    }
+    let version = cursor.read_u8(parsed.data_offset)?;
+    let header = if version == 1 {
+        if parsed.data_offset + 32 > parsed.end {
+            return Ok(None);
+        }
+        TimeHeader {
+            created_at: read_u64_be(cursor, parsed.data_offset + 4)?,
+            modified_at: read_u64_be(cursor, parsed.data_offset + 12)?,
+            timescale: cursor.read_u32(parsed.data_offset + 20, Endian::Big)?,
+            duration: read_u64_be(cursor, parsed.data_offset + 24)?,
+        }
+    } else {
+        TimeHeader {
+            created_at: cursor.read_u32(parsed.data_offset + 4, Endian::Big)? as u64,
+            modified_at: cursor.read_u32(parsed.data_offset + 8, Endian::Big)? as u64,
+            timescale: cursor.read_u32(parsed.data_offset + 12, Endian::Big)?,
+            duration: cursor.read_u32(parsed.data_offset + 16, Endian::Big)? as u64,
+        }
+    };
+    Ok(Some(header))
+}
+
+fn read_u64_be(cursor: &Cursor<'_>, offset: usize) -> Result<u64, XiftyError> {
+    let high = cursor.read_u32(offset, Endian::Big)? as u64;
+    let low = cursor.read_u32(offset + 4, Endian::Big)? as u64;
+    Ok((high << 32) | low)
+}
+
+fn duration_seconds(timescale: u32, duration: u64) -> Option<f64> {
+    if timescale == 0 {
+        return None;
+    }
+    Some(duration as f64 / timescale as f64)
+}
+
+fn primary_visual_dimensions(state: &ParseState) -> Option<IsobmffDimensions> {
+    let (path, track) = state
+        .tracks
+        .iter()
+        .find(|(_, track)| track.handler_type == Some(*b"vide") && track.dimensions.is_some())?;
+    let (width, height) = track.dimensions?;
+    Some(IsobmffDimensions {
+        width,
+        height,
+        offset_start: 0,
+        offset_end: 0,
+        path: format!("{path}/tkhd"),
+    })
+}
+
+fn quicktime_tag_name(box_type: [u8; 4]) -> Option<&'static str> {
+    match &box_type {
+        b"\xa9ART" => Some("author"),
+        b"\xa9too" => Some("software"),
+        b"\xa9nam" => Some("title"),
+        _ => None,
+    }
+}
+
+fn qt_seconds_to_iso_string(seconds: u64) -> Option<String> {
+    const QT_TO_UNIX: i128 = 2_082_844_800;
+    let unix = i128::from(seconds) - QT_TO_UNIX;
+    if unix < 0 {
+        return None;
+    }
+
+    let days = unix / 86_400;
+    let seconds_of_day = (unix % 86_400) as i64;
+    let (year, month, day) = civil_from_days(days as i64)?;
+    let hour = seconds_of_day / 3_600;
+    let minute = (seconds_of_day % 3_600) / 60;
+    let second = seconds_of_day % 60;
+
+    Some(format!(
+        "{year:04}-{month:02}-{day:02}T{hour:02}:{minute:02}:{second:02}"
+    ))
+}
+
+fn civil_from_days(days_since_unix_epoch: i64) -> Option<(i32, u32, u32)> {
+    let z = days_since_unix_epoch.checked_add(719_468)?;
+    let era = if z >= 0 { z } else { z - 146_096 } / 146_097;
+    let doe = z - era * 146_097;
+    let yoe = (doe - doe / 1_460 + doe / 36_524 - doe / 146_096) / 365;
+    let y = yoe + era * 400;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let day = doy - (153 * mp + 2) / 5 + 1;
+    let month = mp + if mp < 10 { 3 } else { -9 };
+    let year = y + if month <= 2 { 1 } else { 0 };
+
+    Some((
+        i32::try_from(year).ok()?,
+        u32::try_from(month).ok()?,
+        u32::try_from(day).ok()?,
+    ))
+}
+
 fn payloads_from_items(
     cursor: &Cursor<'_>,
     state: &ParseState,
@@ -785,6 +1099,7 @@ fn payloads_from_items(
 
         payloads.push(IsobmffPayload {
             kind,
+            tag: None,
             offset_start: absolute_data_offset,
             offset_end: absolute_data_offset + extent.length,
             data_offset: absolute_data_offset,
@@ -858,6 +1173,7 @@ fn parse_mime_payload(cursor: &Cursor<'_>, parsed: &ParsedBox) -> Option<Isobmff
     }
     Some(IsobmffPayload {
         kind: "xmp",
+        tag: None,
         offset_start: cursor.absolute_offset(parsed.start),
         offset_end: cursor.absolute_offset(parsed.end),
         data_offset: cursor.absolute_offset(data_offset),
@@ -877,6 +1193,10 @@ fn heif_brand(brand: [u8; 4]) -> bool {
     )
 }
 
+fn supported_brand(brand: [u8; 4]) -> bool {
+    heif_brand(brand) || matches!(&brand, b"qt  " | b"isom" | b"iso2" | b"mp41" | b"mp42")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -894,6 +1214,90 @@ mod tests {
         let mut data = version_flags.to_vec();
         data.extend_from_slice(children);
         boxed(kind, &data)
+    }
+
+    fn quicktime_data_box(text: &str) -> Vec<u8> {
+        let mut payload = vec![0, 0, 0, 1, 0, 0, 0, 0];
+        payload.extend_from_slice(text.as_bytes());
+        payload.push(0);
+        boxed(b"data", &payload)
+    }
+
+    fn media_track(handler: &[u8; 4], codec: &[u8; 4], width: u32, height: u32) -> Vec<u8> {
+        let mut tkhd_payload = vec![0; 72];
+        tkhd_payload.extend_from_slice(&(width << 16).to_be_bytes());
+        tkhd_payload.extend_from_slice(&(height << 16).to_be_bytes());
+        let tkhd = full_box(b"tkhd", [0, 0, 0, 0], &tkhd_payload);
+
+        let mut mdhd_payload = Vec::new();
+        mdhd_payload.extend_from_slice(&3_800_000_000u32.to_be_bytes());
+        mdhd_payload.extend_from_slice(&3_800_000_100u32.to_be_bytes());
+        mdhd_payload.extend_from_slice(&1_000u32.to_be_bytes());
+        mdhd_payload.extend_from_slice(&12_000u32.to_be_bytes());
+        mdhd_payload.extend_from_slice(&0u32.to_be_bytes());
+        let mdhd = full_box(b"mdhd", [0, 0, 0, 0], &mdhd_payload);
+
+        let mut hdlr_payload = vec![0; 4];
+        hdlr_payload.extend_from_slice(handler);
+        hdlr_payload.extend_from_slice(&[0; 12]);
+        let hdlr = full_box(b"hdlr", [0, 0, 0, 0], &hdlr_payload);
+
+        let sample_entry = boxed(codec, &[0; 8]);
+        let mut stsd_payload = Vec::new();
+        stsd_payload.extend_from_slice(&1u32.to_be_bytes());
+        stsd_payload.extend_from_slice(&sample_entry);
+        let stsd = full_box(b"stsd", [0, 0, 0, 0], &stsd_payload);
+
+        boxed(
+            b"trak",
+            &[
+                tkhd,
+                boxed(
+                    b"mdia",
+                    &[mdhd, hdlr, boxed(b"minf", &boxed(b"stbl", &stsd))].concat(),
+                ),
+            ]
+            .concat(),
+        )
+    }
+
+    fn minimal_media_file(include_audio: bool, include_unsupported: bool) -> Vec<u8> {
+        let mut mvhd_payload = Vec::new();
+        mvhd_payload.extend_from_slice(&3_800_000_000u32.to_be_bytes());
+        mvhd_payload.extend_from_slice(&3_800_000_100u32.to_be_bytes());
+        mvhd_payload.extend_from_slice(&1_000u32.to_be_bytes());
+        mvhd_payload.extend_from_slice(&12_000u32.to_be_bytes());
+        mvhd_payload.extend_from_slice(&[0; 8]);
+        let mvhd = full_box(b"mvhd", [0, 0, 0, 0], &mvhd_payload);
+
+        let mut moov_children = vec![mvhd, media_track(b"vide", b"avc1", 1920, 1080)];
+        if include_audio {
+            moov_children.push(media_track(b"soun", b"mp4a", 0, 0));
+        }
+        moov_children.push(boxed(
+            b"udta",
+            &full_box(
+                b"meta",
+                [0, 0, 0, 0],
+                &boxed(
+                    b"ilst",
+                    &[
+                        boxed(b"\xa9ART", &quicktime_data_box("Kai")),
+                        boxed(b"\xa9too", &quicktime_data_box("XIFtyMediaGen")),
+                    ]
+                    .concat(),
+                ),
+            ),
+        ));
+        if include_unsupported {
+            moov_children.push(full_box(b"iref", [0, 0, 0, 0], &[0, 0, 0, 0]));
+        }
+
+        [
+            boxed(b"ftyp", b"isom\0\0\0\0mp42"),
+            boxed(b"moov", &moov_children.concat()),
+        ]
+        .concat()
     }
 
     #[test]
@@ -954,5 +1358,34 @@ mod tests {
                 .iter()
                 .any(|issue| issue.code == "isobmff_box_size_out_of_bounds")
         );
+    }
+
+    #[test]
+    fn derives_media_duration_codecs_and_dimensions() {
+        let parsed = parse_bytes(&minimal_media_file(true, false), 0).unwrap();
+        assert_eq!(parsed.media_duration_seconds, Some(12.0));
+        assert_eq!(parsed.video_codec.as_deref(), Some("avc1"));
+        assert_eq!(parsed.audio_codec.as_deref(), Some("mp4a"));
+        let dimensions = parsed.primary_visual_dimensions.unwrap();
+        assert_eq!((dimensions.width, dimensions.height), (1920, 1080));
+    }
+
+    #[test]
+    fn routes_quicktime_payloads_and_reports_unsupported_structure() {
+        let parsed = parse_bytes(&minimal_media_file(true, true), 0).unwrap();
+        assert_eq!(parsed.quicktime_payloads().count(), 2);
+        assert!(
+            parsed
+                .issues
+                .iter()
+                .any(|issue| issue.code == "isobmff_structure_recognized_uninterpreted")
+        );
+    }
+
+    #[test]
+    fn omits_audio_codec_when_audio_track_is_missing() {
+        let parsed = parse_bytes(&minimal_media_file(false, false), 0).unwrap();
+        assert_eq!(parsed.video_codec.as_deref(), Some("avc1"));
+        assert_eq!(parsed.audio_codec, None);
     }
 }

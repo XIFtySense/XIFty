@@ -8,7 +8,11 @@ use xifty_core::{
     RawView, SCHEMA_VERSION, TypedValue, ViewMode, XiftyError,
 };
 use xifty_detect::detect;
+use xifty_meta_apple::decode_from_tiff as decode_apple_from_tiff;
 use xifty_meta_exif::{decode_from_tiff, exif_payload_from_jpeg};
+use xifty_meta_quicktime::{QuickTimePayload, decode_payload as decode_quicktime_payload};
+use xifty_meta_rtmd::{RtmdPacket, decode_packet as decode_rtmd_packet};
+use xifty_meta_sony::decode_from_tiff as decode_sony_from_tiff;
 use xifty_meta_xmp::{XmpPacket, decode_packet, decode_png_text_chunk, decode_webp_xmp_chunk};
 use xifty_normalize::normalize_with_policy;
 use xifty_source::SourceBytes;
@@ -35,6 +39,14 @@ pub fn probe_path(path: std::path::PathBuf) -> Result<ProbeOutput, XiftyError> {
             ("webp".to_string(), parsed.nodes, parsed.issues)
         }
         Format::Heif => {
+            let parsed = parse_isobmff(&source)?;
+            ("isobmff".to_string(), parsed.nodes, parsed.issues)
+        }
+        Format::Mp4 => {
+            let parsed = parse_isobmff(&source)?;
+            ("isobmff".to_string(), parsed.nodes, parsed.issues)
+        }
+        Format::Mov => {
             let parsed = parse_isobmff(&source)?;
             ("isobmff".to_string(), parsed.nodes, parsed.issues)
         }
@@ -66,7 +78,21 @@ pub fn extract_path(
                 let tiff =
                     xifty_container_tiff::parse_bytes(exif_payload, base_offset, "jpeg_exif")?;
                 issues.extend(tiff.issues.clone());
-                decode_from_tiff(exif_payload, base_offset, "jpeg", &tiff)
+                let mut entries = decode_from_tiff(exif_payload, base_offset, "jpeg", &tiff);
+                entries.extend(decode_apple_from_tiff(
+                    exif_payload,
+                    "jpeg",
+                    &tiff,
+                    &entries,
+                ));
+                entries.extend(decode_sony_from_tiff(
+                    exif_payload,
+                    base_offset,
+                    "jpeg",
+                    &tiff,
+                    &entries,
+                ));
+                entries
             } else {
                 Vec::new()
             };
@@ -74,7 +100,20 @@ pub fn extract_path(
         }
         Format::Tiff => {
             let tiff = parse_tiff(&source)?;
-            let entries = decode_from_tiff(source.bytes(), 0, "tiff", &tiff);
+            let mut entries = decode_from_tiff(source.bytes(), 0, "tiff", &tiff);
+            entries.extend(decode_apple_from_tiff(
+                source.bytes(),
+                "tiff",
+                &tiff,
+                &entries,
+            ));
+            entries.extend(decode_sony_from_tiff(
+                source.bytes(),
+                0,
+                "tiff",
+                &tiff,
+                &entries,
+            ));
             ("tiff".to_string(), tiff.nodes, entries, tiff.issues)
         }
         Format::Png => {
@@ -143,46 +182,27 @@ pub fn extract_path(
         }
         Format::Heif => {
             let isobmff = parse_isobmff(&source)?;
-            let mut entries = Vec::new();
-            for payload in isobmff.exif_payloads() {
-                if let Some(bytes) = payload_slice(
-                    source.bytes(),
-                    payload.data_offset,
-                    payload.data_length as usize,
-                ) {
-                    if let Some((tiff_offset, tiff_bytes)) =
-                        heif_exif_tiff(bytes, payload.data_offset)
-                    {
-                        if let Ok(tiff) =
-                            xifty_container_tiff::parse_bytes(tiff_bytes, tiff_offset, "heif_exif")
-                        {
-                            entries.extend(decode_from_tiff(
-                                tiff_bytes,
-                                tiff_offset,
-                                "heif",
-                                &tiff,
-                            ));
-                        }
-                    }
-                }
-            }
-            for payload in isobmff.xmp_payloads() {
-                if let Some(bytes) = payload_slice(
-                    source.bytes(),
-                    payload.data_offset,
-                    payload.data_length as usize,
-                ) {
-                    entries.extend(decode_packet(XmpPacket {
-                        bytes,
-                        container: "heif",
-                        offset_start: payload.offset_start,
-                        offset_end: payload.offset_end,
-                    }));
-                }
-            }
-            if let Some(dimensions) = &isobmff.primary_item_dimensions {
-                entries.extend(heif_dimension_entries(dimensions));
-            }
+            let entries = isobmff_entries(&isobmff, source.bytes(), format.as_str());
+            (
+                "isobmff".to_string(),
+                isobmff.nodes,
+                entries,
+                isobmff.issues,
+            )
+        }
+        Format::Mp4 => {
+            let isobmff = parse_isobmff(&source)?;
+            let entries = isobmff_entries(&isobmff, source.bytes(), format.as_str());
+            (
+                "isobmff".to_string(),
+                isobmff.nodes,
+                entries,
+                isobmff.issues,
+            )
+        }
+        Format::Mov => {
+            let isobmff = parse_isobmff(&source)?;
+            let entries = isobmff_entries(&isobmff, source.bytes(), format.as_str());
             (
                 "isobmff".to_string(),
                 isobmff.nodes,
@@ -272,4 +292,184 @@ fn heif_dimension_entries(
             notes: Vec::new(),
         },
     ]
+}
+
+fn isobmff_entries(
+    container: &xifty_container_isobmff::IsobmffContainer,
+    bytes: &[u8],
+    format_name: &str,
+) -> Vec<MetadataEntry> {
+    let mut entries = Vec::new();
+
+    for payload in container.exif_payloads() {
+        if let Some(payload_bytes) =
+            payload_slice(bytes, payload.data_offset, payload.data_length as usize)
+        {
+            let tiff_view = if format_name == "heif" {
+                heif_exif_tiff(payload_bytes, payload.data_offset)
+            } else if payload_bytes.starts_with(b"II") || payload_bytes.starts_with(b"MM") {
+                Some((payload.data_offset, payload_bytes))
+            } else {
+                None
+            };
+
+            if let Some((tiff_offset, tiff_bytes)) = tiff_view {
+                if let Ok(tiff) = xifty_container_tiff::parse_bytes(
+                    tiff_bytes,
+                    tiff_offset,
+                    &format!("{format_name}_exif"),
+                ) {
+                    entries.extend(decode_from_tiff(
+                        tiff_bytes,
+                        tiff_offset,
+                        format_name,
+                        &tiff,
+                    ));
+                }
+            }
+        }
+    }
+
+    for payload in container.xmp_payloads() {
+        if let Some(payload_bytes) =
+            payload_slice(bytes, payload.data_offset, payload.data_length as usize)
+        {
+            let rtmd_entries = decode_rtmd_packet(RtmdPacket {
+                bytes: payload_bytes,
+                container: format_name,
+                offset_start: payload.offset_start,
+                offset_end: payload.offset_end,
+            });
+            if rtmd_entries.is_empty() {
+                entries.extend(decode_packet(XmpPacket {
+                    bytes: payload_bytes,
+                    container: format_name,
+                    offset_start: payload.offset_start,
+                    offset_end: payload.offset_end,
+                }));
+            } else {
+                entries.extend(rtmd_entries);
+            }
+        }
+    }
+
+    for payload in container.quicktime_payloads() {
+        if let (Some(tag), Some(payload_bytes)) = (
+            payload.tag.as_deref(),
+            payload_slice(bytes, payload.data_offset, payload.data_length as usize),
+        ) {
+            entries.extend(decode_quicktime_payload(QuickTimePayload {
+                key: tag,
+                bytes: payload_bytes,
+                container: format_name,
+                offset_start: payload.offset_start,
+                offset_end: payload.offset_end,
+            }));
+        }
+    }
+
+    if let Some(dimensions) = &container.primary_item_dimensions {
+        entries.extend(heif_dimension_entries(dimensions));
+    }
+    if let Some(dimensions) = &container.primary_visual_dimensions {
+        entries.extend(media_dimension_entries(dimensions, format_name));
+    }
+    if let Some(duration) = container.media_duration_seconds {
+        entries.push(media_scalar_entry(
+            format_name,
+            "DurationSeconds",
+            TypedValue::Float(duration),
+            "derived from mvhd or media track timing",
+        ));
+    }
+    if let Some(codec) = &container.video_codec {
+        entries.push(media_scalar_entry(
+            format_name,
+            "VideoCodec",
+            TypedValue::String(codec.clone()),
+            "derived from video track sample description",
+        ));
+    }
+    if let Some(codec) = &container.audio_codec {
+        entries.push(media_scalar_entry(
+            format_name,
+            "AudioCodec",
+            TypedValue::String(codec.clone()),
+            "derived from audio track sample description",
+        ));
+    }
+    if let Some(created_at) = &container.media_created_at {
+        entries.push(media_scalar_entry(
+            format_name,
+            "CreateDate",
+            TypedValue::Timestamp(created_at.clone()),
+            "derived from movie header creation time",
+        ));
+    }
+    if let Some(modified_at) = &container.media_modified_at {
+        entries.push(media_scalar_entry(
+            format_name,
+            "ModifyDate",
+            TypedValue::Timestamp(modified_at.clone()),
+            "derived from movie header modification time",
+        ));
+    }
+
+    entries
+}
+
+fn media_dimension_entries(
+    dimensions: &xifty_container_isobmff::IsobmffDimensions,
+    container_name: &str,
+) -> Vec<MetadataEntry> {
+    let provenance = Provenance {
+        container: container_name.into(),
+        namespace: "quicktime".into(),
+        path: Some(dimensions.path.clone()),
+        offset_start: Some(dimensions.offset_start),
+        offset_end: Some(dimensions.offset_end),
+        notes: vec!["derived from visual track header".into()],
+    };
+
+    vec![
+        MetadataEntry {
+            namespace: "quicktime".into(),
+            tag_id: "ImageWidth".into(),
+            tag_name: "ImageWidth".into(),
+            value: TypedValue::Integer(dimensions.width as i64),
+            provenance: provenance.clone(),
+            notes: Vec::new(),
+        },
+        MetadataEntry {
+            namespace: "quicktime".into(),
+            tag_id: "ImageHeight".into(),
+            tag_name: "ImageHeight".into(),
+            value: TypedValue::Integer(dimensions.height as i64),
+            provenance,
+            notes: Vec::new(),
+        },
+    ]
+}
+
+fn media_scalar_entry(
+    container_name: &str,
+    tag_name: &str,
+    value: TypedValue,
+    note: &str,
+) -> MetadataEntry {
+    MetadataEntry {
+        namespace: "quicktime".into(),
+        tag_id: tag_name.into(),
+        tag_name: tag_name.into(),
+        value,
+        provenance: Provenance {
+            container: container_name.into(),
+            namespace: "quicktime".into(),
+            path: None,
+            offset_start: None,
+            offset_end: None,
+            notes: vec![note.into()],
+        },
+        notes: Vec::new(),
+    }
 }

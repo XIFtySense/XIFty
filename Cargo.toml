@@ -9,7 +9,11 @@ members = [
   "crates/xifty-container-riff",
   "crates/xifty-container-isobmff",
   "crates/xifty-meta-exif",
+  "crates/xifty-meta-apple",
+  "crates/xifty-meta-sony",
   "crates/xifty-meta-xmp",
+  "crates/xifty-meta-quicktime",
+  "crates/xifty-meta-rtmd",
   "crates/xifty-normalize",
   "crates/xifty-policy",
   "crates/xifty-validate",
@@ -29,5 +33,6 @@ authors = ["XIFty Contributors"]
 clap = { version = "4.5.40", features = ["derive"] }
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.145"
+plist = "1.7.0"
 thiserror = "2.0.17"
 insta = { version = "1.43.2", features = ["json"] }

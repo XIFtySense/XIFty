@@ -11,6 +11,8 @@ pub enum Format {
     Png,
     Webp,
     Heif,
+    Mp4,
+    Mov,
 }
 
 impl Format {
@@ -21,6 +23,8 @@ impl Format {
             Self::Png => "png",
             Self::Webp => "webp",
             Self::Heif => "heif",
+            Self::Mp4 => "mp4",
+            Self::Mov => "mov",
         }
     }
 }
@@ -75,6 +79,7 @@ pub struct Provenance {
 pub enum TypedValue {
     String(String),
     Integer(i64),
+    Float(f64),
     Rational { numerator: i64, denominator: i64 },
     RationalList(Vec<RationalValue>),
     Bytes(Vec<u8>),

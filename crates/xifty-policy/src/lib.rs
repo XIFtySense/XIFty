@@ -62,7 +62,7 @@ pub fn reconcile(entries: &[MetadataEntry]) -> PolicyResult {
         &mut result,
         "author",
         &["Author"],
-        NamespacePreference::XmpFirst,
+        NamespacePreference::XmpThenQuickTime,
         false,
     );
     maybe_choose_string(
@@ -94,6 +94,29 @@ pub fn reconcile(entries: &[MetadataEntry]) -> PolicyResult {
         &["ImageHeight"],
         NamespacePreference::ExifFirst,
     );
+    maybe_choose_float(
+        entries,
+        &mut result,
+        "duration",
+        &["DurationSeconds"],
+        NamespacePreference::QuickTimeFirst,
+    );
+    maybe_choose_string(
+        entries,
+        &mut result,
+        "codec.video",
+        &["VideoCodec"],
+        NamespacePreference::QuickTimeFirst,
+        false,
+    );
+    maybe_choose_string(
+        entries,
+        &mut result,
+        "codec.audio",
+        &["AudioCodec"],
+        NamespacePreference::QuickTimeFirst,
+        false,
+    );
 
     result
 }
@@ -102,6 +125,8 @@ pub fn reconcile(entries: &[MetadataEntry]) -> PolicyResult {
 enum NamespacePreference {
     ExifFirst,
     XmpFirst,
+    XmpThenQuickTime,
+    QuickTimeFirst,
 }
 
 fn maybe_choose_string(
@@ -182,6 +207,42 @@ fn maybe_choose_integer(
     });
 }
 
+fn maybe_choose_float(
+    entries: &[MetadataEntry],
+    result: &mut PolicyResult,
+    field_name: &str,
+    tag_names: &[&str],
+    preference: NamespacePreference,
+) {
+    let matches = find_matches(entries, tag_names);
+    if matches.is_empty() {
+        return;
+    }
+
+    let winner = choose_match(&matches, preference);
+    let TypedValue::Float(value) = &winner.value else {
+        return;
+    };
+
+    if has_material_difference(&matches, &TypedValue::Float(*value)) {
+        result.conflicts.push(Conflict {
+            field: field_name.into(),
+            message: format!(
+                "multiple candidates disagreed; selected {} from {}",
+                winner.tag_name, winner.namespace
+            ),
+        });
+    }
+
+    result.fields.push(NormalizedField {
+        field: field_name.into(),
+        value: TypedValue::Float(*value),
+        confidence: 0.95,
+        sources: vec![winner.provenance.clone()],
+        notes: conflict_note(&matches, winner),
+    });
+}
+
 fn find_matches<'a>(entries: &'a [MetadataEntry], tag_names: &[&str]) -> Vec<&'a MetadataEntry> {
     entries
         .iter()
@@ -193,14 +254,24 @@ fn choose_match<'a>(
     matches: &[&'a MetadataEntry],
     preference: NamespacePreference,
 ) -> &'a MetadataEntry {
-    matches
-        .iter()
-        .copied()
-        .find(|entry| match preference {
-            NamespacePreference::ExifFirst => entry.namespace == "exif",
-            NamespacePreference::XmpFirst => entry.namespace == "xmp",
-        })
-        .unwrap_or(matches[0])
+    let preferred_namespaces: &[&str] = match preference {
+        NamespacePreference::ExifFirst => &["exif"],
+        NamespacePreference::XmpFirst => &["xmp"],
+        NamespacePreference::XmpThenQuickTime => &["xmp", "quicktime"],
+        NamespacePreference::QuickTimeFirst => &["quicktime"],
+    };
+
+    for namespace in preferred_namespaces {
+        if let Some(entry) = matches
+            .iter()
+            .copied()
+            .find(|entry| entry.namespace == *namespace)
+        {
+            return entry;
+        }
+    }
+
+    matches[0]
 }
 
 fn has_material_difference(matches: &[&MetadataEntry], winner: &TypedValue) -> bool {
@@ -218,6 +289,7 @@ fn typed_values_equal(left: &TypedValue, right: &TypedValue) -> bool {
             normalize_timestamp(a) == normalize_timestamp(b)
         }
         (TypedValue::Integer(a), TypedValue::Integer(b)) => a == b,
+        (TypedValue::Float(a), TypedValue::Float(b)) => (*a - *b).abs() < f64::EPSILON,
         _ => false,
     }
 }
@@ -298,5 +370,58 @@ mod tests {
                 .any(|field| field.field == "device.model")
         );
         assert_eq!(result.conflicts.len(), 1);
+    }
+
+    #[test]
+    fn selects_quicktime_media_fields() {
+        let prov = xifty_core::Provenance {
+            container: "mp4".into(),
+            namespace: "quicktime".into(),
+            path: None,
+            offset_start: None,
+            offset_end: None,
+            notes: Vec::new(),
+        };
+        let entries = vec![
+            MetadataEntry {
+                namespace: "quicktime".into(),
+                tag_id: "DurationSeconds".into(),
+                tag_name: "DurationSeconds".into(),
+                value: TypedValue::Float(12.0),
+                provenance: prov.clone(),
+                notes: Vec::new(),
+            },
+            MetadataEntry {
+                namespace: "quicktime".into(),
+                tag_id: "VideoCodec".into(),
+                tag_name: "VideoCodec".into(),
+                value: TypedValue::String("avc1".into()),
+                provenance: prov.clone(),
+                notes: Vec::new(),
+            },
+            MetadataEntry {
+                namespace: "quicktime".into(),
+                tag_id: "AudioCodec".into(),
+                tag_name: "AudioCodec".into(),
+                value: TypedValue::String("mp4a".into()),
+                provenance: prov,
+                notes: Vec::new(),
+            },
+        ];
+
+        let result = reconcile(&entries);
+        assert!(result.fields.iter().any(|field| field.field == "duration"));
+        assert!(
+            result
+                .fields
+                .iter()
+                .any(|field| field.field == "codec.video")
+        );
+        assert!(
+            result
+                .fields
+                .iter()
+                .any(|field| field.field == "codec.audio")
+        );
     }
 }

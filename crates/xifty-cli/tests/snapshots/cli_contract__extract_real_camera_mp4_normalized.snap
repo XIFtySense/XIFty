@@ -1,0 +1,205 @@
+---
+source: crates/xifty-cli/tests/cli_contract.rs
+expression: "extract_json(\"C0242.MP4\", ViewMode::Normalized)"
+---
+{
+  "input": {
+    "container": "isobmff",
+    "detected_format": "mp4",
+    "path": "C0242.MP4"
+  },
+  "normalized": {
+    "fields": [
+      {
+        "confidence": 0.949999988079071,
+        "field": "captured_at",
+        "notes": [
+          "selected CreateDate from rtmd over 1 competing candidate(s)"
+        ],
+        "sources": [
+          {
+            "container": "mp4",
+            "namespace": "rtmd",
+            "offset_end": 25170432,
+            "offset_start": 25168484,
+            "path": "non_real_time_meta"
+          }
+        ],
+        "value": {
+          "kind": "timestamp",
+          "value": "2026-04-16T06:34:34-08:00"
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
+        "field": "created_at",
+        "notes": [
+          "selected CreateDate from rtmd over 1 competing candidate(s)"
+        ],
+        "sources": [
+          {
+            "container": "mp4",
+            "namespace": "rtmd",
+            "offset_end": 25170432,
+            "offset_start": 25168484,
+            "path": "non_real_time_meta"
+          }
+        ],
+        "value": {
+          "kind": "timestamp",
+          "value": "2026-04-16T06:34:34-08:00"
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
+        "field": "modified_at",
+        "sources": [
+          {
+            "container": "mp4",
+            "namespace": "quicktime",
+            "notes": [
+              "derived from movie header modification time"
+            ]
+          }
+        ],
+        "value": {
+          "kind": "timestamp",
+          "value": "2026-04-16T14:34:34"
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
+        "field": "device.make",
+        "sources": [
+          {
+            "container": "mp4",
+            "namespace": "rtmd",
+            "offset_end": 25170432,
+            "offset_start": 25168484,
+            "path": "non_real_time_meta"
+          }
+        ],
+        "value": {
+          "kind": "string",
+          "value": "Sony"
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
+        "field": "device.model",
+        "sources": [
+          {
+            "container": "mp4",
+            "namespace": "rtmd",
+            "offset_end": 25170432,
+            "offset_start": 25168484,
+            "path": "non_real_time_meta"
+          }
+        ],
+        "value": {
+          "kind": "string",
+          "value": "ZV-E10"
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
+        "field": "dimensions.width",
+        "sources": [
+          {
+            "container": "mp4",
+            "namespace": "rtmd",
+            "offset_end": 25170432,
+            "offset_start": 25168484,
+            "path": "non_real_time_meta"
+          }
+        ],
+        "value": {
+          "kind": "integer",
+          "value": 3840
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
+        "field": "dimensions.height",
+        "sources": [
+          {
+            "container": "mp4",
+            "namespace": "rtmd",
+            "offset_end": 25170432,
+            "offset_start": 25168484,
+            "path": "non_real_time_meta"
+          }
+        ],
+        "value": {
+          "kind": "integer",
+          "value": 2160
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
+        "field": "duration",
+        "sources": [
+          {
+            "container": "mp4",
+            "namespace": "quicktime",
+            "notes": [
+              "derived from mvhd or media track timing"
+            ]
+          }
+        ],
+        "value": {
+          "kind": "float",
+          "value": 2.005
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
+        "field": "codec.video",
+        "sources": [
+          {
+            "container": "mp4",
+            "namespace": "quicktime",
+            "notes": [
+              "derived from video track sample description"
+            ]
+          }
+        ],
+        "value": {
+          "kind": "string",
+          "value": "avc1"
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
+        "field": "codec.audio",
+        "sources": [
+          {
+            "container": "mp4",
+            "namespace": "quicktime",
+            "notes": [
+              "derived from audio track sample description"
+            ]
+          }
+        ],
+        "value": {
+          "kind": "string",
+          "value": "twos"
+        }
+      }
+    ]
+  },
+  "report": {
+    "conflicts": [
+      {
+        "field": "captured_at",
+        "message": "multiple candidates disagreed; selected CreateDate from rtmd"
+      },
+      {
+        "field": "created_at",
+        "message": "multiple candidates disagreed; selected CreateDate from rtmd"
+      }
+    ],
+    "issues": []
+  },
+  "schema_version": "0.1.0"
+}

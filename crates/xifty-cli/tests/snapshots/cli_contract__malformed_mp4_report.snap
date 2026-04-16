@@ -1,0 +1,29 @@
+---
+source: crates/xifty-cli/tests/cli_contract.rs
+expression: "extract_json(\"malformed.mp4\", ViewMode::Report)"
+---
+{
+  "input": {
+    "container": "isobmff",
+    "detected_format": "mp4",
+    "path": "malformed.mp4"
+  },
+  "report": {
+    "conflicts": [],
+    "issues": [
+      {
+        "code": "isobmff_box_size_out_of_bounds",
+        "context": "moov",
+        "message": "box moov exceeds containing bounds",
+        "offset": 20,
+        "severity": "warning"
+      },
+      {
+        "code": "no_metadata_entries",
+        "message": "no supported metadata entries were decoded",
+        "severity": "info"
+      }
+    ]
+  },
+  "schema_version": "0.1.0"
+}

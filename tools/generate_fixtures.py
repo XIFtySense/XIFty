@@ -2,6 +2,7 @@
 
 from pathlib import Path
 import struct
+from datetime import datetime, timezone
 
 
 ROOT = Path(__file__).resolve().parent.parent / "fixtures" / "minimal"
@@ -240,6 +241,104 @@ def build_heif(exif_payload=None, xmp_payload=None, malformed=False, unsupported
     return iso_box(b"ftyp", ftyp_payload) + meta
 
 
+def qt_epoch_seconds(year, month, day, hour=0, minute=0, second=0):
+    unix = datetime(year, month, day, hour, minute, second, tzinfo=timezone.utc).timestamp()
+    return int(unix + 2082844800)
+
+
+def quicktime_data_box(text):
+    payload = b"\x00\x00\x00\x01" + b"\x00\x00\x00\x00" + text.encode("utf-8") + b"\x00"
+    return iso_box(b"data", payload)
+
+
+def build_track(*, handler, codec, duration, timescale=1000, width=0, height=0):
+    tkhd_payload = b"\x00" * 72 + struct.pack(">II", width << 16, height << 16)
+    tkhd = full_box(b"tkhd", tkhd_payload)
+    mdhd_payload = (
+        struct.pack(">I", qt_epoch_seconds(2024, 4, 16, 12, 34, 56))
+        + struct.pack(">I", qt_epoch_seconds(2024, 4, 16, 13, 0, 0))
+        + struct.pack(">I", timescale)
+        + struct.pack(">I", duration)
+        + b"\x00\x00\x00\x00"
+    )
+    mdhd = full_box(b"mdhd", mdhd_payload)
+    hdlr_payload = b"\x00\x00\x00\x00" + handler + b"\x00" * 12
+    hdlr = full_box(b"hdlr", hdlr_payload)
+    sample_entry = iso_box(codec, b"\x00" * 8)
+    stsd = full_box(b"stsd", struct.pack(">I", 1) + sample_entry)
+    stbl = iso_box(b"stbl", stsd)
+    minf = iso_box(b"minf", stbl)
+    mdia = iso_box(b"mdia", mdhd + hdlr + minf)
+    return iso_box(b"trak", tkhd + mdia)
+
+
+def build_media_file(
+    *,
+    major_brand,
+    compatible_brand,
+    author="Kai",
+    software="XIFtyMediaGen",
+    duration=12.0,
+    malformed=False,
+    include_audio=True,
+    include_metadata=True,
+    include_movie=True,
+    unsupported=False,
+):
+    timescale = 1000
+    movie_duration = int(duration * timescale)
+    if not include_movie:
+        return iso_box(b"ftyp", major_brand + b"\x00\x00\x00\x00" + compatible_brand)
+    mvhd_payload = (
+        struct.pack(">I", qt_epoch_seconds(2024, 4, 16, 12, 34, 56))
+        + struct.pack(">I", qt_epoch_seconds(2024, 4, 16, 13, 0, 0))
+        + struct.pack(">I", timescale)
+        + struct.pack(">I", movie_duration)
+        + b"\x00" * 8
+    )
+    mvhd = full_box(b"mvhd", mvhd_payload)
+    video_track = build_track(handler=b"vide", codec=b"avc1", duration=movie_duration, width=1920, height=1080)
+    tracks = [video_track]
+    if include_audio:
+        tracks.append(build_track(handler=b"soun", codec=b"mp4a", duration=movie_duration))
+    extras = []
+    if include_metadata:
+        ilst = iso_box(
+            b"ilst",
+            iso_box(b"\xa9ART", quicktime_data_box(author))
+            + iso_box(b"\xa9too", quicktime_data_box(software))
+            + iso_box(b"\xa9nam", quicktime_data_box("XIFty Sample")),
+        )
+        extras.append(iso_box(b"udta", full_box(b"meta", ilst)))
+    if unsupported:
+        extras.append(full_box(b"iref", b"\x00\x00\x00\x00"))
+    moov = iso_box(b"moov", mvhd + b"".join(tracks) + b"".join(extras))
+    if malformed:
+        moov = iso_box(b"moov", moov[8:], force_size=len(moov) + 24)
+    ftyp = iso_box(b"ftyp", major_brand + b"\x00\x00\x00\x00" + compatible_brand)
+    return ftyp + moov
+
+
+def build_mp4(malformed=False):
+    return build_media_file(major_brand=b"isom", compatible_brand=b"mp42", malformed=malformed)
+
+
+def build_mov(malformed=False):
+    return build_media_file(major_brand=b"qt  ", compatible_brand=b"qt  ", author="Kai QuickTime", software="XIFtyMovGen", malformed=malformed)
+
+
+def build_video_only_mp4():
+    return build_media_file(major_brand=b"isom", compatible_brand=b"mp42", include_audio=False)
+
+
+def build_unsupported_mp4():
+    return build_media_file(major_brand=b"isom", compatible_brand=b"mp42", unsupported=True)
+
+
+def build_no_metadata_mp4():
+    return build_media_file(major_brand=b"isom", compatible_brand=b"mp42", include_movie=False)
+
+
 def main():
     ROOT.mkdir(parents=True, exist_ok=True)
     xmp = build_xmp()
@@ -274,6 +373,13 @@ def main():
         "no_exif.heic": build_heif(None),
         "unsupported.heic": build_heif(build_tiff(gps=False), xmp_with_location, unsupported=True),
         "malformed_box.heic": build_heif(build_tiff(gps=False), malformed=True),
+        "happy.mp4": build_mp4(),
+        "video_only.mp4": build_video_only_mp4(),
+        "unsupported.mp4": build_unsupported_mp4(),
+        "no_metadata.mp4": build_no_metadata_mp4(),
+        "malformed.mp4": build_mp4(malformed=True),
+        "happy.mov": build_mov(),
+        "malformed.mov": build_mov(malformed=True),
     }
 
     for name, data in files.items():

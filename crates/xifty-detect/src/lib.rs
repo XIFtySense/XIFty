@@ -19,8 +19,16 @@ pub fn detect(source: &SourceBytes) -> Result<Format, XiftyError> {
         return Ok(Format::Webp);
     }
 
-    if bytes.len() >= 16 && &bytes[4..8] == b"ftyp" && is_heif_brand(bytes) {
-        return Ok(Format::Heif);
+    if bytes.len() >= 16 && &bytes[4..8] == b"ftyp" {
+        if is_heif_brand(bytes) {
+            return Ok(Format::Heif);
+        }
+        if is_mov_brand(bytes) {
+            return Ok(Format::Mov);
+        }
+        if is_mp4_brand(bytes) {
+            return Ok(Format::Mp4);
+        }
     }
 
     Err(XiftyError::UnsupportedFormat)
@@ -46,6 +54,45 @@ fn heif_brand(brand: [u8; 4]) -> bool {
     matches!(
         &brand,
         b"mif1" | b"msf1" | b"heic" | b"heix" | b"hevc" | b"heim" | b"heis" | b"avif" | b"avis"
+    )
+}
+
+fn is_mov_brand(bytes: &[u8]) -> bool {
+    let Some(brand_bytes) = bytes.get(8..12) else {
+        return false;
+    };
+    brand_bytes == b"qt  "
+}
+
+fn is_mp4_brand(bytes: &[u8]) -> bool {
+    let Some(brand_bytes) = bytes.get(8..16) else {
+        return false;
+    };
+    let major = [
+        brand_bytes[0],
+        brand_bytes[1],
+        brand_bytes[2],
+        brand_bytes[3],
+    ];
+    let compat = bytes[16..]
+        .chunks_exact(4)
+        .map(|chunk| [chunk[0], chunk[1], chunk[2], chunk[3]]);
+    mp4_brand(major) || compat.into_iter().any(mp4_brand)
+}
+
+fn mp4_brand(brand: [u8; 4]) -> bool {
+    matches!(
+        &brand,
+        b"isom"
+            | b"iso2"
+            | b"mp41"
+            | b"mp42"
+            | b"avc1"
+            | b"M4A "
+            | b"M4V "
+            | b"3gp4"
+            | b"3gp5"
+            | b"3g2a"
     )
 }
 
@@ -76,6 +123,8 @@ mod tests {
         let png = temp_file("a.png", b"\x89PNG\r\n\x1a\n");
         let webp = temp_file("a.webp", b"RIFF\x00\x00\x00\x00WEBP");
         let heif = temp_file("a.heic", b"\x00\x00\x00\x18ftypheic\0\0\0\0mif1");
+        let mp4 = temp_file("a.mp4", b"\x00\x00\x00\x18ftypisom\0\0\0\0mp42");
+        let mov = temp_file("a.mov", b"\x00\x00\x00\x14ftypqt  \0\0\0\0");
         assert_eq!(
             detect(&SourceBytes::from_path(&jpeg).unwrap()).unwrap(),
             Format::Jpeg
@@ -96,10 +145,20 @@ mod tests {
             detect(&SourceBytes::from_path(&heif).unwrap()).unwrap(),
             Format::Heif
         );
+        assert_eq!(
+            detect(&SourceBytes::from_path(&mp4).unwrap()).unwrap(),
+            Format::Mp4
+        );
+        assert_eq!(
+            detect(&SourceBytes::from_path(&mov).unwrap()).unwrap(),
+            Format::Mov
+        );
         let _ = fs::remove_file(jpeg);
         let _ = fs::remove_file(tiff);
         let _ = fs::remove_file(png);
         let _ = fs::remove_file(webp);
         let _ = fs::remove_file(heif);
+        let _ = fs::remove_file(mp4);
+        let _ = fs::remove_file(mov);
     }
 }
