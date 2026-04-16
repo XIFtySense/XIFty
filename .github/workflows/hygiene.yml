@@ -35,6 +35,8 @@ jobs:
 
       - name: Verify checked-in header matches generated output
         run: cargo test -p xifty-ffi checked_in_header_matches_generated_output -- --exact
+        env:
+          XIFTY_REQUIRE_CBINDGEN: "1"
 
   oracle-differentials:
     name: Oracle Differentials

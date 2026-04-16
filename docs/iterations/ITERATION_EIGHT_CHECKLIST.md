@@ -74,3 +74,5 @@ This checklist turns the public-readiness and CI/CD plan into executable work.
 - The in-repo example surface is intentionally minimal and centered on the ABI.
 - Oracle-backed ExifTool differentials now belong to optional hygiene
   verification, not the default core CI workflow.
+- Header-regeneration checks that require `cbindgen` also belong to optional
+  hygiene verification, not the default core CI workflow.

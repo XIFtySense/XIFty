@@ -111,9 +111,10 @@ Core verification:
 cargo test --workspace
 ```
 
-The main CI workflow is intentionally kept free of extra test-only system
-dependencies. Oracle-backed differential checks that use ExifTool live in a
-separate optional hygiene workflow rather than the default core validation path.
+The main CI workflow is intentionally kept free of extra test-only tooling and
+system dependencies. Oracle-backed differential checks that use ExifTool and
+header-regeneration checks that use `cbindgen` live in a separate optional
+hygiene workflow rather than the default core validation path.
 
 FFI verification:
 
