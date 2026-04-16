@@ -7,3 +7,5 @@ build/
 fixtures/local/
 __pycache__/
 *.pyc
+node_modules/
+.build/

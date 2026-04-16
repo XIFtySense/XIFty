@@ -121,6 +121,23 @@ cargo build -p xifty-ffi
 PYTHONPATH=bindings/python python3 examples/python/basic_usage.py
 ```
 
+Node binding example:
+
+```bash
+cargo build -p xifty-ffi
+cd bindings/node
+npm install
+node ../../examples/node/basic_usage.js
+```
+
+Swift binding example:
+
+```bash
+cargo build -p xifty-ffi
+cd bindings/swift
+DYLD_LIBRARY_PATH=../../target/debug swift test
+```
+
 Large real-world camera/media examples are intentionally not stored in git.
 Keep those under `fixtures/local/` when you want the optional real-camera
 regression and differential tests to run.
@@ -146,6 +163,8 @@ Planning docs:
 - [ITERATION_FIVE_CHECKLIST.md](./ITERATION_FIVE_CHECKLIST.md)
 - [ITERATION_SIX_PLAN.md](./ITERATION_SIX_PLAN.md)
 - [ITERATION_SIX_CHECKLIST.md](./ITERATION_SIX_CHECKLIST.md)
+- [ITERATION_SEVEN_PLAN.md](./ITERATION_SEVEN_PLAN.md)
+- [ITERATION_SEVEN_CHECKLIST.md](./ITERATION_SEVEN_CHECKLIST.md)
 - [FFI_CONTRACT.md](./FFI_CONTRACT.md)
 - [ENGINEERING_PRINCIPLES.md](./ENGINEERING_PRINCIPLES.md)
 - [CONTRIBUTING.md](./CONTRIBUTING.md)
