@@ -1,0 +1,11 @@
+[package]
+name = "xifty-meta-exif"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+xifty-core = { path = "../xifty-core" }
+xifty-container-jpeg = { path = "../xifty-container-jpeg" }
+xifty-container-tiff = { path = "../xifty-container-tiff" }
+xifty-source = { path = "../xifty-source" }

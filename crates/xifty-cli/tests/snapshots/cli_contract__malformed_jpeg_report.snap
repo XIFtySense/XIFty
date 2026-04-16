@@ -1,0 +1,29 @@
+---
+source: crates/xifty-cli/tests/cli_contract.rs
+expression: "extract_json(\"malformed_app1.jpg\", ViewMode::Report)"
+---
+{
+  "input": {
+    "container": "jpeg",
+    "detected_format": "jpeg",
+    "path": "malformed_app1.jpg"
+  },
+  "report": {
+    "conflicts": [],
+    "issues": [
+      {
+        "code": "jpeg_segment_length_invalid",
+        "context": "marker_E1",
+        "message": "invalid jpeg segment length at offset 2",
+        "offset": 2,
+        "severity": "warning"
+      },
+      {
+        "code": "no_metadata_entries",
+        "message": "no supported metadata entries were decoded",
+        "severity": "info"
+      }
+    ]
+  },
+  "schema_version": "0.1.0"
+}

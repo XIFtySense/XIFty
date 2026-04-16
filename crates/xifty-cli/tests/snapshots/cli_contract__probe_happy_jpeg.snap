@@ -1,0 +1,44 @@
+---
+source: crates/xifty-cli/tests/cli_contract.rs
+expression: "probe_json(\"happy.jpg\")"
+---
+{
+  "containers": [
+    {
+      "kind": "container",
+      "label": "jpeg",
+      "offset_end": 220,
+      "offset_start": 0
+    },
+    {
+      "kind": "segment",
+      "label": "APP1",
+      "offset_end": 218,
+      "offset_start": 2,
+      "parent_label": "jpeg"
+    },
+    {
+      "kind": "segment",
+      "label": "EOI",
+      "offset_end": 220,
+      "offset_start": 218,
+      "parent_label": "jpeg"
+    }
+  ],
+  "input": {
+    "container": "jpeg",
+    "detected_format": "jpeg",
+    "path": "happy.jpg"
+  },
+  "report": {
+    "conflicts": [],
+    "issues": [
+      {
+        "code": "no_metadata_entries",
+        "message": "no supported metadata entries were decoded",
+        "severity": "info"
+      }
+    ]
+  },
+  "schema_version": "0.1.0"
+}

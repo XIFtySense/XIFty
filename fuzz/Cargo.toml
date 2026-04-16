@@ -1,0 +1,31 @@
+[package]
+name = "xifty-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2024"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+xifty-container-jpeg = { path = "../crates/xifty-container-jpeg" }
+xifty-container-tiff = { path = "../crates/xifty-container-tiff" }
+
+# Use independent workspace for fuzzers
+[workspace]
+members = ["."]
+
+[[bin]]
+name = "jpeg_parser"
+path = "fuzz_targets/jpeg_parser.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "tiff_parser"
+path = "fuzz_targets/tiff_parser.rs"
+test = false
+doc = false
+bench = false

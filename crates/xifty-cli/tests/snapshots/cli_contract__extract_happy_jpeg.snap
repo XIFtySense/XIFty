@@ -1,0 +1,457 @@
+---
+source: crates/xifty-cli/tests/cli_contract.rs
+expression: "extract_json(\"happy.jpg\", ViewMode::Full)"
+---
+{
+  "input": {
+    "container": "jpeg",
+    "detected_format": "jpeg",
+    "path": "happy.jpg"
+  },
+  "interpreted": {
+    "metadata": [
+      {
+        "namespace": "exif",
+        "provenance": {
+          "container": "jpeg",
+          "namespace": "exif",
+          "offset_end": 34,
+          "offset_start": 22,
+          "path": "ifd0"
+        },
+        "tag_id": "0x0100",
+        "tag_name": "ImageWidth",
+        "value": {
+          "kind": "integer",
+          "value": 800
+        }
+      },
+      {
+        "namespace": "exif",
+        "provenance": {
+          "container": "jpeg",
+          "namespace": "exif",
+          "offset_end": 46,
+          "offset_start": 34,
+          "path": "ifd0"
+        },
+        "tag_id": "0x0101",
+        "tag_name": "ImageHeight",
+        "value": {
+          "kind": "integer",
+          "value": 600
+        }
+      },
+      {
+        "namespace": "exif",
+        "provenance": {
+          "container": "jpeg",
+          "namespace": "exif",
+          "offset_end": 58,
+          "offset_start": 46,
+          "path": "ifd0"
+        },
+        "tag_id": "0x010F",
+        "tag_name": "Make",
+        "value": {
+          "kind": "string",
+          "value": "XIFtyCam"
+        }
+      },
+      {
+        "namespace": "exif",
+        "provenance": {
+          "container": "jpeg",
+          "namespace": "exif",
+          "offset_end": 70,
+          "offset_start": 58,
+          "path": "ifd0"
+        },
+        "tag_id": "0x0110",
+        "tag_name": "Model",
+        "value": {
+          "kind": "string",
+          "value": "IterationOne"
+        }
+      },
+      {
+        "namespace": "exif",
+        "provenance": {
+          "container": "jpeg",
+          "namespace": "exif",
+          "offset_end": 82,
+          "offset_start": 70,
+          "path": "ifd0"
+        },
+        "tag_id": "0x0112",
+        "tag_name": "Orientation",
+        "value": {
+          "kind": "integer",
+          "value": 1
+        }
+      },
+      {
+        "namespace": "exif",
+        "provenance": {
+          "container": "jpeg",
+          "namespace": "exif",
+          "offset_end": 94,
+          "offset_start": 82,
+          "path": "ifd0"
+        },
+        "tag_id": "0x0131",
+        "tag_name": "Software",
+        "value": {
+          "kind": "string",
+          "value": "XIFtyTestGen"
+        }
+      },
+      {
+        "namespace": "exif",
+        "provenance": {
+          "container": "jpeg",
+          "namespace": "exif",
+          "offset_end": 106,
+          "offset_start": 94,
+          "path": "ifd0"
+        },
+        "tag_id": "0x8769",
+        "tag_name": "ExifOffset",
+        "value": {
+          "kind": "integer",
+          "value": 136
+        }
+      },
+      {
+        "namespace": "exif",
+        "provenance": {
+          "container": "jpeg",
+          "namespace": "exif",
+          "offset_end": 162,
+          "offset_start": 150,
+          "path": "exif_ifd"
+        },
+        "tag_id": "0x9003",
+        "tag_name": "DateTimeOriginal",
+        "value": {
+          "kind": "timestamp",
+          "value": "2024:04:16 12:34:56"
+        }
+      },
+      {
+        "namespace": "exif",
+        "provenance": {
+          "container": "jpeg",
+          "namespace": "exif",
+          "offset_end": 174,
+          "offset_start": 162,
+          "path": "exif_ifd"
+        },
+        "tag_id": "0x9004",
+        "tag_name": "CreateDate",
+        "value": {
+          "kind": "timestamp",
+          "value": "2024:04:16 12:34:56"
+        }
+      }
+    ]
+  },
+  "normalized": {
+    "fields": [
+      {
+        "confidence": 0.949999988079071,
+        "field": "captured_at",
+        "sources": [
+          {
+            "container": "jpeg",
+            "namespace": "exif",
+            "offset_end": 162,
+            "offset_start": 150,
+            "path": "exif_ifd"
+          }
+        ],
+        "value": {
+          "kind": "timestamp",
+          "value": "2024-04-16T12:34:56"
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
+        "field": "device.make",
+        "sources": [
+          {
+            "container": "jpeg",
+            "namespace": "exif",
+            "offset_end": 58,
+            "offset_start": 46,
+            "path": "ifd0"
+          }
+        ],
+        "value": {
+          "kind": "string",
+          "value": "XIFtyCam"
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
+        "field": "device.model",
+        "sources": [
+          {
+            "container": "jpeg",
+            "namespace": "exif",
+            "offset_end": 70,
+            "offset_start": 58,
+            "path": "ifd0"
+          }
+        ],
+        "value": {
+          "kind": "string",
+          "value": "IterationOne"
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
+        "field": "software",
+        "sources": [
+          {
+            "container": "jpeg",
+            "namespace": "exif",
+            "offset_end": 94,
+            "offset_start": 82,
+            "path": "ifd0"
+          }
+        ],
+        "value": {
+          "kind": "string",
+          "value": "XIFtyTestGen"
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
+        "field": "orientation",
+        "sources": [
+          {
+            "container": "jpeg",
+            "namespace": "exif",
+            "offset_end": 82,
+            "offset_start": 70,
+            "path": "ifd0"
+          }
+        ],
+        "value": {
+          "kind": "integer",
+          "value": 1
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
+        "field": "dimensions.width",
+        "sources": [
+          {
+            "container": "jpeg",
+            "namespace": "exif",
+            "offset_end": 34,
+            "offset_start": 22,
+            "path": "ifd0"
+          }
+        ],
+        "value": {
+          "kind": "integer",
+          "value": 800
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
+        "field": "dimensions.height",
+        "sources": [
+          {
+            "container": "jpeg",
+            "namespace": "exif",
+            "offset_end": 46,
+            "offset_start": 34,
+            "path": "ifd0"
+          }
+        ],
+        "value": {
+          "kind": "integer",
+          "value": 600
+        }
+      }
+    ]
+  },
+  "raw": {
+    "containers": [
+      {
+        "kind": "container",
+        "label": "jpeg",
+        "offset_end": 220,
+        "offset_start": 0
+      },
+      {
+        "kind": "segment",
+        "label": "APP1",
+        "offset_end": 218,
+        "offset_start": 2,
+        "parent_label": "jpeg"
+      },
+      {
+        "kind": "segment",
+        "label": "EOI",
+        "offset_end": 220,
+        "offset_start": 218,
+        "parent_label": "jpeg"
+      }
+    ],
+    "metadata": [
+      {
+        "namespace": "exif",
+        "provenance": {
+          "container": "jpeg",
+          "namespace": "exif",
+          "offset_end": 34,
+          "offset_start": 22,
+          "path": "ifd0"
+        },
+        "tag_id": "0x0100",
+        "tag_name": "ImageWidth",
+        "value": {
+          "kind": "integer",
+          "value": 800
+        }
+      },
+      {
+        "namespace": "exif",
+        "provenance": {
+          "container": "jpeg",
+          "namespace": "exif",
+          "offset_end": 46,
+          "offset_start": 34,
+          "path": "ifd0"
+        },
+        "tag_id": "0x0101",
+        "tag_name": "ImageHeight",
+        "value": {
+          "kind": "integer",
+          "value": 600
+        }
+      },
+      {
+        "namespace": "exif",
+        "provenance": {
+          "container": "jpeg",
+          "namespace": "exif",
+          "offset_end": 58,
+          "offset_start": 46,
+          "path": "ifd0"
+        },
+        "tag_id": "0x010F",
+        "tag_name": "Make",
+        "value": {
+          "kind": "string",
+          "value": "XIFtyCam"
+        }
+      },
+      {
+        "namespace": "exif",
+        "provenance": {
+          "container": "jpeg",
+          "namespace": "exif",
+          "offset_end": 70,
+          "offset_start": 58,
+          "path": "ifd0"
+        },
+        "tag_id": "0x0110",
+        "tag_name": "Model",
+        "value": {
+          "kind": "string",
+          "value": "IterationOne"
+        }
+      },
+      {
+        "namespace": "exif",
+        "provenance": {
+          "container": "jpeg",
+          "namespace": "exif",
+          "offset_end": 82,
+          "offset_start": 70,
+          "path": "ifd0"
+        },
+        "tag_id": "0x0112",
+        "tag_name": "Orientation",
+        "value": {
+          "kind": "integer",
+          "value": 1
+        }
+      },
+      {
+        "namespace": "exif",
+        "provenance": {
+          "container": "jpeg",
+          "namespace": "exif",
+          "offset_end": 94,
+          "offset_start": 82,
+          "path": "ifd0"
+        },
+        "tag_id": "0x0131",
+        "tag_name": "Software",
+        "value": {
+          "kind": "string",
+          "value": "XIFtyTestGen"
+        }
+      },
+      {
+        "namespace": "exif",
+        "provenance": {
+          "container": "jpeg",
+          "namespace": "exif",
+          "offset_end": 106,
+          "offset_start": 94,
+          "path": "ifd0"
+        },
+        "tag_id": "0x8769",
+        "tag_name": "ExifOffset",
+        "value": {
+          "kind": "integer",
+          "value": 136
+        }
+      },
+      {
+        "namespace": "exif",
+        "provenance": {
+          "container": "jpeg",
+          "namespace": "exif",
+          "offset_end": 162,
+          "offset_start": 150,
+          "path": "exif_ifd"
+        },
+        "tag_id": "0x9003",
+        "tag_name": "DateTimeOriginal",
+        "value": {
+          "kind": "timestamp",
+          "value": "2024:04:16 12:34:56"
+        }
+      },
+      {
+        "namespace": "exif",
+        "provenance": {
+          "container": "jpeg",
+          "namespace": "exif",
+          "offset_end": 174,
+          "offset_start": 162,
+          "path": "exif_ifd"
+        },
+        "tag_id": "0x9004",
+        "tag_name": "CreateDate",
+        "value": {
+          "kind": "timestamp",
+          "value": "2024:04:16 12:34:56"
+        }
+      }
+    ]
+  },
+  "report": {
+    "conflicts": [],
+    "issues": []
+  },
+  "schema_version": "0.1.0"
+}

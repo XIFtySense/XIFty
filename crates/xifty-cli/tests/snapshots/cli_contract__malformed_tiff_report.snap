@@ -1,0 +1,31 @@
+---
+source: crates/xifty-cli/tests/cli_contract.rs
+expression: "extract_json(\"malformed_offsets.tiff\", ViewMode::Report)"
+---
+{
+  "input": {
+    "container": "tiff",
+    "detected_format": "tiff",
+    "path": "malformed_offsets.tiff"
+  },
+  "report": {
+    "conflicts": [],
+    "issues": [
+      {
+        "code": "tiff_ifd_out_of_bounds",
+        "context": "exif_ifd",
+        "message": "IFD exif_ifd offset out of bounds",
+        "offset": 999999,
+        "severity": "warning"
+      },
+      {
+        "code": "tiff_ifd_out_of_bounds",
+        "context": "gps_ifd",
+        "message": "IFD gps_ifd offset out of bounds",
+        "offset": 888888,
+        "severity": "warning"
+      }
+    ]
+  },
+  "schema_version": "0.1.0"
+}

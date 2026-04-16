@@ -63,19 +63,38 @@ Write support is intentionally out of scope for v1.
 
 ## Status
 
-This repository is currently in the definition stage. The next steps are to formalize:
+This repository now includes the first implementation slice for:
 
-- normalized schema
-- crate boundaries
-- CLI surface
-- FFI contract
-- corpus and differential test strategy
+- JPEG / TIFF detection
+- JPEG APP1 EXIF extraction
+- TIFF / IFD traversal
+- EXIF decoding for the initial normalized fields
+- JSON-only CLI output
+- checked-in fixtures
+- snapshot and ExifTool differential tests
+
+Current CLI:
+
+```bash
+cargo run -p xifty-cli -- probe fixtures/minimal/happy.jpg
+cargo run -p xifty-cli -- extract fixtures/minimal/happy.jpg
+cargo run -p xifty-cli -- extract fixtures/minimal/gps.jpg --view normalized
+```
+
+Verification:
+
+```bash
+cargo test --workspace
+```
+
+Fuzz targets are scaffolded under `fuzz/` and were smoke-tested with `cargo fuzz run` under a nightly Rust toolchain.
 
 Planning docs:
 
 - [VISION.md](./VISION.md)
 - [RESEARCH.md](./RESEARCH.md)
 - [ARCHITECTURE_PLAN.md](./ARCHITECTURE_PLAN.md)
+- [ITERATION_ONE_CHECKLIST.md](./ITERATION_ONE_CHECKLIST.md)
 - [ENGINEERING_PRINCIPLES.md](./ENGINEERING_PRINCIPLES.md)
 - [CONTRIBUTING.md](./CONTRIBUTING.md)
 - [AGENTS.md](./AGENTS.md)

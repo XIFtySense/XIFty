@@ -1,0 +1,25 @@
+[package]
+name = "xifty-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+name = "xifty_cli"
+
+[dependencies]
+clap.workspace = true
+serde_json.workspace = true
+xifty-core = { path = "../xifty-core" }
+xifty-detect = { path = "../xifty-detect" }
+xifty-source = { path = "../xifty-source" }
+xifty-container-jpeg = { path = "../xifty-container-jpeg" }
+xifty-container-tiff = { path = "../xifty-container-tiff" }
+xifty-meta-exif = { path = "../xifty-meta-exif" }
+xifty-normalize = { path = "../xifty-normalize" }
+xifty-validate = { path = "../xifty-validate" }
+xifty-json = { path = "../xifty-json" }
+
+[dev-dependencies]
+insta.workspace = true
+serde_json.workspace = true

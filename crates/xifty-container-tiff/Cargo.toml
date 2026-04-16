@@ -1,0 +1,9 @@
+[package]
+name = "xifty-container-tiff"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+xifty-core = { path = "../xifty-core" }
+xifty-source = { path = "../xifty-source" }

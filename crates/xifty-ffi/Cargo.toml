@@ -1,0 +1,11 @@
+[package]
+name = "xifty-ffi"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[dependencies]
+xifty-core = { path = "../xifty-core" }
