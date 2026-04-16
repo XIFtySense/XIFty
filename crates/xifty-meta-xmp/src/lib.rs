@@ -124,6 +124,22 @@ pub fn decode_packet(packet: XmpPacket<'_>) -> Vec<MetadataEntry> {
         find_text(text, &["dc:rights"]),
         false,
     );
+    push_string(
+        &mut entries,
+        packet.clone(),
+        "Headline",
+        "Headline",
+        find_text(text, &["photoshop:Headline"]),
+        false,
+    );
+    push_string(
+        &mut entries,
+        packet.clone(),
+        "Description",
+        "Description",
+        find_text(text, &["dc:description", "photoshop:Caption-Abstract"]),
+        false,
+    );
 
     entries
 }

@@ -34,7 +34,7 @@
     "jpeg": {
       "namespaces": {
         "exif": "supported",
-        "xmp": "not_yet_supported",
+        "xmp": "bounded",
         "icc": "supported",
         "iptc": "supported"
       }

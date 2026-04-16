@@ -4,7 +4,7 @@ This checklist turns the iteration-five plan into executable work.
 
 ## Goal
 
-- [ ] Prove still-image namespace depth without breaking clean architecture
+- [x] Prove still-image namespace depth without breaking clean architecture
 - [x] Keep the CLI and JSON contract backward compatible
 - [x] Preserve parser / namespace / policy / normalization separation
 
@@ -35,7 +35,7 @@ This checklist turns the iteration-five plan into executable work.
 
 - [x] Add `xifty-meta-icc`
 - [x] Decode a bounded profile subset
-- [ ] Preserve decode caveats in `MetadataEntry.notes`
+- [x] Preserve decode caveats in `MetadataEntry.notes`
 - [x] Keep ICC interpretation out of container crates
 
 ### IPTC
@@ -58,15 +58,15 @@ This checklist turns the iteration-five plan into executable work.
 ## Policy And Reconciliation
 
 - [x] Keep precedence logic in `xifty-policy`
-- [ ] Add explicit XMP / IPTC editorial precedence rules
-- [ ] Add explicit ICC-related precedence notes where applicable
+- [x] Add explicit XMP / IPTC editorial precedence rules
+- [x] Add explicit ICC-related precedence notes where applicable
 - [x] Preserve provenance and decision notes for normalized fields
 
 ## Capability Reporting
 
 - [x] Add a documented capability matrix or machine-readable capability artifact
 - [x] Ensure the capability statement is test-backed or generation-backed
-- [ ] Keep support claims explicit and narrow
+- [x] Keep support claims explicit and narrow
 
 ## CLI And JSON
 
@@ -82,20 +82,20 @@ This checklist turns the iteration-five plan into executable work.
 - [x] PNG fixture with ICC profile
 - [x] WebP fixture with ICC profile if practical
 - [x] JPEG fixture with IPTC editorial metadata
-- [ ] Fixture with overlapping XMP + IPTC values
+- [x] Fixture with overlapping XMP + IPTC values
 - [x] Malformed ICC fixture
 - [x] Malformed IPTC fixture
-- [ ] No-ICC / no-IPTC controls
+- [x] No-ICC / no-IPTC controls
 - [x] Reproducible generator updates or clearly documented sample provenance
 
 ## Tests
 
 - [x] Unit tests for ICC decoding
 - [x] Unit tests for IPTC decoding
-- [ ] Unit tests for routing helpers
-- [ ] Unit tests for editorial policy decisions
-- [ ] Snapshot tests for ICC-bearing fixtures
-- [ ] Snapshot tests for IPTC-bearing fixtures
+- [x] Unit tests for routing helpers
+- [x] Unit tests for editorial policy decisions
+- [x] Snapshot tests for ICC-bearing fixtures
+- [x] Snapshot tests for IPTC-bearing fixtures
 - [x] Snapshot tests for malformed namespace reports
 - [x] ExifTool differential tests for supported ICC/IPTC fields
 - [x] Capability reporting verification

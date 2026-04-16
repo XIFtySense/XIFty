@@ -27,6 +27,7 @@ pub fn decode_payload(payload: IccPayload<'_>) -> Vec<MetadataEntry> {
         "ProfileClass",
         "profile_class",
         decode_profile_class(header),
+        "decoded from ICC header profile/device class",
     );
     push_string(
         &mut entries,
@@ -34,6 +35,7 @@ pub fn decode_payload(payload: IccPayload<'_>) -> Vec<MetadataEntry> {
         "ColorSpace",
         "color_space",
         ascii4(header, 16),
+        "decoded from ICC header data color space",
     );
     push_string(
         &mut entries,
@@ -41,6 +43,7 @@ pub fn decode_payload(payload: IccPayload<'_>) -> Vec<MetadataEntry> {
         "ConnectionSpace",
         "connection_space",
         ascii4(header, 20),
+        "decoded from ICC header PCS field",
     );
     push_string(
         &mut entries,
@@ -48,6 +51,7 @@ pub fn decode_payload(payload: IccPayload<'_>) -> Vec<MetadataEntry> {
         "DeviceManufacturer",
         "device_manufacturer",
         ascii4(header, 48),
+        "decoded from ICC header device manufacturer",
     );
     push_string(
         &mut entries,
@@ -55,6 +59,7 @@ pub fn decode_payload(payload: IccPayload<'_>) -> Vec<MetadataEntry> {
         "DeviceModel",
         "device_model",
         ascii4(header, 52),
+        "decoded from ICC header device model",
     );
 
     if let Some(name) = decode_profile_name(icc) {
@@ -64,6 +69,7 @@ pub fn decode_payload(payload: IccPayload<'_>) -> Vec<MetadataEntry> {
             "ProfileDescription",
             "profile_description",
             Some(name),
+            "decoded from ICC desc tag",
         );
     }
 
@@ -143,6 +149,7 @@ fn push_string(
     tag_name: &str,
     tag_id: &str,
     value: Option<String>,
+    note: &str,
 ) {
     let Some(value) = value else {
         return;
@@ -160,7 +167,7 @@ fn push_string(
             offset_end: Some(payload.offset_end),
             notes: Vec::new(),
         },
-        notes: Vec::new(),
+        notes: vec![note.into()],
     });
 }
 

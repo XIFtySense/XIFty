@@ -208,7 +208,7 @@ fn maybe_choose_string(
         },
         confidence: 0.95,
         sources: vec![winner.provenance.clone()],
-        notes: conflict_note(&matches, winner),
+        notes: string_field_notes(field_name, &matches, winner),
     });
 }
 
@@ -348,6 +348,18 @@ fn conflict_note(matches: &[&MetadataEntry], winner: &MetadataEntry) -> Vec<Stri
     )]
 }
 
+fn string_field_notes(
+    field_name: &str,
+    matches: &[&MetadataEntry],
+    winner: &MetadataEntry,
+) -> Vec<String> {
+    let mut notes = conflict_note(matches, winner);
+    if field_name.starts_with("color.") && winner.namespace == "icc" {
+        notes.push("selected bounded ICC metadata as authoritative color-profile source".into());
+    }
+    notes
+}
+
 fn normalize_timestamp(input: &str) -> String {
     if input.contains('T') {
         return input.to_string();
@@ -465,5 +477,51 @@ mod tests {
                 .iter()
                 .any(|field| field.field == "codec.audio")
         );
+    }
+
+    #[test]
+    fn prefers_xmp_over_iptc_for_editorial_conflicts() {
+        let xmp_prov = xifty_core::Provenance {
+            container: "jpeg".into(),
+            namespace: "xmp".into(),
+            path: Some("xmp_packet".into()),
+            offset_start: Some(10),
+            offset_end: Some(20),
+            notes: Vec::new(),
+        };
+        let iptc_prov = xifty_core::Provenance {
+            container: "jpeg".into(),
+            namespace: "iptc".into(),
+            path: Some("app13_iptc".into()),
+            offset_start: Some(30),
+            offset_end: Some(40),
+            notes: Vec::new(),
+        };
+        let xmp = MetadataEntry {
+            namespace: "xmp".into(),
+            tag_id: "Author".into(),
+            tag_name: "Author".into(),
+            value: TypedValue::String("XMP Kai".into()),
+            provenance: xmp_prov,
+            notes: Vec::new(),
+        };
+        let iptc = MetadataEntry {
+            namespace: "iptc".into(),
+            tag_id: "2:80".into(),
+            tag_name: "Author".into(),
+            value: TypedValue::String("IPTC Kai".into()),
+            provenance: iptc_prov,
+            notes: Vec::new(),
+        };
+
+        let result = reconcile(&[iptc, xmp]);
+        let author = result
+            .fields
+            .iter()
+            .find(|field| field.field == "author")
+            .expect("missing author field");
+        assert_eq!(author.value, TypedValue::String("XMP Kai".into()));
+        assert_eq!(result.conflicts.len(), 1);
+        assert!(author.notes.iter().any(|note| note.contains("selected")));
     }
 }

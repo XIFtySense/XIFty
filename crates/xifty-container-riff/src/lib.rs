@@ -172,4 +172,16 @@ mod tests {
         let parsed = parse_bytes(&bytes, 0).unwrap();
         assert_eq!(&parsed.form_type, b"WEBP");
     }
+
+    #[test]
+    fn routes_iccp_chunks() {
+        let mut bytes = Vec::new();
+        bytes.extend_from_slice(b"RIFF");
+        bytes.extend_from_slice(&12u32.to_le_bytes());
+        bytes.extend_from_slice(b"WEBP");
+        bytes.extend_from_slice(b"ICCP");
+        bytes.extend_from_slice(&0u32.to_le_bytes());
+        let parsed = parse_bytes(&bytes, 0).unwrap();
+        assert!(parsed.icc_payloads().next().is_some());
+    }
 }

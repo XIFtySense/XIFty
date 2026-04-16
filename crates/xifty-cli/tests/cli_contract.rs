@@ -259,6 +259,22 @@ fn extract_snapshot_video_only_mp4_normalized() {
 }
 
 #[test]
+fn extract_snapshot_icc_jpeg_normalized() {
+    assert_json_snapshot!(
+        "extract_icc_jpeg_normalized",
+        extract_json("icc.jpg", ViewMode::Normalized)
+    );
+}
+
+#[test]
+fn extract_snapshot_iptc_jpeg_normalized() {
+    assert_json_snapshot!(
+        "extract_iptc_jpeg_normalized",
+        extract_json("iptc.jpg", ViewMode::Normalized)
+    );
+}
+
+#[test]
 fn icc_jpeg_normalization_includes_color_fields() {
     let output = normalized_map(&extract_json("icc.jpg", ViewMode::Normalized));
     assert_eq!(
@@ -288,6 +304,83 @@ fn iptc_jpeg_normalization_includes_editorial_fields() {
     assert_eq!(
         output["keywords"]["value"],
         Value::String("xifty, metadata".into())
+    );
+}
+
+#[test]
+fn no_iptc_jpeg_omits_iptc_namespace_entries() {
+    let output = extract_json("no_iptc.jpg", ViewMode::Interpreted);
+    let metadata = output
+        .get("interpreted")
+        .and_then(|view| view.get("metadata"))
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    assert!(
+        !metadata
+            .iter()
+            .any(|entry| entry["namespace"].as_str() == Some("iptc"))
+    );
+}
+
+#[test]
+fn no_icc_png_omits_icc_namespace_entries() {
+    let output = extract_json("no_icc.png", ViewMode::Interpreted);
+    let metadata = output
+        .get("interpreted")
+        .and_then(|view| view.get("metadata"))
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    assert!(
+        !metadata
+            .iter()
+            .any(|entry| entry["namespace"].as_str() == Some("icc"))
+    );
+}
+
+#[test]
+fn overlap_editorial_jpeg_prefers_xmp_for_editorial_fields() {
+    let output = extract_json("overlap_editorial.jpg", ViewMode::Full);
+    let normalized = normalized_map(&output);
+
+    assert_eq!(
+        normalized["author"]["value"],
+        Value::String("XMP Kai".into())
+    );
+    assert_eq!(
+        normalized["copyright"]["value"],
+        Value::String("XMP Rights".into())
+    );
+    assert_eq!(
+        normalized["headline"]["value"],
+        Value::String("XIFty XMP Headline".into())
+    );
+    assert_eq!(
+        normalized["description"]["value"],
+        Value::String("XIFty XMP Description".into())
+    );
+
+    let conflicts = output["report"]["conflicts"].as_array().unwrap();
+    assert!(
+        conflicts
+            .iter()
+            .any(|conflict| conflict["field"] == "author")
+    );
+    assert!(
+        conflicts
+            .iter()
+            .any(|conflict| conflict["field"] == "copyright")
+    );
+    assert!(
+        conflicts
+            .iter()
+            .any(|conflict| conflict["field"] == "headline")
+    );
+    assert!(
+        conflicts
+            .iter()
+            .any(|conflict| conflict["field"] == "description")
     );
 }
 
@@ -559,6 +652,11 @@ fn exiftool_differential_icc_webp_supported_fields() {
 #[test]
 fn exiftool_differential_iptc_jpeg_supported_fields() {
     differential_assert_iptc("iptc.jpg");
+}
+
+#[test]
+fn exiftool_differential_overlap_editorial_jpeg_supported_fields() {
+    assert_exiftool_sees_overlap_editorial_sources("overlap_editorial.jpg");
 }
 
 #[test]
@@ -1128,6 +1226,45 @@ fn differential_assert_iptc(name: &str) {
         })
         .unwrap_or_default();
     assert_eq!(ours["keywords"]["value"], Value::String(keywords));
+}
+
+fn assert_exiftool_sees_overlap_editorial_sources(name: &str) {
+    let output = Command::new("exiftool")
+        .args([
+            "-json",
+            "-G1",
+            "-n",
+            "-XMP-dc:Creator",
+            "-XMP-dc:Rights",
+            "-XMP-photoshop:Headline",
+            "-IPTC:Headline",
+            "-XMP-dc:Description",
+        ])
+        .arg(fixture(name))
+        .output()
+        .expect("failed to run exiftool");
+    assert!(
+        output.status.success(),
+        "exiftool failed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let parsed: Value = serde_json::from_slice(&output.stdout).unwrap();
+    let first = &parsed.as_array().unwrap()[0];
+
+    assert_eq!(first["XMP-dc:Creator"], Value::String("XMP Kai".into()));
+    assert_eq!(first["XMP-dc:Rights"], Value::String("XMP Rights".into()));
+    assert_eq!(
+        first["XMP-photoshop:Headline"],
+        Value::String("XIFty XMP Headline".into())
+    );
+    assert_eq!(
+        first["IPTC:Headline"],
+        Value::String("XIFty IPTC Headline".into())
+    );
+    assert_eq!(
+        first["XMP-dc:Description"],
+        Value::String("XIFty XMP Description".into())
+    );
 }
 
 fn differential_assert_camera_mp4(name: &str) {

@@ -137,6 +137,23 @@ pub fn extract_path(
                 }
                 entries.extend(decoded);
             }
+            for (offset_start, payload) in jpeg.xmp_payloads() {
+                let decoded = decode_packet(XmpPacket {
+                    bytes: payload,
+                    container: "jpeg",
+                    offset_start,
+                    offset_end: offset_start + payload.len() as u64,
+                });
+                if decoded.is_empty() {
+                    issues.push(namespace_issue(
+                        "xmp_decode_empty",
+                        "recognized XMP payload but could not decode bounded XMP fields",
+                        offset_start,
+                        "app1_xmp",
+                    ));
+                }
+                entries.extend(decoded);
+            }
             ("jpeg".to_string(), jpeg.nodes, entries, issues)
         }
         Format::Tiff => {

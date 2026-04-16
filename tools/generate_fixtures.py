@@ -152,6 +152,15 @@ def build_jpeg_with_metadata(exif_payload=None, icc_payload=None, iptc_payload=N
     return bytes(out)
 
 
+def build_jpeg_with_xmp_and_iptc(xmp_payload, iptc_payload):
+    out = bytearray(b"\xFF\xD8")
+    xmp_packet = b"http://ns.adobe.com/xap/1.0/\x00" + xmp_payload
+    out += b"\xFF\xE1" + struct.pack(">H", len(xmp_packet) + 2) + xmp_packet
+    out += b"\xFF\xED" + struct.pack(">H", len(iptc_payload) + 2) + iptc_payload
+    out += b"\xFF\xD9"
+    return bytes(out)
+
+
 def build_malformed_iptc_app13():
     resource = bytearray()
     resource += b"8BIM"
@@ -260,6 +269,38 @@ def build_xmp(
 </rdf:Description>
 <dc:creator><rdf:Seq><rdf:li>{author}</rdf:li></rdf:Seq></dc:creator>
 <dc:rights><rdf:Alt><rdf:li>{copyright_text}</rdf:li></rdf:Alt></dc:rights>
+</x:xmpmeta>""".encode("utf-8")
+
+
+def build_editorial_xmp(
+    *,
+    author,
+    copyright_text,
+    headline,
+    description,
+    make="XIFtyCam",
+    model="IterationTwo",
+):
+    return f"""<x:xmpmeta>
+<rdf:Description
+  xmlns:xmp="adobe:ns:meta/"
+  xmlns:tiff="http://ns.adobe.com/tiff/1.0/"
+  xmlns:exif="http://ns.adobe.com/exif/1.0/"
+  xmlns:dc="http://purl.org/dc/elements/1.1/"
+  xmlns:photoshop="http://ns.adobe.com/photoshop/1.0/"
+  xmp:CreateDate="2024-04-16T12:34:56"
+  xmp:ModifyDate="2024-04-16T13:00:00"
+  xmp:CreatorTool="XIFtyXmpGen"
+  tiff:Make="{make}"
+  tiff:Model="{model}"
+  tiff:ImageWidth="640"
+  tiff:ImageLength="480"
+  tiff:Orientation="1"
+  photoshop:Headline="{headline}">
+</rdf:Description>
+<dc:creator><rdf:Seq><rdf:li>{author}</rdf:li></rdf:Seq></dc:creator>
+<dc:rights><rdf:Alt><rdf:li>{copyright_text}</rdf:li></rdf:Alt></dc:rights>
+<dc:description><rdf:Alt><rdf:li>{description}</rdf:li></rdf:Alt></dc:description>
 </x:xmpmeta>""".encode("utf-8")
 
 
@@ -453,11 +494,27 @@ def main():
     xmp_conflict = build_xmp(model="IterationTwoXmp", create_date="2024-04-17T00:00:00")
     icc = build_icc_profile()
     iptc = build_photoshop_iptc_app13(build_iptc_iim())
+    editorial_xmp = build_editorial_xmp(
+        author="XMP Kai",
+        copyright_text="XMP Rights",
+        headline="XIFty XMP Headline",
+        description="XIFty XMP Description",
+    )
+    editorial_iptc = build_photoshop_iptc_app13(
+        build_iptc_iim(
+            headline="XIFty IPTC Headline",
+            description="XIFty IPTC Description",
+            author="IPTC Kai",
+            copyright_text="IPTC Rights",
+        )
+    )
     files = {
         "happy.jpg": build_jpeg(build_tiff(gps=False)),
         "icc.jpg": build_jpeg_with_metadata(build_tiff(gps=False), icc_payload=icc),
         "iptc.jpg": build_jpeg_with_metadata(None, iptc_payload=iptc),
+        "overlap_editorial.jpg": build_jpeg_with_xmp_and_iptc(editorial_xmp, editorial_iptc),
         "malformed_iptc.jpg": build_jpeg_with_metadata(None, iptc_payload=build_malformed_iptc_app13()),
+        "no_iptc.jpg": build_jpeg(None),
         "gps.jpg": build_jpeg(build_tiff(gps=True)),
         "no_exif.jpg": build_jpeg(None),
         "malformed_app1.jpg": build_jpeg(build_tiff(gps=False), malformed=True),
@@ -469,6 +526,7 @@ def main():
         "happy.png": build_png(build_tiff(gps=False)),
         "icc.png": build_png_with_icc(icc),
         "malformed_icc.png": build_png_with_malformed_icc(),
+        "no_icc.png": build_png(None),
         "xmp_only.png": build_png(None, xmp_with_location),
         "mixed.png": build_png(build_tiff(gps=False), xmp_with_location),
         "conflicting.png": build_png(build_tiff(gps=False), xmp_conflict),

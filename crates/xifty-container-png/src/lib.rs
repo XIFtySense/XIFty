@@ -146,4 +146,17 @@ mod tests {
         assert_eq!(parsed.chunks.len(), 1);
         assert_eq!(&parsed.chunks[0].chunk_type, b"IEND");
     }
+
+    #[test]
+    fn routes_iccp_chunks() {
+        let mut bytes = vec![0x89, b'P', b'N', b'G', 0x0D, 0x0A, 0x1A, 0x0A];
+        bytes.extend_from_slice(&0u32.to_be_bytes());
+        bytes.extend_from_slice(b"iCCP");
+        bytes.extend_from_slice(&0u32.to_be_bytes());
+        bytes.extend_from_slice(&0u32.to_be_bytes());
+        bytes.extend_from_slice(b"IEND");
+        bytes.extend_from_slice(&0u32.to_be_bytes());
+        let parsed = parse_bytes(&bytes, 0).unwrap();
+        assert!(parsed.icc_payloads().next().is_some());
+    }
 }

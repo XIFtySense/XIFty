@@ -46,6 +46,20 @@ impl JpegContainer {
             }
         })
     }
+
+    pub fn xmp_payloads(&self) -> impl Iterator<Item = (u64, &[u8])> {
+        self.segments.iter().filter_map(|segment| {
+            let prefix = b"http://ns.adobe.com/xap/1.0/\0";
+            if segment.marker == 0xE1 && segment.payload.starts_with(prefix) {
+                Some((
+                    segment.offset_start + 4 + prefix.len() as u64,
+                    &segment.payload[prefix.len()..],
+                ))
+            } else {
+                None
+            }
+        })
+    }
 }
 
 pub fn parse(source: &SourceBytes) -> Result<JpegContainer, XiftyError> {
@@ -175,5 +189,28 @@ mod tests {
         let parsed = parse_bytes(&bytes, 0).unwrap();
         assert!(parsed.nodes.iter().any(|node| node.label == "marker_DB"));
         assert!(parsed.nodes.iter().any(|node| node.label == "marker_C0"));
+    }
+
+    #[test]
+    fn routes_xmp_iptc_and_icc_segments() {
+        let xmp = b"http://ns.adobe.com/xap/1.0/\0<x:xmpmeta/>";
+        let icc = b"ICC_PROFILE\0\x01\x01abcd";
+        let iptc = b"Photoshop 3.0\0abcd";
+        let mut bytes = vec![0xFF, 0xD8];
+        bytes.extend_from_slice(&[0xFF, 0xE1]);
+        bytes.extend_from_slice(&((xmp.len() + 2) as u16).to_be_bytes());
+        bytes.extend_from_slice(xmp);
+        bytes.extend_from_slice(&[0xFF, 0xE2]);
+        bytes.extend_from_slice(&((icc.len() + 2) as u16).to_be_bytes());
+        bytes.extend_from_slice(icc);
+        bytes.extend_from_slice(&[0xFF, 0xED]);
+        bytes.extend_from_slice(&((iptc.len() + 2) as u16).to_be_bytes());
+        bytes.extend_from_slice(iptc);
+        bytes.extend_from_slice(&[0xFF, 0xD9]);
+
+        let parsed = parse_bytes(&bytes, 0).unwrap();
+        assert!(parsed.xmp_payloads().next().is_some());
+        assert!(parsed.icc_payloads().next().is_some());
+        assert!(parsed.iptc_payloads().next().is_some());
     }
 }
