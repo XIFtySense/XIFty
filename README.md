@@ -70,3 +70,12 @@ This repository is currently in the definition stage. The next steps are to form
 - CLI surface
 - FFI contract
 - corpus and differential test strategy
+
+Planning docs:
+
+- [VISION.md](./VISION.md)
+- [RESEARCH.md](./RESEARCH.md)
+- [ARCHITECTURE_PLAN.md](./ARCHITECTURE_PLAN.md)
+- [ENGINEERING_PRINCIPLES.md](./ENGINEERING_PRINCIPLES.md)
+- [CONTRIBUTING.md](./CONTRIBUTING.md)
+- [AGENTS.md](./AGENTS.md)
