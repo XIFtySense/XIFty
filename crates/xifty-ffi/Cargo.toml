@@ -9,3 +9,5 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 
 [dependencies]
 xifty-core = { path = "../xifty-core" }
+xifty-cli = { path = "../xifty-cli" }
+xifty-json = { path = "../xifty-json" }

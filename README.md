@@ -99,6 +99,13 @@ Verification:
 cargo test --workspace
 ```
 
+FFI verification:
+
+```bash
+cbindgen --config cbindgen.toml --crate xifty-ffi --output include/xifty.h --lang c
+cargo test -p xifty-ffi
+```
+
 Large real-world camera/media examples are intentionally not stored in git.
 Keep those under `fixtures/local/` when you want the optional real-camera
 regression and differential tests to run.
@@ -124,6 +131,7 @@ Planning docs:
 - [ITERATION_FIVE_CHECKLIST.md](./ITERATION_FIVE_CHECKLIST.md)
 - [ITERATION_SIX_PLAN.md](./ITERATION_SIX_PLAN.md)
 - [ITERATION_SIX_CHECKLIST.md](./ITERATION_SIX_CHECKLIST.md)
+- [FFI_CONTRACT.md](./FFI_CONTRACT.md)
 - [ENGINEERING_PRINCIPLES.md](./ENGINEERING_PRINCIPLES.md)
 - [CONTRIBUTING.md](./CONTRIBUTING.md)
 - [AGENTS.md](./AGENTS.md)

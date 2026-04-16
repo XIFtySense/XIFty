@@ -816,7 +816,9 @@ dependencies = [
 name = "xifty-ffi"
 version = "0.1.0"
 dependencies = [
+ "xifty-cli",
  "xifty-core",
+ "xifty-json",
 ]
 
 [[package]]
