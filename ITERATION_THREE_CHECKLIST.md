@@ -4,71 +4,76 @@ This checklist turns the iteration-three plan into executable work.
 
 ## Goal
 
-- [ ] Prove modern still-image container support without breaking clean
+- [x] Prove modern still-image container support without breaking clean
       architecture
-- [ ] Keep the CLI and JSON contract backward compatible
-- [ ] Preserve parser / metadata / policy / normalization separation
+- [x] Keep the CLI and JSON contract backward compatible
+- [x] Preserve parser / metadata / policy / normalization separation
 
 ## New Crates
 
-- [ ] Add `xifty-container-isobmff`
+- [x] Add `xifty-container-isobmff`
 
 ## Container Support
 
 ### ISOBMFF
 
-- [ ] Detect box-based ISOBMFF containers
-- [ ] Parse atom headers and nesting safely
-- [ ] Preserve atom offsets, sizes, and paths
-- [ ] Surface compatible brand information
-- [ ] Report malformed box-size conditions as issues
+- [x] Detect box-based ISOBMFF containers
+- [x] Parse atom headers and nesting safely
+- [x] Preserve atom offsets, sizes, and paths
+- [x] Surface compatible brand information
+- [x] Report malformed box-size conditions as issues
 
 ### HEIF / HEIC Routing
 
-- [ ] Recognize still-image HEIF brands
-- [ ] Surface EXIF payload locations
-- [ ] Surface XMP payload locations
-- [ ] Report recognized-but-unsupported HEIF structures honestly
+- [x] Recognize still-image HEIF brands
+- [x] Surface EXIF payload locations
+- [x] Surface XMP payload locations
+- [x] Report recognized-but-unsupported HEIF structures honestly
 
 ## Namespace Routing
 
-- [ ] Route HEIF EXIF payloads into `xifty-meta-exif`
-- [ ] Route HEIF XMP payloads into `xifty-meta-xmp`
-- [ ] Keep namespace crates container-agnostic
+- [x] Route HEIF EXIF payloads into `xifty-meta-exif`
+- [x] Route HEIF XMP payloads into `xifty-meta-xmp`
+- [x] Keep namespace crates container-agnostic
 
 ## CLI And JSON
 
-- [ ] Preserve `xifty probe <path>`
-- [ ] Preserve `xifty extract <path>`
-- [ ] Preserve `xifty extract <path> --view raw|interpreted|normalized|report`
-- [ ] Keep top-level envelope compatibility
-- [ ] Add only additive container/report richness
+- [x] Preserve `xifty probe <path>`
+- [x] Preserve `xifty extract <path>`
+- [x] Preserve `xifty extract <path> --view raw|interpreted|normalized|report`
+- [x] Keep top-level envelope compatibility
+- [x] Add only additive container/report richness
 
 ## Fixtures
 
-- [ ] HEIC with EXIF fixture
-- [ ] HEIC with XMP fixture
-- [ ] HEIC with agreeing EXIF + XMP fixture
-- [ ] HEIC with conflicting EXIF + XMP fixture
-- [ ] Malformed ISOBMFF / HEIF fixture
-- [ ] Unsupported-but-recognized HEIF structure fixture
-- [ ] No-metadata HEIC fixture
+- [x] HEIC with EXIF fixture
+- [x] HEIC with XMP fixture
+- [x] HEIC with agreeing EXIF + XMP fixture
+- [x] HEIC with conflicting EXIF + XMP fixture
+- [x] Malformed ISOBMFF / HEIF fixture
+- [x] Unsupported-but-recognized HEIF structure fixture
+- [x] No-metadata HEIC fixture
 
 ## Tests
 
-- [ ] Unit tests for atom parsing
-- [ ] Unit tests for nested box traversal
-- [ ] Unit tests for brand detection
-- [ ] Unit tests for HEIF metadata routing
-- [ ] Snapshot tests for HEIC probe/extract
-- [ ] Snapshot tests for malformed/unsupported reports
-- [ ] ExifTool differential tests for supported HEIF fields
-- [ ] Fuzz target for ISOBMFF parser
-- [ ] Fuzz target for HEIF metadata routing if applicable
+- [x] Unit tests for atom parsing
+- [x] Unit tests for nested box traversal
+- [x] Unit tests for brand detection
+- [x] Unit tests for HEIF metadata routing
+- [x] Snapshot tests for HEIC probe/extract
+- [x] Snapshot tests for malformed/unsupported reports
+- [x] ExifTool differential tests for supported HEIF fields
+- [x] Fuzz target for ISOBMFF parser
+- [x] Fuzz target for HEIF metadata routing if applicable
 
 ## Done Criteria
 
-- [ ] HEIC / HEIF routes through the existing CLI
-- [ ] HEIF-derived EXIF/XMP feeds the existing normalized schema
-- [ ] Partial support is reported honestly in `report`
-- [ ] No container-specific hacks leak into normalization or metadata crates
+- [x] HEIC / HEIF routes through the existing CLI
+- [x] HEIF-derived EXIF/XMP feeds the existing normalized schema
+- [x] Partial support is reported honestly in `report`
+- [x] No container-specific hacks leak into normalization or metadata crates
+
+## Current Gap
+
+- Synthetic HEIC fixtures remain useful for deterministic snapshots, but the oracle-backed differential coverage now relies on the vendored real-world `real_exif.heic` sample because ExifTool does not surface metadata from the synthetic HEIC corpus.
+- The ISOBMFF and HEIF metadata-routing fuzz targets are both checked in. A local smoke run is still blocked by this machine's `cargo-fuzz` nightly-toolchain resolution, so that environment issue remains separate from checklist completeness.

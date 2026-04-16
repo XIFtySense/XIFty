@@ -7,6 +7,7 @@ members = [
   "crates/xifty-container-tiff",
   "crates/xifty-container-png",
   "crates/xifty-container-riff",
+  "crates/xifty-container-isobmff",
   "crates/xifty-meta-exif",
   "crates/xifty-meta-xmp",
   "crates/xifty-normalize",

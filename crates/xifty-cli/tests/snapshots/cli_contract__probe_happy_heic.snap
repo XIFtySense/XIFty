@@ -1,0 +1,43 @@
+---
+source: crates/xifty-cli/tests/cli_contract.rs
+expression: "probe_json(\"happy.heic\")"
+---
+{
+  "containers": [
+    {
+      "kind": "box",
+      "label": "ftyp",
+      "offset_end": 24,
+      "offset_start": 0
+    },
+    {
+      "kind": "box",
+      "label": "meta",
+      "offset_end": 250,
+      "offset_start": 24
+    },
+    {
+      "kind": "box",
+      "label": "meta/Exif",
+      "offset_end": 250,
+      "offset_start": 36,
+      "parent_label": "meta"
+    }
+  ],
+  "input": {
+    "container": "isobmff",
+    "detected_format": "heif",
+    "path": "happy.heic"
+  },
+  "report": {
+    "conflicts": [],
+    "issues": [
+      {
+        "code": "no_metadata_entries",
+        "message": "no supported metadata entries were decoded",
+        "severity": "info"
+      }
+    ]
+  },
+  "schema_version": "0.1.0"
+}

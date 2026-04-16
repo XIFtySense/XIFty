@@ -68,6 +68,11 @@ fn probe_snapshot_happy_webp() {
 }
 
 #[test]
+fn probe_snapshot_happy_heic() {
+    assert_json_snapshot!("probe_happy_heic", probe_json("happy.heic"));
+}
+
+#[test]
 fn extract_snapshot_happy_jpeg() {
     assert_json_snapshot!(
         "extract_happy_jpeg",
@@ -156,6 +161,22 @@ fn extract_snapshot_mixed_webp_normalized() {
 }
 
 #[test]
+fn extract_snapshot_mixed_heic_normalized() {
+    assert_json_snapshot!(
+        "extract_mixed_heic_normalized",
+        extract_json("mixed.heic", ViewMode::Normalized)
+    );
+}
+
+#[test]
+fn extract_snapshot_real_exif_heic_normalized() {
+    assert_json_snapshot!(
+        "extract_real_exif_heic_normalized",
+        extract_json("real_exif.heic", ViewMode::Normalized)
+    );
+}
+
+#[test]
 fn conflicting_png_report_snapshot() {
     assert_json_snapshot!(
         "conflicting_png_report",
@@ -180,8 +201,35 @@ fn malformed_webp_report_snapshot() {
 }
 
 #[test]
+fn unsupported_heic_report_snapshot() {
+    assert_json_snapshot!(
+        "unsupported_heic_report",
+        extract_json("unsupported.heic", ViewMode::Report)
+    );
+}
+
+#[test]
+fn malformed_heic_report_snapshot() {
+    assert_json_snapshot!(
+        "malformed_heic_report",
+        extract_json("malformed_box.heic", ViewMode::Report)
+    );
+}
+
+#[test]
 fn no_exif_file_surfaces_empty_metadata_issue() {
     let output = extract_json("no_exif.jpg", ViewMode::Report);
+    let issues = output["report"]["issues"].as_array().unwrap();
+    assert!(
+        issues
+            .iter()
+            .any(|issue| issue["code"] == "no_metadata_entries")
+    );
+}
+
+#[test]
+fn no_exif_heic_surfaces_empty_metadata_issue() {
+    let output = extract_json("no_exif.heic", ViewMode::Report);
     let issues = output["report"]["issues"].as_array().unwrap();
     assert!(
         issues
@@ -213,6 +261,11 @@ fn exiftool_differential_xmp_only_png_supported_fields() {
 #[test]
 fn exiftool_differential_xmp_only_webp_supported_fields() {
     differential_assert_xmp("xmp_only.webp", true);
+}
+
+#[test]
+fn exiftool_differential_real_exif_heic_supported_fields() {
+    differential_assert_heif("real_exif.heic");
 }
 
 fn differential_assert(name: &str, expect_gps: bool) {
@@ -310,4 +363,26 @@ fn differential_assert_xmp(name: &str, compare_dimensions: bool) {
         assert_eq!(ours["dimensions.width"]["value"], first["ImageWidth"]);
         assert_eq!(ours["dimensions.height"]["value"], first["ImageHeight"]);
     }
+}
+
+fn differential_assert_heif(name: &str) {
+    let ours = extract_json(name, ViewMode::Normalized);
+    let ours = normalized_map(&ours);
+
+    let output = Command::new("exiftool")
+        .args(["-json", "-n", "-ImageWidth", "-ImageHeight", "-Orientation"])
+        .arg(fixture(name))
+        .output()
+        .expect("failed to run exiftool");
+    assert!(
+        output.status.success(),
+        "exiftool failed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let parsed: Value = serde_json::from_slice(&output.stdout).unwrap();
+    let first = &parsed.as_array().unwrap()[0];
+
+    assert_eq!(ours["dimensions.width"]["value"], first["ImageWidth"]);
+    assert_eq!(ours["dimensions.height"]["value"], first["ImageHeight"]);
+    assert_eq!(ours["orientation"]["value"], first["Orientation"]);
 }

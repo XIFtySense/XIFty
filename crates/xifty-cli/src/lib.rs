@@ -1,14 +1,15 @@
+use xifty_container_isobmff::parse as parse_isobmff;
 use xifty_container_jpeg::parse as parse_jpeg;
 use xifty_container_png::parse as parse_png;
 use xifty_container_riff::parse as parse_riff;
 use xifty_container_tiff::parse as parse_tiff;
 use xifty_core::{
-    AnalysisOutput, Format, InterpretedView, ProbeInput, ProbeOutput, RawView, SCHEMA_VERSION,
-    ViewMode, XiftyError,
+    AnalysisOutput, Format, InterpretedView, MetadataEntry, ProbeInput, ProbeOutput, Provenance,
+    RawView, SCHEMA_VERSION, TypedValue, ViewMode, XiftyError,
 };
 use xifty_detect::detect;
 use xifty_meta_exif::{decode_from_tiff, exif_payload_from_jpeg};
-use xifty_meta_xmp::{decode_png_text_chunk, decode_webp_xmp_chunk};
+use xifty_meta_xmp::{XmpPacket, decode_packet, decode_png_text_chunk, decode_webp_xmp_chunk};
 use xifty_normalize::normalize_with_policy;
 use xifty_source::SourceBytes;
 use xifty_validate::build_report;
@@ -32,6 +33,10 @@ pub fn probe_path(path: std::path::PathBuf) -> Result<ProbeOutput, XiftyError> {
         Format::Webp => {
             let parsed = parse_riff(&source)?;
             ("webp".to_string(), parsed.nodes, parsed.issues)
+        }
+        Format::Heif => {
+            let parsed = parse_isobmff(&source)?;
+            ("isobmff".to_string(), parsed.nodes, parsed.issues)
         }
     };
     Ok(ProbeOutput {
@@ -136,6 +141,55 @@ pub fn extract_path(
             }
             ("webp".to_string(), riff.nodes, entries, riff.issues)
         }
+        Format::Heif => {
+            let isobmff = parse_isobmff(&source)?;
+            let mut entries = Vec::new();
+            for payload in isobmff.exif_payloads() {
+                if let Some(bytes) = payload_slice(
+                    source.bytes(),
+                    payload.data_offset,
+                    payload.data_length as usize,
+                ) {
+                    if let Some((tiff_offset, tiff_bytes)) =
+                        heif_exif_tiff(bytes, payload.data_offset)
+                    {
+                        if let Ok(tiff) =
+                            xifty_container_tiff::parse_bytes(tiff_bytes, tiff_offset, "heif_exif")
+                        {
+                            entries.extend(decode_from_tiff(
+                                tiff_bytes,
+                                tiff_offset,
+                                "heif",
+                                &tiff,
+                            ));
+                        }
+                    }
+                }
+            }
+            for payload in isobmff.xmp_payloads() {
+                if let Some(bytes) = payload_slice(
+                    source.bytes(),
+                    payload.data_offset,
+                    payload.data_length as usize,
+                ) {
+                    entries.extend(decode_packet(XmpPacket {
+                        bytes,
+                        container: "heif",
+                        offset_start: payload.offset_start,
+                        offset_end: payload.offset_end,
+                    }));
+                }
+            }
+            if let Some(dimensions) = &isobmff.primary_item_dimensions {
+                entries.extend(heif_dimension_entries(dimensions));
+            }
+            (
+                "isobmff".to_string(),
+                isobmff.nodes,
+                entries,
+                isobmff.issues,
+            )
+        }
     };
 
     let normalization = normalize_with_policy(&entries);
@@ -169,4 +223,53 @@ pub fn extract_path(
 fn payload_slice(bytes: &[u8], absolute_offset: u64, len: usize) -> Option<&[u8]> {
     let start = usize::try_from(absolute_offset).ok()?;
     bytes.get(start..start + len)
+}
+
+fn heif_exif_tiff(payload: &[u8], absolute_offset: u64) -> Option<(u64, &[u8])> {
+    if payload.len() >= 10 {
+        let offset = u32::from_be_bytes(payload[0..4].try_into().ok()?) as usize;
+        let start = 4usize.checked_add(offset)?;
+        let tiff = payload.get(start..)?;
+        if tiff.starts_with(b"II") || tiff.starts_with(b"MM") {
+            return Some((absolute_offset + start as u64, tiff));
+        }
+    }
+
+    if payload.starts_with(b"II") || payload.starts_with(b"MM") {
+        return Some((absolute_offset, payload));
+    }
+
+    None
+}
+
+fn heif_dimension_entries(
+    dimensions: &xifty_container_isobmff::IsobmffDimensions,
+) -> Vec<MetadataEntry> {
+    let provenance = Provenance {
+        container: "heif".into(),
+        namespace: "heif".into(),
+        path: Some(dimensions.path.clone()),
+        offset_start: Some(dimensions.offset_start),
+        offset_end: Some(dimensions.offset_end),
+        notes: vec!["derived from ispe property for primary item".into()],
+    };
+
+    vec![
+        MetadataEntry {
+            namespace: "heif".into(),
+            tag_id: "ImageWidth".into(),
+            tag_name: "ImageWidth".into(),
+            value: TypedValue::Integer(dimensions.width as i64),
+            provenance: provenance.clone(),
+            notes: Vec::new(),
+        },
+        MetadataEntry {
+            namespace: "heif".into(),
+            tag_id: "ImageHeight".into(),
+            tag_name: "ImageHeight".into(),
+            value: TypedValue::Integer(dimensions.height as i64),
+            provenance,
+            notes: Vec::new(),
+        },
+    ]
 }

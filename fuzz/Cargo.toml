@@ -10,6 +10,7 @@ cargo-fuzz = true
 [dependencies]
 libfuzzer-sys = "0.4"
 xifty-container-jpeg = { path = "../crates/xifty-container-jpeg" }
+xifty-container-isobmff = { path = "../crates/xifty-container-isobmff" }
 xifty-container-png = { path = "../crates/xifty-container-png" }
 xifty-container-riff = { path = "../crates/xifty-container-riff" }
 xifty-container-tiff = { path = "../crates/xifty-container-tiff" }
@@ -43,6 +44,20 @@ bench = false
 [[bin]]
 name = "riff_parser"
 path = "fuzz_targets/riff_parser.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "isobmff_parser"
+path = "fuzz_targets/isobmff_parser.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "heif_metadata_routing"
+path = "fuzz_targets/heif_metadata_routing.rs"
 test = false
 doc = false
 bench = false

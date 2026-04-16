@@ -1,0 +1,85 @@
+---
+source: crates/xifty-cli/tests/cli_contract.rs
+expression: "extract_json(\"real_exif.heic\", ViewMode::Normalized)"
+---
+{
+  "input": {
+    "container": "isobmff",
+    "detected_format": "heif",
+    "path": "real_exif.heic"
+  },
+  "normalized": {
+    "fields": [
+      {
+        "confidence": 0.949999988079071,
+        "field": "orientation",
+        "sources": [
+          {
+            "container": "heif",
+            "namespace": "exif",
+            "offset_end": 3888,
+            "offset_start": 3876,
+            "path": "ifd0"
+          }
+        ],
+        "value": {
+          "kind": "integer",
+          "value": 1
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
+        "field": "dimensions.width",
+        "sources": [
+          {
+            "container": "heif",
+            "namespace": "heif",
+            "notes": [
+              "derived from ispe property for primary item"
+            ],
+            "offset_end": 3539,
+            "offset_start": 3519,
+            "path": "meta/iprp/ipco/ispe"
+          }
+        ],
+        "value": {
+          "kind": "integer",
+          "value": 700
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
+        "field": "dimensions.height",
+        "sources": [
+          {
+            "container": "heif",
+            "namespace": "heif",
+            "notes": [
+              "derived from ispe property for primary item"
+            ],
+            "offset_end": 3539,
+            "offset_start": 3519,
+            "path": "meta/iprp/ipco/ispe"
+          }
+        ],
+        "value": {
+          "kind": "integer",
+          "value": 476
+        }
+      }
+    ]
+  },
+  "report": {
+    "conflicts": [],
+    "issues": [
+      {
+        "code": "isobmff_structure_recognized_uninterpreted",
+        "context": "meta/iref",
+        "message": "recognized iref structure but do not yet interpret its full semantics",
+        "offset": 197,
+        "severity": "info"
+      }
+    ]
+  },
+  "schema_version": "0.1.0"
+}

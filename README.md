@@ -68,10 +68,14 @@ This repository now includes the first implementation slice for:
 - JPEG / TIFF detection
 - JPEG APP1 EXIF extraction
 - TIFF / IFD traversal
+- PNG / WebP EXIF and XMP routing
+- HEIC / HEIF detection and initial ISOBMFF routing
 - EXIF decoding for the initial normalized fields
+- XMP decoding and EXIF/XMP reconciliation
 - JSON-only CLI output
 - checked-in fixtures
-- snapshot and ExifTool differential tests
+- snapshot tests plus ExifTool differential tests for the currently supported oracle-backed fixtures
+- vendored real-world HEIF differential coverage for iteration three
 
 Current CLI:
 
@@ -79,6 +83,7 @@ Current CLI:
 cargo run -p xifty-cli -- probe fixtures/minimal/happy.jpg
 cargo run -p xifty-cli -- extract fixtures/minimal/happy.jpg
 cargo run -p xifty-cli -- extract fixtures/minimal/gps.jpg --view normalized
+cargo run -p xifty-cli -- extract fixtures/minimal/mixed.heic --view normalized
 ```
 
 Verification:
@@ -87,7 +92,7 @@ Verification:
 cargo test --workspace
 ```
 
-Fuzz targets are scaffolded under `fuzz/` and were smoke-tested with `cargo fuzz run` under a nightly Rust toolchain.
+Fuzz targets are scaffolded under `fuzz/`. The earlier parser targets were smoke-tested with `cargo fuzz run` under a nightly Rust toolchain; the newer ISOBMFF and HEIF-routing targets are checked in and await a clean local nightly `cargo-fuzz` resolution on this machine.
 
 Planning docs:
 

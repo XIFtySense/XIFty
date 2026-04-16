@@ -10,6 +10,7 @@ pub enum Format {
     Tiff,
     Png,
     Webp,
+    Heif,
 }
 
 impl Format {
@@ -19,6 +20,7 @@ impl Format {
             Self::Tiff => "tiff",
             Self::Png => "png",
             Self::Webp => "webp",
+            Self::Heif => "heif",
         }
     }
 }

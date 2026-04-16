@@ -215,6 +215,31 @@ def build_webp(exif_payload=None, xmp_payload=None, malformed=False):
     return b"RIFF" + struct.pack("<I", declared_size) + body
 
 
+def iso_box(box_type, data, *, force_size=None):
+    size = force_size if force_size is not None else 8 + len(data)
+    return struct.pack(">I", size) + box_type + data
+
+
+def full_box(box_type, data, version=0, flags=0):
+    header = bytes([version]) + flags.to_bytes(3, "big")
+    return iso_box(box_type, header + data)
+
+
+def build_heif(exif_payload=None, xmp_payload=None, malformed=False, unsupported=False):
+    ftyp_payload = b"heic" + b"\x00\x00\x00\x00" + b"mif1" + b"heic"
+    children = []
+    if exif_payload is not None:
+        children.append(iso_box(b"Exif", exif_payload))
+    if xmp_payload is not None:
+        children.append(iso_box(b"mime", b"application/rdf+xml\x00" + xmp_payload))
+    if unsupported:
+        children.append(full_box(b"iloc", b"\x00\x00\x00\x00"))
+    meta = full_box(b"meta", b"".join(children))
+    if malformed:
+        meta = iso_box(b"meta", meta[8:], force_size=len(meta) + 32)
+    return iso_box(b"ftyp", ftyp_payload) + meta
+
+
 def main():
     ROOT.mkdir(parents=True, exist_ok=True)
     xmp = build_xmp()
@@ -242,6 +267,13 @@ def main():
         "conflicting.webp": build_webp(build_tiff(gps=False), xmp_conflict),
         "no_exif.webp": build_webp(None),
         "malformed_chunk.webp": build_webp(build_tiff(gps=False), malformed=True),
+        "happy.heic": build_heif(build_tiff(gps=False)),
+        "xmp_only.heic": build_heif(None, xmp_with_location),
+        "mixed.heic": build_heif(build_tiff(gps=False), xmp_with_location),
+        "conflicting.heic": build_heif(build_tiff(gps=False), xmp_conflict),
+        "no_exif.heic": build_heif(None),
+        "unsupported.heic": build_heif(build_tiff(gps=False), xmp_with_location, unsupported=True),
+        "malformed_box.heic": build_heif(build_tiff(gps=False), malformed=True),
     }
 
     for name, data in files.items():

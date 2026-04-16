@@ -612,6 +612,7 @@ dependencies = [
  "clap",
  "insta",
  "serde_json",
+ "xifty-container-isobmff",
  "xifty-container-jpeg",
  "xifty-container-png",
  "xifty-container-riff",
@@ -625,6 +626,14 @@ dependencies = [
  "xifty-policy",
  "xifty-source",
  "xifty-validate",
+]
+
+[[package]]
+name = "xifty-container-isobmff"
+version = "0.1.0"
+dependencies = [
+ "xifty-core",
+ "xifty-source",
 ]
 
 [[package]]

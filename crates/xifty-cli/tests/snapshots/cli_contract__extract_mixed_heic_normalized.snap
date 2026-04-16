@@ -1,0 +1,234 @@
+---
+source: crates/xifty-cli/tests/cli_contract.rs
+expression: "extract_json(\"mixed.heic\", ViewMode::Normalized)"
+---
+{
+  "input": {
+    "container": "isobmff",
+    "detected_format": "heif",
+    "path": "mixed.heic"
+  },
+  "normalized": {
+    "fields": [
+      {
+        "confidence": 0.949999988079071,
+        "field": "captured_at",
+        "sources": [
+          {
+            "container": "heif",
+            "namespace": "xmp",
+            "offset_end": 923,
+            "offset_start": 250,
+            "path": "xmp_packet"
+          }
+        ],
+        "value": {
+          "kind": "timestamp",
+          "value": "2024-04-16T12:34:56"
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
+        "field": "created_at",
+        "sources": [
+          {
+            "container": "heif",
+            "namespace": "xmp",
+            "offset_end": 923,
+            "offset_start": 250,
+            "path": "xmp_packet"
+          }
+        ],
+        "value": {
+          "kind": "timestamp",
+          "value": "2024-04-16T12:34:56"
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
+        "field": "modified_at",
+        "sources": [
+          {
+            "container": "heif",
+            "namespace": "xmp",
+            "offset_end": 923,
+            "offset_start": 250,
+            "path": "xmp_packet"
+          }
+        ],
+        "value": {
+          "kind": "timestamp",
+          "value": "2024-04-16T13:00:00"
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
+        "field": "device.make",
+        "sources": [
+          {
+            "container": "heif",
+            "namespace": "xmp",
+            "offset_end": 923,
+            "offset_start": 250,
+            "path": "xmp_packet"
+          }
+        ],
+        "value": {
+          "kind": "string",
+          "value": "XIFtyCam"
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
+        "field": "device.model",
+        "sources": [
+          {
+            "container": "heif",
+            "namespace": "xmp",
+            "offset_end": 923,
+            "offset_start": 250,
+            "path": "xmp_packet"
+          }
+        ],
+        "value": {
+          "kind": "string",
+          "value": "IterationTwo"
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
+        "field": "software",
+        "sources": [
+          {
+            "container": "heif",
+            "namespace": "xmp",
+            "offset_end": 923,
+            "offset_start": 250,
+            "path": "xmp_packet"
+          }
+        ],
+        "value": {
+          "kind": "string",
+          "value": "XIFtyXmpGen"
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
+        "field": "author",
+        "sources": [
+          {
+            "container": "heif",
+            "namespace": "xmp",
+            "offset_end": 923,
+            "offset_start": 250,
+            "path": "xmp_packet"
+          }
+        ],
+        "value": {
+          "kind": "string",
+          "value": "K"
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
+        "field": "copyright",
+        "sources": [
+          {
+            "container": "heif",
+            "namespace": "xmp",
+            "offset_end": 923,
+            "offset_start": 250,
+            "path": "xmp_packet"
+          }
+        ],
+        "value": {
+          "kind": "string",
+          "value": "XIFty"
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
+        "field": "orientation",
+        "sources": [
+          {
+            "container": "heif",
+            "namespace": "xmp",
+            "offset_end": 923,
+            "offset_start": 250,
+            "path": "xmp_packet"
+          }
+        ],
+        "value": {
+          "kind": "integer",
+          "value": 1
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
+        "field": "dimensions.width",
+        "sources": [
+          {
+            "container": "heif",
+            "namespace": "xmp",
+            "offset_end": 923,
+            "offset_start": 250,
+            "path": "xmp_packet"
+          }
+        ],
+        "value": {
+          "kind": "integer",
+          "value": 640
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
+        "field": "dimensions.height",
+        "sources": [
+          {
+            "container": "heif",
+            "namespace": "xmp",
+            "offset_end": 923,
+            "offset_start": 250,
+            "path": "xmp_packet"
+          }
+        ],
+        "value": {
+          "kind": "integer",
+          "value": 480
+        }
+      },
+      {
+        "confidence": 0.8999999761581421,
+        "field": "location",
+        "sources": [
+          {
+            "container": "heif",
+            "namespace": "xmp",
+            "offset_end": 923,
+            "offset_start": 250,
+            "path": "xmp_packet"
+          },
+          {
+            "container": "heif",
+            "namespace": "xmp",
+            "offset_end": 923,
+            "offset_start": 250,
+            "path": "xmp_packet"
+          }
+        ],
+        "value": {
+          "kind": "coordinates",
+          "value": {
+            "latitude": 40.4462,
+            "longitude": -79.98
+          }
+        }
+      }
+    ]
+  },
+  "report": {
+    "conflicts": [],
+    "issues": []
+  },
+  "schema_version": "0.1.0"
+}

@@ -1,0 +1,16 @@
+---
+source: crates/xifty-cli/tests/cli_contract.rs
+expression: "extract_json(\"unsupported.heic\", ViewMode::Report)"
+---
+{
+  "input": {
+    "container": "isobmff",
+    "detected_format": "heif",
+    "path": "unsupported.heic"
+  },
+  "report": {
+    "conflicts": [],
+    "issues": []
+  },
+  "schema_version": "0.1.0"
+}

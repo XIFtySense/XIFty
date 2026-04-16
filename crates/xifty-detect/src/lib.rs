@@ -19,7 +19,34 @@ pub fn detect(source: &SourceBytes) -> Result<Format, XiftyError> {
         return Ok(Format::Webp);
     }
 
+    if bytes.len() >= 16 && &bytes[4..8] == b"ftyp" && is_heif_brand(bytes) {
+        return Ok(Format::Heif);
+    }
+
     Err(XiftyError::UnsupportedFormat)
+}
+
+fn is_heif_brand(bytes: &[u8]) -> bool {
+    let Some(brand_bytes) = bytes.get(8..16) else {
+        return false;
+    };
+    let brand = [
+        brand_bytes[0],
+        brand_bytes[1],
+        brand_bytes[2],
+        brand_bytes[3],
+    ];
+    let compat = bytes[16..]
+        .chunks_exact(4)
+        .map(|chunk| [chunk[0], chunk[1], chunk[2], chunk[3]]);
+    heif_brand(brand) || compat.into_iter().any(heif_brand)
+}
+
+fn heif_brand(brand: [u8; 4]) -> bool {
+    matches!(
+        &brand,
+        b"mif1" | b"msf1" | b"heic" | b"heix" | b"hevc" | b"heim" | b"heis" | b"avif" | b"avis"
+    )
 }
 
 #[cfg(test)]
@@ -48,6 +75,7 @@ mod tests {
         let tiff = temp_file("a.tif", b"II*\0\x08\0\0\0");
         let png = temp_file("a.png", b"\x89PNG\r\n\x1a\n");
         let webp = temp_file("a.webp", b"RIFF\x00\x00\x00\x00WEBP");
+        let heif = temp_file("a.heic", b"\x00\x00\x00\x18ftypheic\0\0\0\0mif1");
         assert_eq!(
             detect(&SourceBytes::from_path(&jpeg).unwrap()).unwrap(),
             Format::Jpeg
@@ -64,9 +92,14 @@ mod tests {
             detect(&SourceBytes::from_path(&webp).unwrap()).unwrap(),
             Format::Webp
         );
+        assert_eq!(
+            detect(&SourceBytes::from_path(&heif).unwrap()).unwrap(),
+            Format::Heif
+        );
         let _ = fs::remove_file(jpeg);
         let _ = fs::remove_file(tiff);
         let _ = fs::remove_file(png);
         let _ = fs::remove_file(webp);
+        let _ = fs::remove_file(heif);
     }
 }
