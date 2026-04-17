@@ -1,6 +1,6 @@
 ---
 source: crates/xifty-cli/tests/cli_contract.rs
-expression: "extract_json(\"C0242.MP4\", ViewMode::Normalized)"
+expression: output
 ---
 {
   "input": {
@@ -154,6 +154,23 @@ expression: "extract_json(\"C0242.MP4\", ViewMode::Normalized)"
       },
       {
         "confidence": 0.949999988079071,
+        "field": "video.framerate",
+        "sources": [
+          {
+            "container": "mp4",
+            "namespace": "quicktime",
+            "notes": [
+              "derived from video track timing"
+            ]
+          }
+        ],
+        "value": {
+          "kind": "float",
+          "value": 23.976023976023978
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
         "field": "codec.video",
         "sources": [
           {
@@ -184,6 +201,23 @@ expression: "extract_json(\"C0242.MP4\", ViewMode::Normalized)"
         "value": {
           "kind": "string",
           "value": "twos"
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
+        "field": "audio.channels",
+        "sources": [
+          {
+            "container": "mp4",
+            "namespace": "rtmd",
+            "offset_end": 25170432,
+            "offset_start": 25168484,
+            "path": "non_real_time_meta"
+          }
+        ],
+        "value": {
+          "kind": "integer",
+          "value": 2
         }
       }
     ]

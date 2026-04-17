@@ -134,11 +134,69 @@ pub fn reconcile(entries: &[MetadataEntry]) -> PolicyResult {
         &["ImageHeight"],
         NamespacePreference::ExifFirst,
     );
+    maybe_choose_integer(
+        entries,
+        &mut result,
+        "exposure.iso",
+        &["ISO", "ISOSpeedRatings"],
+        NamespacePreference::ExifFirst,
+    );
+    maybe_choose_rational(
+        entries,
+        &mut result,
+        "exposure.aperture",
+        &["FNumber"],
+        NamespacePreference::ExifFirst,
+    );
+    maybe_choose_rational(
+        entries,
+        &mut result,
+        "exposure.shutter_speed",
+        &["ExposureTime"],
+        NamespacePreference::ExifFirst,
+    );
+    maybe_choose_float_like(
+        entries,
+        &mut result,
+        "exposure.focal_length_mm",
+        &["FocalLength"],
+        NamespacePreference::ExifFirst,
+    );
+    maybe_choose_string(
+        entries,
+        &mut result,
+        "lens.model",
+        &["LensModel"],
+        NamespacePreference::ExifFirst,
+        false,
+    );
+    maybe_choose_string(
+        entries,
+        &mut result,
+        "lens.make",
+        &["LensMake"],
+        NamespacePreference::ExifFirst,
+        false,
+    );
     maybe_choose_float(
         entries,
         &mut result,
         "duration",
         &["DurationSeconds"],
+        NamespacePreference::QuickTimeFirst,
+    );
+    maybe_choose_float(
+        entries,
+        &mut result,
+        "video.framerate",
+        &["VideoFrameRate"],
+        NamespacePreference::QuickTimeFirst,
+    );
+    maybe_choose_integer(
+        entries,
+        &mut result,
+        "video.bitrate",
+        &["VideoBitrate"],
         NamespacePreference::QuickTimeFirst,
     );
     maybe_choose_string(
@@ -156,6 +214,20 @@ pub fn reconcile(entries: &[MetadataEntry]) -> PolicyResult {
         &["AudioCodec"],
         NamespacePreference::QuickTimeFirst,
         false,
+    );
+    maybe_choose_integer(
+        entries,
+        &mut result,
+        "audio.channels",
+        &["AudioChannels"],
+        NamespacePreference::QuickTimeFirst,
+    );
+    maybe_choose_integer(
+        entries,
+        &mut result,
+        "audio.sample_rate",
+        &["AudioSampleRate"],
+        NamespacePreference::QuickTimeFirst,
     );
 
     result
@@ -284,6 +356,87 @@ fn maybe_choose_float(
     });
 }
 
+fn maybe_choose_rational(
+    entries: &[MetadataEntry],
+    result: &mut PolicyResult,
+    field_name: &str,
+    tag_names: &[&str],
+    preference: NamespacePreference,
+) {
+    let matches = find_matches(entries, tag_names);
+    if matches.is_empty() {
+        return;
+    }
+
+    let winner = choose_match(&matches, preference);
+    let TypedValue::Rational {
+        numerator,
+        denominator,
+    } = &winner.value
+    else {
+        return;
+    };
+
+    let value = TypedValue::Rational {
+        numerator: *numerator,
+        denominator: *denominator,
+    };
+
+    if has_material_difference(&matches, &value) {
+        result.conflicts.push(Conflict {
+            field: field_name.into(),
+            message: format!(
+                "multiple candidates disagreed; selected {} from {}",
+                winner.tag_name, winner.namespace
+            ),
+        });
+    }
+
+    result.fields.push(NormalizedField {
+        field: field_name.into(),
+        value,
+        confidence: 0.95,
+        sources: vec![winner.provenance.clone()],
+        notes: conflict_note(&matches, winner),
+    });
+}
+
+fn maybe_choose_float_like(
+    entries: &[MetadataEntry],
+    result: &mut PolicyResult,
+    field_name: &str,
+    tag_names: &[&str],
+    preference: NamespacePreference,
+) {
+    let matches = find_matches(entries, tag_names);
+    if matches.is_empty() {
+        return;
+    }
+
+    let winner = choose_match(&matches, preference);
+    let Some(value) = numeric_value(&winner.value) else {
+        return;
+    };
+
+    if has_material_difference(&matches, &winner.value) {
+        result.conflicts.push(Conflict {
+            field: field_name.into(),
+            message: format!(
+                "multiple candidates disagreed; selected {} from {}",
+                winner.tag_name, winner.namespace
+            ),
+        });
+    }
+
+    result.fields.push(NormalizedField {
+        field: field_name.into(),
+        value: TypedValue::Float(value),
+        confidence: 0.95,
+        sources: vec![winner.provenance.clone()],
+        notes: conflict_note(&matches, winner),
+    });
+}
+
 fn find_matches<'a>(entries: &'a [MetadataEntry], tag_names: &[&str]) -> Vec<&'a MetadataEntry> {
     entries
         .iter()
@@ -332,7 +485,35 @@ fn typed_values_equal(left: &TypedValue, right: &TypedValue) -> bool {
         }
         (TypedValue::Integer(a), TypedValue::Integer(b)) => a == b,
         (TypedValue::Float(a), TypedValue::Float(b)) => (*a - *b).abs() < f64::EPSILON,
+        (
+            TypedValue::Rational {
+                numerator: an,
+                denominator: ad,
+            },
+            TypedValue::Rational {
+                numerator: bn,
+                denominator: bd,
+            },
+        ) => an == bn && ad == bd,
         _ => false,
+    }
+}
+
+fn numeric_value(value: &TypedValue) -> Option<f64> {
+    match value {
+        TypedValue::Float(value) => Some(*value),
+        TypedValue::Integer(value) => Some(*value as f64),
+        TypedValue::Rational {
+            numerator,
+            denominator,
+        } => {
+            if *denominator == 0 {
+                None
+            } else {
+                Some(*numerator as f64 / *denominator as f64)
+            }
+        }
+        _ => None,
     }
 }
 

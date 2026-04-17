@@ -538,6 +538,38 @@ fn isobmff_entries(
             "derived from audio track sample description",
         ));
     }
+    if let Some(frame_rate) = container.video_frame_rate {
+        entries.push(media_scalar_entry(
+            format_name,
+            "VideoFrameRate",
+            TypedValue::Float(frame_rate),
+            "derived from video track timing",
+        ));
+    }
+    if let Some(bitrate) = container.video_bitrate {
+        entries.push(media_scalar_entry(
+            format_name,
+            "VideoBitrate",
+            TypedValue::Integer(bitrate as i64),
+            "derived from video sample description bitrate box",
+        ));
+    }
+    if let Some(channels) = container.audio_channels {
+        entries.push(media_scalar_entry(
+            format_name,
+            "AudioChannels",
+            TypedValue::Integer(channels as i64),
+            "derived from audio track sample entry",
+        ));
+    }
+    if let Some(sample_rate) = container.audio_sample_rate {
+        entries.push(media_scalar_entry(
+            format_name,
+            "AudioSampleRate",
+            TypedValue::Integer(sample_rate as i64),
+            "derived from audio track sample entry",
+        ));
+    }
     if let Some(created_at) = &container.media_created_at {
         entries.push(media_scalar_entry(
             format_name,

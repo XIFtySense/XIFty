@@ -13,13 +13,13 @@ expression: "probe_json(\"happy.heic\")"
     {
       "kind": "box",
       "label": "meta",
-      "offset_end": 250,
+      "offset_end": 374,
       "offset_start": 24
     },
     {
       "kind": "box",
       "label": "meta/Exif",
-      "offset_end": 250,
+      "offset_end": 374,
       "offset_start": 36,
       "parent_label": "meta"
     }

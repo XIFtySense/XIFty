@@ -13,7 +13,7 @@ expression: "probe_json(\"happy.mov\")"
     {
       "kind": "box",
       "label": "moov",
-      "offset_end": 643,
+      "offset_end": 801,
       "offset_start": 20
     },
     {
@@ -26,7 +26,7 @@ expression: "probe_json(\"happy.mov\")"
     {
       "kind": "box",
       "label": "moov/trak",
-      "offset_end": 284,
+      "offset_end": 398,
       "offset_start": 64,
       "parent_label": "moov"
     },
@@ -40,7 +40,7 @@ expression: "probe_json(\"happy.mov\")"
     {
       "kind": "box",
       "label": "moov/trak/mdia",
-      "offset_end": 284,
+      "offset_end": 398,
       "offset_start": 164,
       "parent_label": "moov/trak"
     },
@@ -61,120 +61,134 @@ expression: "probe_json(\"happy.mov\")"
     {
       "kind": "box",
       "label": "moov/trak/mdia/minf",
-      "offset_end": 284,
+      "offset_end": 398,
       "offset_start": 236,
       "parent_label": "moov/trak/mdia"
     },
     {
       "kind": "box",
       "label": "moov/trak/mdia/minf/stbl",
-      "offset_end": 284,
+      "offset_end": 398,
       "offset_start": 244,
       "parent_label": "moov/trak/mdia/minf"
     },
     {
       "kind": "box",
       "label": "moov/trak/mdia/minf/stbl/stsd",
-      "offset_end": 284,
+      "offset_end": 374,
       "offset_start": 252,
       "parent_label": "moov/trak/mdia/minf/stbl"
     },
     {
       "kind": "box",
+      "label": "moov/trak/mdia/minf/stbl/stts",
+      "offset_end": 398,
+      "offset_start": 374,
+      "parent_label": "moov/trak/mdia/minf/stbl"
+    },
+    {
+      "kind": "box",
       "label": "moov/trak",
-      "offset_end": 504,
-      "offset_start": 284,
+      "offset_end": 662,
+      "offset_start": 398,
       "parent_label": "moov"
     },
     {
       "kind": "box",
       "label": "moov/trak/tkhd",
-      "offset_end": 384,
-      "offset_start": 292,
+      "offset_end": 498,
+      "offset_start": 406,
       "parent_label": "moov/trak"
     },
     {
       "kind": "box",
       "label": "moov/trak/mdia",
-      "offset_end": 504,
-      "offset_start": 384,
+      "offset_end": 662,
+      "offset_start": 498,
       "parent_label": "moov/trak"
     },
     {
       "kind": "box",
       "label": "moov/trak/mdia/mdhd",
-      "offset_end": 424,
-      "offset_start": 392,
+      "offset_end": 538,
+      "offset_start": 506,
       "parent_label": "moov/trak/mdia"
     },
     {
       "kind": "box",
       "label": "moov/trak/mdia/hdlr",
-      "offset_end": 456,
-      "offset_start": 424,
+      "offset_end": 570,
+      "offset_start": 538,
       "parent_label": "moov/trak/mdia"
     },
     {
       "kind": "box",
       "label": "moov/trak/mdia/minf",
-      "offset_end": 504,
-      "offset_start": 456,
+      "offset_end": 662,
+      "offset_start": 570,
       "parent_label": "moov/trak/mdia"
     },
     {
       "kind": "box",
       "label": "moov/trak/mdia/minf/stbl",
-      "offset_end": 504,
-      "offset_start": 464,
+      "offset_end": 662,
+      "offset_start": 578,
       "parent_label": "moov/trak/mdia/minf"
     },
     {
       "kind": "box",
       "label": "moov/trak/mdia/minf/stbl/stsd",
-      "offset_end": 504,
-      "offset_start": 472,
+      "offset_end": 638,
+      "offset_start": 586,
+      "parent_label": "moov/trak/mdia/minf/stbl"
+    },
+    {
+      "kind": "box",
+      "label": "moov/trak/mdia/minf/stbl/stts",
+      "offset_end": 662,
+      "offset_start": 638,
       "parent_label": "moov/trak/mdia/minf/stbl"
     },
     {
       "kind": "box",
       "label": "moov/udta",
-      "offset_end": 643,
-      "offset_start": 504,
+      "offset_end": 801,
+      "offset_start": 662,
       "parent_label": "moov"
     },
     {
       "kind": "box",
       "label": "moov/udta/meta",
-      "offset_end": 643,
-      "offset_start": 512,
+      "offset_end": 801,
+      "offset_start": 670,
       "parent_label": "moov/udta"
     },
     {
       "kind": "box",
       "label": "moov/udta/meta/ilst",
-      "offset_end": 643,
-      "offset_start": 524,
+      "offset_end": 801,
+      "offset_start": 682,
       "parent_label": "moov/udta/meta"
     },
     {
       "kind": "box",
       "label": "moov/udta/meta/ilst/�ART",
-      "offset_end": 570,
-      "offset_start": 532,
+      "offset_end": 728,
+      "offset_start": 690,
       "parent_label": "moov/udta/meta/ilst"
     },
     {
       "kind": "box",
       "label": "moov/udta/meta/ilst/�too",
-      "offset_end": 606,
-      "offset_start": 570,
+      "offset_end": 764,
+      "offset_start": 728,
       "parent_label": "moov/udta/meta/ilst"
     },
     {
       "kind": "box",
       "label": "moov/udta/meta/ilst/�nam",
-      "offset_end": 643,
-      "offset_start": 606,
+      "offset_end": 801,
+      "offset_start": 764,
       "parent_label": "moov/udta/meta/ilst"
     }
   ],

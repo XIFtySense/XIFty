@@ -121,6 +121,15 @@ fn normalized_decimal_string(value: &Value) -> Option<String> {
     Some(format!("{number}"))
 }
 
+fn rational_json_to_f64(value: &Value) -> Option<f64> {
+    let numerator = value["value"]["numerator"].as_i64()?;
+    let denominator = value["value"]["denominator"].as_i64()?;
+    if denominator == 0 {
+        return None;
+    }
+    Some(numerator as f64 / denominator as f64)
+}
+
 #[test]
 fn probe_snapshot_happy_jpeg() {
     assert_json_snapshot!("probe_happy_jpeg", probe_json("happy.jpg"));
@@ -693,12 +702,43 @@ fn exiftool_differential_real_camera_mp4_supported_fields() {
 fn mp4_normalization_includes_media_fields() {
     let output = normalized_map(&extract_json("happy.mp4", ViewMode::Normalized));
     assert_eq!(output["duration"]["value"], Value::from(12.0));
+    let fps = output["video.framerate"]["value"].as_f64().unwrap();
+    assert!((fps - 23.976).abs() < 0.01, "unexpected fps {fps}");
+    assert_eq!(output["video.bitrate"]["value"], Value::from(24_000_000));
     assert_eq!(output["codec.video"]["value"], Value::String("avc1".into()));
     assert_eq!(output["codec.audio"]["value"], Value::String("mp4a".into()));
+    assert_eq!(output["audio.channels"]["value"], Value::from(2));
+    assert_eq!(output["audio.sample_rate"]["value"], Value::from(48_000));
     assert_eq!(output["author"]["value"], Value::String("Kai".into()));
     assert_eq!(
         output["software"]["value"],
         Value::String("XIFtyMediaGen".into())
+    );
+}
+
+#[test]
+fn happy_jpeg_normalization_includes_photographic_fields() {
+    let output = normalized_map(&extract_json("happy.jpg", ViewMode::Normalized));
+    assert_eq!(output["exposure.iso"]["value"], Value::from(200));
+    assert_eq!(
+        output["exposure.aperture"],
+        serde_json::json!({"kind": "rational", "value": {"numerator": 56, "denominator": 10}})
+    );
+    assert_eq!(
+        output["exposure.shutter_speed"],
+        serde_json::json!({"kind": "rational", "value": {"numerator": 1, "denominator": 250}})
+    );
+    let focal = output["exposure.focal_length_mm"]["value"]
+        .as_f64()
+        .unwrap();
+    assert!((focal - 50.0).abs() < f64::EPSILON);
+    assert_eq!(
+        output["lens.model"]["value"],
+        Value::String("XIFty 50mm F2".into())
+    );
+    assert_eq!(
+        output["lens.make"]["value"],
+        Value::String("XIFty Optics".into())
     );
 }
 
@@ -999,6 +1039,12 @@ fn differential_assert(name: &str, expect_gps: bool) {
             "-ImageWidth",
             "-ImageHeight",
             "-Orientation",
+            "-ISO",
+            "-FNumber",
+            "-ExposureTime",
+            "-FocalLength",
+            "-LensModel",
+            "-LensMake",
             "-GPSLatitude",
             "-GPSLongitude",
         ])
@@ -1023,6 +1069,18 @@ fn differential_assert(name: &str, expect_gps: bool) {
     assert_eq!(ours["dimensions.width"]["value"], first["ImageWidth"]);
     assert_eq!(ours["dimensions.height"]["value"], first["ImageHeight"]);
     assert_eq!(ours["orientation"]["value"], first["Orientation"]);
+    assert_eq!(ours["exposure.iso"]["value"], first["ISO"]);
+    let ours_aperture = rational_json_to_f64(&ours["exposure.aperture"]).unwrap();
+    let exif_aperture = first["FNumber"].as_f64().unwrap();
+    assert!((ours_aperture - exif_aperture).abs() < 0.0001);
+    let ours_shutter = rational_json_to_f64(&ours["exposure.shutter_speed"]).unwrap();
+    let exif_shutter = first["ExposureTime"].as_f64().unwrap();
+    assert!((ours_shutter - exif_shutter).abs() < 0.0001);
+    let ours_focal = ours["exposure.focal_length_mm"]["value"].as_f64().unwrap();
+    let exif_focal = first["FocalLength"].as_f64().unwrap();
+    assert!((ours_focal - exif_focal).abs() < 0.0001);
+    assert_eq!(ours["lens.model"]["value"], first["LensModel"]);
+    assert_eq!(ours["lens.make"]["value"], first["LensMake"]);
 
     if expect_gps {
         let lat = ours["location"]["value"]["latitude"].as_f64().unwrap();
@@ -1129,6 +1187,10 @@ fn differential_assert_media(name: &str) {
             "-ImageHeight",
             "-CompressorID",
             "-AudioFormat",
+            "-VideoFrameRate",
+            "-AvgBitrate",
+            "-AudioChannels",
+            "-AudioSampleRate",
         ])
         .arg(fixture(name))
         .output()
@@ -1161,6 +1223,18 @@ fn differential_assert_media(name: &str) {
     assert_eq!(ours["dimensions.height"]["value"], first["ImageHeight"]);
     assert_eq!(ours["codec.video"]["value"], first["CompressorID"]);
     assert_eq!(ours["codec.audio"]["value"], first["AudioFormat"]);
+    let ours_fps = ours["video.framerate"]["value"].as_f64().unwrap();
+    let exif_fps = first["VideoFrameRate"].as_f64().unwrap();
+    assert!((ours_fps - exif_fps).abs() < 0.01);
+    if !first["AvgBitrate"].is_null() {
+        assert_eq!(ours["video.bitrate"]["value"], first["AvgBitrate"]);
+    }
+    if !first["AudioChannels"].is_null() {
+        assert_eq!(ours["audio.channels"]["value"], first["AudioChannels"]);
+    }
+    if !first["AudioSampleRate"].is_null() {
+        assert_eq!(ours["audio.sample_rate"]["value"], first["AudioSampleRate"]);
+    }
 }
 
 fn differential_assert_icc(name: &str) {

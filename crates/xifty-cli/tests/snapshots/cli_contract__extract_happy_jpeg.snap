@@ -153,6 +153,111 @@ expression: "extract_json(\"happy.jpg\", ViewMode::Full)"
           "kind": "timestamp",
           "value": "2024:04:16 12:34:56"
         }
+      },
+      {
+        "namespace": "exif",
+        "provenance": {
+          "container": "jpeg",
+          "namespace": "exif",
+          "offset_end": 186,
+          "offset_start": 174,
+          "path": "exif_ifd"
+        },
+        "tag_id": "0x829A",
+        "tag_name": "ExposureTime",
+        "value": {
+          "kind": "rational",
+          "value": {
+            "denominator": 250,
+            "numerator": 1
+          }
+        }
+      },
+      {
+        "namespace": "exif",
+        "provenance": {
+          "container": "jpeg",
+          "namespace": "exif",
+          "offset_end": 198,
+          "offset_start": 186,
+          "path": "exif_ifd"
+        },
+        "tag_id": "0x829D",
+        "tag_name": "FNumber",
+        "value": {
+          "kind": "rational",
+          "value": {
+            "denominator": 10,
+            "numerator": 56
+          }
+        }
+      },
+      {
+        "namespace": "exif",
+        "provenance": {
+          "container": "jpeg",
+          "namespace": "exif",
+          "offset_end": 210,
+          "offset_start": 198,
+          "path": "exif_ifd"
+        },
+        "tag_id": "0x8827",
+        "tag_name": "ISO",
+        "value": {
+          "kind": "integer",
+          "value": 200
+        }
+      },
+      {
+        "namespace": "exif",
+        "provenance": {
+          "container": "jpeg",
+          "namespace": "exif",
+          "offset_end": 222,
+          "offset_start": 210,
+          "path": "exif_ifd"
+        },
+        "tag_id": "0x920A",
+        "tag_name": "FocalLength",
+        "value": {
+          "kind": "rational",
+          "value": {
+            "denominator": 1,
+            "numerator": 50
+          }
+        }
+      },
+      {
+        "namespace": "exif",
+        "provenance": {
+          "container": "jpeg",
+          "namespace": "exif",
+          "offset_end": 234,
+          "offset_start": 222,
+          "path": "exif_ifd"
+        },
+        "tag_id": "0xA433",
+        "tag_name": "LensMake",
+        "value": {
+          "kind": "string",
+          "value": "XIFty Optics"
+        }
+      },
+      {
+        "namespace": "exif",
+        "provenance": {
+          "container": "jpeg",
+          "namespace": "exif",
+          "offset_end": 246,
+          "offset_start": 234,
+          "path": "exif_ifd"
+        },
+        "tag_id": "0xA434",
+        "tag_name": "LensModel",
+        "value": {
+          "kind": "string",
+          "value": "XIFty 50mm F2"
+        }
       }
     ]
   },
@@ -293,6 +398,114 @@ expression: "extract_json(\"happy.jpg\", ViewMode::Full)"
           "kind": "integer",
           "value": 600
         }
+      },
+      {
+        "confidence": 0.949999988079071,
+        "field": "exposure.iso",
+        "sources": [
+          {
+            "container": "jpeg",
+            "namespace": "exif",
+            "offset_end": 210,
+            "offset_start": 198,
+            "path": "exif_ifd"
+          }
+        ],
+        "value": {
+          "kind": "integer",
+          "value": 200
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
+        "field": "exposure.aperture",
+        "sources": [
+          {
+            "container": "jpeg",
+            "namespace": "exif",
+            "offset_end": 198,
+            "offset_start": 186,
+            "path": "exif_ifd"
+          }
+        ],
+        "value": {
+          "kind": "rational",
+          "value": {
+            "denominator": 10,
+            "numerator": 56
+          }
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
+        "field": "exposure.shutter_speed",
+        "sources": [
+          {
+            "container": "jpeg",
+            "namespace": "exif",
+            "offset_end": 186,
+            "offset_start": 174,
+            "path": "exif_ifd"
+          }
+        ],
+        "value": {
+          "kind": "rational",
+          "value": {
+            "denominator": 250,
+            "numerator": 1
+          }
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
+        "field": "exposure.focal_length_mm",
+        "sources": [
+          {
+            "container": "jpeg",
+            "namespace": "exif",
+            "offset_end": 222,
+            "offset_start": 210,
+            "path": "exif_ifd"
+          }
+        ],
+        "value": {
+          "kind": "float",
+          "value": 50.0
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
+        "field": "lens.model",
+        "sources": [
+          {
+            "container": "jpeg",
+            "namespace": "exif",
+            "offset_end": 246,
+            "offset_start": 234,
+            "path": "exif_ifd"
+          }
+        ],
+        "value": {
+          "kind": "string",
+          "value": "XIFty 50mm F2"
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
+        "field": "lens.make",
+        "sources": [
+          {
+            "container": "jpeg",
+            "namespace": "exif",
+            "offset_end": 234,
+            "offset_start": 222,
+            "path": "exif_ifd"
+          }
+        ],
+        "value": {
+          "kind": "string",
+          "value": "XIFty Optics"
+        }
       }
     ]
   },
@@ -301,21 +514,21 @@ expression: "extract_json(\"happy.jpg\", ViewMode::Full)"
       {
         "kind": "container",
         "label": "jpeg",
-        "offset_end": 220,
+        "offset_end": 344,
         "offset_start": 0
       },
       {
         "kind": "segment",
         "label": "APP1",
-        "offset_end": 218,
+        "offset_end": 342,
         "offset_start": 2,
         "parent_label": "jpeg"
       },
       {
         "kind": "segment",
         "label": "EOI",
-        "offset_end": 220,
-        "offset_start": 218,
+        "offset_end": 344,
+        "offset_start": 342,
         "parent_label": "jpeg"
       }
     ],
@@ -462,6 +675,111 @@ expression: "extract_json(\"happy.jpg\", ViewMode::Full)"
         "value": {
           "kind": "timestamp",
           "value": "2024:04:16 12:34:56"
+        }
+      },
+      {
+        "namespace": "exif",
+        "provenance": {
+          "container": "jpeg",
+          "namespace": "exif",
+          "offset_end": 186,
+          "offset_start": 174,
+          "path": "exif_ifd"
+        },
+        "tag_id": "0x829A",
+        "tag_name": "ExposureTime",
+        "value": {
+          "kind": "rational",
+          "value": {
+            "denominator": 250,
+            "numerator": 1
+          }
+        }
+      },
+      {
+        "namespace": "exif",
+        "provenance": {
+          "container": "jpeg",
+          "namespace": "exif",
+          "offset_end": 198,
+          "offset_start": 186,
+          "path": "exif_ifd"
+        },
+        "tag_id": "0x829D",
+        "tag_name": "FNumber",
+        "value": {
+          "kind": "rational",
+          "value": {
+            "denominator": 10,
+            "numerator": 56
+          }
+        }
+      },
+      {
+        "namespace": "exif",
+        "provenance": {
+          "container": "jpeg",
+          "namespace": "exif",
+          "offset_end": 210,
+          "offset_start": 198,
+          "path": "exif_ifd"
+        },
+        "tag_id": "0x8827",
+        "tag_name": "ISO",
+        "value": {
+          "kind": "integer",
+          "value": 200
+        }
+      },
+      {
+        "namespace": "exif",
+        "provenance": {
+          "container": "jpeg",
+          "namespace": "exif",
+          "offset_end": 222,
+          "offset_start": 210,
+          "path": "exif_ifd"
+        },
+        "tag_id": "0x920A",
+        "tag_name": "FocalLength",
+        "value": {
+          "kind": "rational",
+          "value": {
+            "denominator": 1,
+            "numerator": 50
+          }
+        }
+      },
+      {
+        "namespace": "exif",
+        "provenance": {
+          "container": "jpeg",
+          "namespace": "exif",
+          "offset_end": 234,
+          "offset_start": 222,
+          "path": "exif_ifd"
+        },
+        "tag_id": "0xA433",
+        "tag_name": "LensMake",
+        "value": {
+          "kind": "string",
+          "value": "XIFty Optics"
+        }
+      },
+      {
+        "namespace": "exif",
+        "provenance": {
+          "container": "jpeg",
+          "namespace": "exif",
+          "offset_end": 246,
+          "offset_start": 234,
+          "path": "exif_ifd"
+        },
+        "tag_id": "0xA434",
+        "tag_name": "LensModel",
+        "value": {
+          "kind": "string",
+          "value": "XIFty 50mm F2"
         }
       }
     ]

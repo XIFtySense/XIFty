@@ -68,8 +68,8 @@ expression: "extract_json(\"happy.mov\", ViewMode::Normalized)"
           {
             "container": "mov",
             "namespace": "quicktime",
-            "offset_end": 606,
-            "offset_start": 570,
+            "offset_end": 764,
+            "offset_start": 728,
             "path": "quicktime_data"
           }
         ],
@@ -85,8 +85,8 @@ expression: "extract_json(\"happy.mov\", ViewMode::Normalized)"
           {
             "container": "mov",
             "namespace": "quicktime",
-            "offset_end": 570,
-            "offset_start": 532,
+            "offset_end": 728,
+            "offset_start": 690,
             "path": "quicktime_data"
           }
         ],
@@ -154,6 +154,40 @@ expression: "extract_json(\"happy.mov\", ViewMode::Normalized)"
       },
       {
         "confidence": 0.949999988079071,
+        "field": "video.framerate",
+        "sources": [
+          {
+            "container": "mov",
+            "namespace": "quicktime",
+            "notes": [
+              "derived from video track timing"
+            ]
+          }
+        ],
+        "value": {
+          "kind": "float",
+          "value": 23.976023976023978
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
+        "field": "video.bitrate",
+        "sources": [
+          {
+            "container": "mov",
+            "namespace": "quicktime",
+            "notes": [
+              "derived from video sample description bitrate box"
+            ]
+          }
+        ],
+        "value": {
+          "kind": "integer",
+          "value": 24000000
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
         "field": "codec.video",
         "sources": [
           {
@@ -184,6 +218,40 @@ expression: "extract_json(\"happy.mov\", ViewMode::Normalized)"
         "value": {
           "kind": "string",
           "value": "mp4a"
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
+        "field": "audio.channels",
+        "sources": [
+          {
+            "container": "mov",
+            "namespace": "quicktime",
+            "notes": [
+              "derived from audio track sample entry"
+            ]
+          }
+        ],
+        "value": {
+          "kind": "integer",
+          "value": 2
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
+        "field": "audio.sample_rate",
+        "sources": [
+          {
+            "container": "mov",
+            "namespace": "quicktime",
+            "notes": [
+              "derived from audio track sample entry"
+            ]
+          }
+        ],
+        "value": {
+          "kind": "integer",
+          "value": 48000
         }
       }
     ]

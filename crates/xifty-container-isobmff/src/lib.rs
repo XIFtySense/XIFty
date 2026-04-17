@@ -35,6 +35,10 @@ pub struct IsobmffContainer {
     pub media_modified_at: Option<String>,
     pub video_codec: Option<String>,
     pub audio_codec: Option<String>,
+    pub video_frame_rate: Option<f64>,
+    pub video_bitrate: Option<u32>,
+    pub audio_channels: Option<u16>,
+    pub audio_sample_rate: Option<u32>,
     pub primary_visual_dimensions: Option<IsobmffDimensions>,
     pub issues: Vec<Issue>,
 }
@@ -107,8 +111,13 @@ struct MovieHeader {
 #[derive(Debug, Clone, Default)]
 struct TrackFacts {
     handler_type: Option<[u8; 4]>,
+    timescale: Option<u32>,
     duration_seconds: Option<f64>,
     codec: Option<String>,
+    frame_rate: Option<f64>,
+    bitrate: Option<u32>,
+    audio_channels: Option<u16>,
+    audio_sample_rate: Option<u32>,
     dimensions: Option<(u32, u32)>,
 }
 
@@ -174,11 +183,31 @@ pub fn parse_bytes(bytes: &[u8], base_offset: u64) -> Result<IsobmffContainer, X
         .values()
         .find(|track| track.handler_type == Some(*b"vide"))
         .and_then(|track| track.codec.clone());
+    let video_frame_rate = state
+        .tracks
+        .values()
+        .find(|track| track.handler_type == Some(*b"vide"))
+        .and_then(|track| track.frame_rate);
+    let video_bitrate = state
+        .tracks
+        .values()
+        .find(|track| track.handler_type == Some(*b"vide"))
+        .and_then(|track| track.bitrate);
     let audio_codec = state
         .tracks
         .values()
         .find(|track| track.handler_type == Some(*b"soun"))
         .and_then(|track| track.codec.clone());
+    let audio_channels = state
+        .tracks
+        .values()
+        .find(|track| track.handler_type == Some(*b"soun"))
+        .and_then(|track| track.audio_channels);
+    let audio_sample_rate = state
+        .tracks
+        .values()
+        .find(|track| track.handler_type == Some(*b"soun"))
+        .and_then(|track| track.audio_sample_rate);
 
     if !supported_brand(major_brand) && !compatible_brands.iter().copied().any(supported_brand) {
         issues.push(issue(
@@ -208,6 +237,10 @@ pub fn parse_bytes(bytes: &[u8], base_offset: u64) -> Result<IsobmffContainer, X
         media_modified_at: state.movie_header.modified_at,
         video_codec,
         audio_codec,
+        video_frame_rate,
+        video_bitrate,
+        audio_channels,
+        audio_sample_rate,
         primary_visual_dimensions,
         issues,
     })
@@ -312,6 +345,7 @@ fn parse_children(
             b"mdhd" => parse_mdhd(cursor, &parsed, current_track.as_deref(), state, issues)?,
             b"hdlr" => parse_hdlr(cursor, &parsed, current_track.as_deref(), state, issues)?,
             b"stsd" => parse_stsd(cursor, &parsed, current_track.as_deref(), state, issues)?,
+            b"stts" => parse_stts(cursor, &parsed, current_track.as_deref(), state, issues)?,
             b"infe" => parse_infe(cursor, &parsed, state, issues)?,
             b"pitm" => parse_pitm(cursor, &parsed, state, issues)?,
             b"iloc" => parse_iloc(cursor, &parsed, state, issues)?,
@@ -825,11 +859,9 @@ fn parse_mdhd(
         return Ok(());
     };
     if let Some(key) = track_key {
-        state
-            .tracks
-            .entry(key.to_string())
-            .or_default()
-            .duration_seconds = duration_seconds(header.timescale, header.duration);
+        let track = state.tracks.entry(key.to_string()).or_default();
+        track.timescale = Some(header.timescale);
+        track.duration_seconds = duration_seconds(header.timescale, header.duration);
     }
     Ok(())
 }
@@ -866,10 +898,126 @@ fn parse_stsd(
     if parsed.data_offset + 16 > parsed.end {
         return Ok(());
     }
-    let sample_type = cursor.slice(parsed.data_offset + 12, 4)?;
+    let entry_count = cursor.read_u32(parsed.data_offset + 4, Endian::Big)? as usize;
+    if entry_count == 0 || parsed.data_offset + 24 > parsed.end {
+        return Ok(());
+    }
+    let sample_entry_offset = parsed.data_offset + 8;
+    let sample_entry_size = cursor.read_u32(sample_entry_offset, Endian::Big)? as usize;
+    if sample_entry_size < 16 || sample_entry_offset + sample_entry_size > parsed.end {
+        return Ok(());
+    }
+    let sample_type = cursor.slice(sample_entry_offset + 4, 4)?;
     let codec = String::from_utf8_lossy(sample_type).into_owned();
     if let Some(key) = track_key {
-        state.tracks.entry(key.to_string()).or_default().codec = Some(codec);
+        let track = state.tracks.entry(key.to_string()).or_default();
+        track.codec = Some(codec);
+        let sample_data_offset = sample_entry_offset + 8;
+        let sample_data_end = sample_entry_offset + sample_entry_size;
+        parse_sample_entry_details(
+            cursor,
+            sample_type,
+            sample_data_offset,
+            sample_data_end,
+            track,
+        )?;
+    }
+    Ok(())
+}
+
+fn parse_stts(
+    cursor: &Cursor<'_>,
+    parsed: &ParsedBox,
+    track_key: Option<&str>,
+    state: &mut ParseState,
+    _issues: &mut Vec<Issue>,
+) -> Result<(), XiftyError> {
+    if parsed.data_offset + 16 > parsed.end {
+        return Ok(());
+    }
+    let entry_count = cursor.read_u32(parsed.data_offset + 4, Endian::Big)? as usize;
+    if entry_count == 0 {
+        return Ok(());
+    }
+    let sample_count = cursor.read_u32(parsed.data_offset + 8, Endian::Big)?;
+    let sample_delta = cursor.read_u32(parsed.data_offset + 12, Endian::Big)?;
+    if sample_count == 0 || sample_delta == 0 {
+        return Ok(());
+    }
+    if let Some(key) = track_key {
+        if let Some(track) = state.tracks.get_mut(key) {
+            if track.handler_type == Some(*b"vide") {
+                if let Some(timescale) = track.timescale {
+                    track.frame_rate = Some(timescale as f64 / sample_delta as f64);
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
+fn parse_sample_entry_details(
+    cursor: &Cursor<'_>,
+    sample_type: &[u8],
+    data_offset: usize,
+    data_end: usize,
+    track: &mut TrackFacts,
+) -> Result<(), XiftyError> {
+    match sample_type {
+        b"avc1" | b"hvc1" | b"hev1" | b"av01" => {
+            parse_visual_sample_entry(cursor, data_offset, data_end, track)
+        }
+        b"mp4a" | b"ac-3" | b"ec-3" | b"alac" => {
+            parse_audio_sample_entry(cursor, data_offset, data_end, track)
+        }
+        _ => Ok(()),
+    }
+}
+
+fn parse_visual_sample_entry(
+    cursor: &Cursor<'_>,
+    data_offset: usize,
+    data_end: usize,
+    track: &mut TrackFacts,
+) -> Result<(), XiftyError> {
+    if data_offset + 78 > data_end {
+        return Ok(());
+    }
+    let mut child_offset = data_offset + 78;
+    while child_offset + 8 <= data_end {
+        let child_size = cursor.read_u32(child_offset, Endian::Big)? as usize;
+        if child_size < 8 || child_offset + child_size > data_end {
+            break;
+        }
+        let child_type = cursor.slice(child_offset + 4, 4)?;
+        if child_type == b"btrt" && child_size >= 20 {
+            let avg_bitrate = cursor.read_u32(child_offset + 16, Endian::Big)?;
+            if avg_bitrate != 0 {
+                track.bitrate = Some(avg_bitrate);
+            }
+        }
+        child_offset += child_size;
+    }
+    Ok(())
+}
+
+fn parse_audio_sample_entry(
+    cursor: &Cursor<'_>,
+    data_offset: usize,
+    data_end: usize,
+    track: &mut TrackFacts,
+) -> Result<(), XiftyError> {
+    if data_offset + 28 > data_end {
+        return Ok(());
+    }
+    let channels = cursor.read_u16(data_offset + 16, Endian::Big)?;
+    let sample_rate_fixed = cursor.read_u32(data_offset + 24, Endian::Big)?;
+    if channels != 0 {
+        track.audio_channels = Some(channels);
+    }
+    let sample_rate = sample_rate_fixed >> 16;
+    if sample_rate != 0 {
+        track.audio_sample_rate = Some(sample_rate);
     }
     Ok(())
 }

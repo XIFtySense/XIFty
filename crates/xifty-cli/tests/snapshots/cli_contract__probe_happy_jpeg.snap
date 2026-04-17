@@ -7,21 +7,21 @@ expression: "probe_json(\"happy.jpg\")"
     {
       "kind": "container",
       "label": "jpeg",
-      "offset_end": 220,
+      "offset_end": 344,
       "offset_start": 0
     },
     {
       "kind": "segment",
       "label": "APP1",
-      "offset_end": 218,
+      "offset_end": 342,
       "offset_start": 2,
       "parent_label": "jpeg"
     },
     {
       "kind": "segment",
       "label": "EOI",
-      "offset_end": 220,
-      "offset_start": 218,
+      "offset_end": 344,
+      "offset_start": 342,
       "parent_label": "jpeg"
     }
   ],

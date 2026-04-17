@@ -7,7 +7,7 @@ expression: "probe_json(\"happy.png\")"
     {
       "kind": "container",
       "label": "png",
-      "offset_end": 263,
+      "offset_end": 387,
       "offset_start": 0
     },
     {
@@ -20,15 +20,15 @@ expression: "probe_json(\"happy.png\")"
     {
       "kind": "chunk",
       "label": "eXIf",
-      "offset_end": 251,
+      "offset_end": 375,
       "offset_start": 33,
       "parent_label": "png"
     },
     {
       "kind": "chunk",
       "label": "IEND",
-      "offset_end": 263,
-      "offset_start": 251,
+      "offset_end": 387,
+      "offset_start": 375,
       "parent_label": "png"
     }
   ],

@@ -17,8 +17,8 @@ expression: "extract_json(\"mixed.heic\", ViewMode::Normalized)"
           {
             "container": "heif",
             "namespace": "xmp",
-            "offset_end": 923,
-            "offset_start": 250,
+            "offset_end": 1047,
+            "offset_start": 374,
             "path": "xmp_packet"
           }
         ],
@@ -34,8 +34,8 @@ expression: "extract_json(\"mixed.heic\", ViewMode::Normalized)"
           {
             "container": "heif",
             "namespace": "xmp",
-            "offset_end": 923,
-            "offset_start": 250,
+            "offset_end": 1047,
+            "offset_start": 374,
             "path": "xmp_packet"
           }
         ],
@@ -51,8 +51,8 @@ expression: "extract_json(\"mixed.heic\", ViewMode::Normalized)"
           {
             "container": "heif",
             "namespace": "xmp",
-            "offset_end": 923,
-            "offset_start": 250,
+            "offset_end": 1047,
+            "offset_start": 374,
             "path": "xmp_packet"
           }
         ],
@@ -68,8 +68,8 @@ expression: "extract_json(\"mixed.heic\", ViewMode::Normalized)"
           {
             "container": "heif",
             "namespace": "xmp",
-            "offset_end": 923,
-            "offset_start": 250,
+            "offset_end": 1047,
+            "offset_start": 374,
             "path": "xmp_packet"
           }
         ],
@@ -85,8 +85,8 @@ expression: "extract_json(\"mixed.heic\", ViewMode::Normalized)"
           {
             "container": "heif",
             "namespace": "xmp",
-            "offset_end": 923,
-            "offset_start": 250,
+            "offset_end": 1047,
+            "offset_start": 374,
             "path": "xmp_packet"
           }
         ],
@@ -102,8 +102,8 @@ expression: "extract_json(\"mixed.heic\", ViewMode::Normalized)"
           {
             "container": "heif",
             "namespace": "xmp",
-            "offset_end": 923,
-            "offset_start": 250,
+            "offset_end": 1047,
+            "offset_start": 374,
             "path": "xmp_packet"
           }
         ],
@@ -119,8 +119,8 @@ expression: "extract_json(\"mixed.heic\", ViewMode::Normalized)"
           {
             "container": "heif",
             "namespace": "xmp",
-            "offset_end": 923,
-            "offset_start": 250,
+            "offset_end": 1047,
+            "offset_start": 374,
             "path": "xmp_packet"
           }
         ],
@@ -136,8 +136,8 @@ expression: "extract_json(\"mixed.heic\", ViewMode::Normalized)"
           {
             "container": "heif",
             "namespace": "xmp",
-            "offset_end": 923,
-            "offset_start": 250,
+            "offset_end": 1047,
+            "offset_start": 374,
             "path": "xmp_packet"
           }
         ],
@@ -153,8 +153,8 @@ expression: "extract_json(\"mixed.heic\", ViewMode::Normalized)"
           {
             "container": "heif",
             "namespace": "xmp",
-            "offset_end": 923,
-            "offset_start": 250,
+            "offset_end": 1047,
+            "offset_start": 374,
             "path": "xmp_packet"
           }
         ],
@@ -170,8 +170,8 @@ expression: "extract_json(\"mixed.heic\", ViewMode::Normalized)"
           {
             "container": "heif",
             "namespace": "xmp",
-            "offset_end": 923,
-            "offset_start": 250,
+            "offset_end": 1047,
+            "offset_start": 374,
             "path": "xmp_packet"
           }
         ],
@@ -187,8 +187,8 @@ expression: "extract_json(\"mixed.heic\", ViewMode::Normalized)"
           {
             "container": "heif",
             "namespace": "xmp",
-            "offset_end": 923,
-            "offset_start": 250,
+            "offset_end": 1047,
+            "offset_start": 374,
             "path": "xmp_packet"
           }
         ],
@@ -204,15 +204,15 @@ expression: "extract_json(\"mixed.heic\", ViewMode::Normalized)"
           {
             "container": "heif",
             "namespace": "xmp",
-            "offset_end": 923,
-            "offset_start": 250,
+            "offset_end": 1047,
+            "offset_start": 374,
             "path": "xmp_packet"
           },
           {
             "container": "heif",
             "namespace": "xmp",
-            "offset_end": 923,
-            "offset_start": 250,
+            "offset_end": 1047,
+            "offset_start": 374,
             "path": "xmp_packet"
           }
         ],

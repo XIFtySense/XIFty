@@ -1,6 +1,6 @@
 ---
 source: crates/xifty-cli/tests/cli_contract.rs
-expression: "extract_json(\"C0242.MP4\", ViewMode::Interpreted)"
+expression: output
 ---
 {
   "input": {
@@ -360,6 +360,22 @@ expression: "extract_json(\"C0242.MP4\", ViewMode::Interpreted)"
         "value": {
           "kind": "string",
           "value": "twos"
+        }
+      },
+      {
+        "namespace": "quicktime",
+        "provenance": {
+          "container": "mp4",
+          "namespace": "quicktime",
+          "notes": [
+            "derived from video track timing"
+          ]
+        },
+        "tag_id": "VideoFrameRate",
+        "tag_name": "VideoFrameRate",
+        "value": {
+          "kind": "float",
+          "value": 23.976023976023978
         }
       },
       {

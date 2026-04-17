@@ -43,6 +43,8 @@ def build_tiff(endian="II", gps=False, bad_offsets=False, no_exif=False, width=8
     model = b.ascii_blob("IterationOne")
     software = b.ascii_blob("XIFtyTestGen")
     dto = b.ascii_blob("2024:04:16 12:34:56")
+    lens_make = b.ascii_blob("XIFty Optics")
+    lens_model = b.ascii_blob("XIFty 50mm F2")
     lat_ref = b.ascii_blob("N")
     lon_ref = b.ascii_blob("W")
 
@@ -70,13 +72,27 @@ def build_tiff(endian="II", gps=False, bad_offsets=False, no_exif=False, width=8
 
     if not no_exif:
         exif_off = data_base + len(b.data)
-        exif_count = 2
+        exposure_time = p32(1) + p32(250)
+        f_number = p32(56) + p32(10)
+        focal_length = p32(50) + p32(1)
+        exif_count = 8
         exif_data_base = exif_off + 2 + exif_count * 12 + 4
         dto1_off = exif_data_base
         dto2_off = exif_data_base + len(dto) + (len(dto) % 2)
+        lens_make_off = dto2_off + len(dto) + (len(dto) % 2)
+        lens_model_off = lens_make_off + len(lens_make) + (len(lens_make) % 2)
+        exposure_time_off = lens_model_off + len(lens_model) + (len(lens_model) % 2)
+        f_number_off = exposure_time_off + len(exposure_time)
+        focal_length_off = f_number_off + len(f_number)
         exif_entries = [
             (0x9003, 2, len(dto), p32(dto1_off)),
             (0x9004, 2, len(dto), p32(dto2_off)),
+            (0x829A, 5, 1, p32(exposure_time_off)),
+            (0x829D, 5, 1, p32(f_number_off)),
+            (0x8827, 3, 1, p16(200) + b"\x00\x00"),
+            (0x920A, 5, 1, p32(focal_length_off)),
+            (0xA433, 2, len(lens_make), p32(lens_make_off)),
+            (0xA434, 2, len(lens_model), p32(lens_model_off)),
         ]
         exif_ifd = bytearray(b.ifd_bytes(exif_entries))
         exif_ifd += dto
@@ -85,6 +101,15 @@ def build_tiff(endian="II", gps=False, bad_offsets=False, no_exif=False, width=8
         exif_ifd += dto
         if len(dto) % 2:
             exif_ifd += b"\x00"
+        exif_ifd += lens_make
+        if len(lens_make) % 2:
+            exif_ifd += b"\x00"
+        exif_ifd += lens_model
+        if len(lens_model) % 2:
+            exif_ifd += b"\x00"
+        exif_ifd += exposure_time
+        exif_ifd += f_number
+        exif_ifd += focal_length
 
         if gps:
             gps_off = exif_off + len(exif_ifd)
@@ -399,7 +424,46 @@ def quicktime_data_box(text):
     return iso_box(b"data", payload)
 
 
-def build_track(*, handler, codec, duration, timescale=1000, width=0, height=0):
+def build_video_sample_entry(codec, *, bitrate):
+    sample = bytearray(b"\x00" * 6 + struct.pack(">H", 1))
+    sample += b"\x00" * 16
+    sample += struct.pack(">H", 1920)
+    sample += struct.pack(">H", 1080)
+    sample += struct.pack(">I", 0x00480000)
+    sample += struct.pack(">I", 0x00480000)
+    sample += b"\x00" * 4
+    sample += struct.pack(">H", 1)
+    sample += b"\x00" * 32
+    sample += struct.pack(">H", 0x0018)
+    sample += struct.pack(">H", 0xFFFF)
+    sample += iso_box(b"btrt", struct.pack(">III", bitrate * 2, bitrate * 2, bitrate))
+    return iso_box(codec, bytes(sample))
+
+
+def build_audio_sample_entry(codec, *, channels, sample_rate):
+    sample = bytearray(b"\x00" * 6 + struct.pack(">H", 1))
+    sample += b"\x00" * 8
+    sample += struct.pack(">H", channels)
+    sample += struct.pack(">H", 16)
+    sample += struct.pack(">H", 0)
+    sample += struct.pack(">H", 0)
+    sample += struct.pack(">I", sample_rate << 16)
+    return iso_box(codec, bytes(sample))
+
+
+def build_track(
+    *,
+    handler,
+    codec,
+    duration,
+    timescale=1000,
+    width=0,
+    height=0,
+    frame_rate=None,
+    bitrate=None,
+    channels=None,
+    sample_rate=None,
+):
     tkhd_payload = b"\x00" * 72 + struct.pack(">II", width << 16, height << 16)
     tkhd = full_box(b"tkhd", tkhd_payload)
     mdhd_payload = (
@@ -412,9 +476,24 @@ def build_track(*, handler, codec, duration, timescale=1000, width=0, height=0):
     mdhd = full_box(b"mdhd", mdhd_payload)
     hdlr_payload = b"\x00\x00\x00\x00" + handler + b"\x00" * 12
     hdlr = full_box(b"hdlr", hdlr_payload)
-    sample_entry = iso_box(codec, b"\x00" * 8)
+    if handler == b"vide":
+        sample_entry = build_video_sample_entry(codec, bitrate=bitrate or 24_000_000)
+    else:
+        sample_entry = build_audio_sample_entry(
+            codec,
+            channels=channels or 2,
+            sample_rate=sample_rate or timescale,
+        )
     stsd = full_box(b"stsd", struct.pack(">I", 1) + sample_entry)
-    stbl = iso_box(b"stbl", stsd)
+    stts_payload = struct.pack(">I", 1)
+    if handler == b"vide" and frame_rate:
+        sample_delta = round(timescale / frame_rate)
+        sample_count = round(duration / sample_delta)
+        stts_payload += struct.pack(">II", sample_count, sample_delta)
+    else:
+        stts_payload += struct.pack(">II", 1, duration)
+    stts = full_box(b"stts", stts_payload)
+    stbl = iso_box(b"stbl", stsd + stts)
     minf = iso_box(b"minf", stbl)
     mdia = iso_box(b"mdia", mdhd + hdlr + minf)
     return iso_box(b"trak", tkhd + mdia)
@@ -445,10 +524,32 @@ def build_media_file(
         + b"\x00" * 8
     )
     mvhd = full_box(b"mvhd", mvhd_payload)
-    video_track = build_track(handler=b"vide", codec=b"avc1", duration=movie_duration, width=1920, height=1080)
+    video_timescale = 24000
+    video_duration = int(duration * video_timescale)
+    video_track = build_track(
+        handler=b"vide",
+        codec=b"avc1",
+        duration=video_duration,
+        timescale=video_timescale,
+        width=1920,
+        height=1080,
+        frame_rate=23.976,
+        bitrate=24_000_000,
+    )
     tracks = [video_track]
     if include_audio:
-        tracks.append(build_track(handler=b"soun", codec=b"mp4a", duration=movie_duration))
+        audio_timescale = 48000
+        audio_duration = int(duration * audio_timescale)
+        tracks.append(
+            build_track(
+                handler=b"soun",
+                codec=b"mp4a",
+                duration=audio_duration,
+                timescale=audio_timescale,
+                channels=2,
+                sample_rate=48000,
+            )
+        )
     extras = []
     if include_metadata:
         ilst = iso_box(

@@ -7,13 +7,13 @@ expression: "probe_json(\"happy.webp\")"
     {
       "kind": "container",
       "label": "webp",
-      "offset_end": 226,
+      "offset_end": 350,
       "offset_start": 0
     },
     {
       "kind": "chunk",
       "label": "EXIF",
-      "offset_end": 226,
+      "offset_end": 350,
       "offset_start": 12,
       "parent_label": "webp"
     }

@@ -68,8 +68,8 @@ expression: "extract_json(\"video_only.mp4\", ViewMode::Normalized)"
           {
             "container": "mp4",
             "namespace": "quicktime",
-            "offset_end": 378,
-            "offset_start": 340,
+            "offset_end": 492,
+            "offset_start": 454,
             "path": "quicktime_data"
           }
         ],
@@ -85,8 +85,8 @@ expression: "extract_json(\"video_only.mp4\", ViewMode::Normalized)"
           {
             "container": "mp4",
             "namespace": "quicktime",
-            "offset_end": 340,
-            "offset_start": 312,
+            "offset_end": 454,
+            "offset_start": 426,
             "path": "quicktime_data"
           }
         ],
@@ -150,6 +150,40 @@ expression: "extract_json(\"video_only.mp4\", ViewMode::Normalized)"
         "value": {
           "kind": "float",
           "value": 12.0
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
+        "field": "video.framerate",
+        "sources": [
+          {
+            "container": "mp4",
+            "namespace": "quicktime",
+            "notes": [
+              "derived from video track timing"
+            ]
+          }
+        ],
+        "value": {
+          "kind": "float",
+          "value": 23.976023976023978
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
+        "field": "video.bitrate",
+        "sources": [
+          {
+            "container": "mp4",
+            "namespace": "quicktime",
+            "notes": [
+              "derived from video sample description bitrate box"
+            ]
+          }
+        ],
+        "value": {
+          "kind": "integer",
+          "value": 24000000
         }
       },
       {
