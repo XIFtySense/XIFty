@@ -8,6 +8,14 @@ The demo is intentionally static-first:
 - no upload backend is required
 - the UI is built on top of the `xifty-wasm` crate
 
+The current demo is designed to be readable before it is exhaustive:
+
+- a structured normalized "facts" view
+- grouped inventories for complete normalized, interpreted, and raw metadata
+- explicit issue/conflict presentation
+- readable timestamps and GPS when present
+- JSON copy/export for the exact envelope behind the UI
+
 ## Local Build
 
 Build the WASM package and browser assets:
@@ -38,3 +46,21 @@ Current intended browser-first formats:
 
 Media-heavy formats such as HEIF and MP4/MOV remain future work for the browser
 path.
+
+## Current Presentation Model
+
+The browser demo uses the same XIFty four-view model as the rest of the
+project:
+
+- `normalized`
+- `interpreted`
+- `raw`
+- `report`
+
+But it does not present every view as a plain JSON dump anymore.
+
+The current UX aims to show:
+
+- the stable application-facing fields first
+- the complete available metadata inventory in grouped sections
+- the underlying JSON only when explicitly copied or inspected

@@ -12,9 +12,12 @@ The core thesis from the vision has been proven in code:
 - provenance, conflicts, and issues are first-class concerns
 - the JSON envelope and four-view model remain stable as capability expands
 - the engine is now embeddable through a real `C ABI`
+- the project now has a real browser-native WASM surface and public demo
+- the project now has a first-party Node-on-Lambda adoption path
 
 The main remaining gaps are no longer architectural. They are breadth,
-distribution maturity, and ecosystem polish relative to the full vision.
+distribution maturity, deployment ergonomics, and ecosystem polish relative to
+the full vision.
 
 ## What Is Proven
 
@@ -121,6 +124,37 @@ The repository is doing a better job of being honest about what it supports:
 This matters because a metadata engine can easily overclaim. XIFty has been
 moving in the healthier direction.
 
+### 8. Browser-native inspection is now real
+
+The vision increasingly implied that XIFty should be usable in more places than
+just a CLI or server process.
+
+That is now materially true:
+
+- `xifty-wasm` exists as a dedicated browser-facing surface
+- the same four-view JSON envelope is exposed in the browser path
+- the public GitHub Pages demo processes files locally in the browser
+- the browser demo now presents normalized facts, grouped inventories, readable
+  timestamps, GPS, and report evidence in a product-shaped way
+
+This matters because XIFty is no longer only proving embeddability for native
+callers. It is also proving that the core metadata model survives a real
+browser UX without inventing a second product model.
+
+### 9. Serverless adoption has a first-party path
+
+XIFty now has an official Node-on-Lambda story:
+
+- a checked-in AWS SAM example
+- a reproducible Lambda layer assembly path
+- adoption documentation for the Node Lambda path
+- main-CI validation of `sam validate`, local fixture invocation, layer
+  preparation, and `sam build`
+
+This is important because XIFty is now proving not just that the engine can be
+embedded, but that it can be adopted in a production-oriented serverless
+environment without inventing a bespoke integration story.
+
 ## Where XIFty Now Stands Relative To The Vision
 
 ### Vision areas that are substantially achieved
@@ -134,6 +168,8 @@ These parts of the vision are now materially real:
 - first-class provenance, validation, conflicts, and normalized fields
 - support across the intended first container families
 - thin language-facing wrappers built above the ABI rather than around it
+- a browser-native WASM demo surface
+- a first-party Node-on-Lambda adoption path
 
 In other words: the project's architectural promises are mostly no longer
 aspirational.
@@ -150,6 +186,8 @@ These parts are present, but still deliberately bounded:
 - vendor-specific metadata support
 - capability reporting
 - multi-language package ecosystem
+- browser-native UX
+- serverless adoption
 
 XIFty is now on the board in all of these areas, but it is not yet broad or
 deep enough to claim exhaustive support.
@@ -162,8 +200,9 @@ The clearest remaining gaps relative to the original vision are:
 - broader ICC and IPTC coverage beyond the current bounded slice
 - more complete vendor ecosystems beyond the current Sony and Apple paths
 - stronger machine-readable capability reporting tied to generated facts/tests
-- a TypeScript-facing SDK and future inspector/documentation tooling
+- richer downstream SDK surfaces and future inspector/documentation tooling
 - distribution maturity for the public package repos
+- broader first-party deployment paths beyond the current Node Lambda story
 - eventual write/repair-oriented workflows, which remain intentionally out of
   scope for now
 
@@ -191,11 +230,12 @@ This is now one of the biggest practical gaps.
 
 The binding repos exist, but the public package story is still immature:
 
-- several bindings still depend on a sibling checkout of the private core repo
-- Node does not yet have prebuilt binary distribution
+- Node now has a real npm package with a documented Lambda path, but its
+  release automation and supported-platform matrix are still intentionally
+  narrow
 - Swift does not yet have a cleaner artifact/package distribution strategy
-- Python/Go/Rust/C++ are wrapper repos, but not yet polished as independently
-  consumable packages
+- Python/Go/Rust/C++ are public wrapper repos with stronger docs/examples, but
+  they are still source-first rather than frictionless consumer packages
 
 This means XIFty has proven embeddability, but not yet frictionless adoption.
 
@@ -210,6 +250,8 @@ The project has strong discipline here, but there is still room to improve:
   environment-sensitive on this machine
 - capability reporting is explicit, but not yet obviously generated from the
   same source of truth as tests and fixtures
+- the browser demo is real and public, but browser-level automated smoke
+  coverage is still lighter than the core CLI/FFI surface
 
 ## Assessment
 
@@ -233,6 +275,7 @@ XIFty is behind mainly in:
 - breadth of supported metadata families
 - distribution maturity for public consumer packages
 - higher-level SDK/documentation surface area
+- broader deployment packaging and runtime coverage
 - broader external-corpus and capability automation
 
 This is a healthy trade so far. The project chose to prove durable structure
@@ -249,6 +292,7 @@ consumable platform.
 That suggests the next roadmap focus should likely be one of these:
 
 - package/distribution hardening for the public binding repos
+- deeper deployment and runtime adoption stories beyond the first Lambda slice
 - deeper media and QuickTime metadata coverage
 - stronger capability-generation and corpus-discipline tooling
 - selected namespace-depth work where the product value is highest

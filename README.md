@@ -33,6 +33,15 @@ The current browser path is intentionally narrower than the native/server
 surface. It is aimed first at local, in-browser inspection of still images,
 with files processed locally in the browser rather than uploaded to a backend.
 
+The current demo experience emphasizes readable inspection instead of raw JSON
+alone:
+
+- structured normalized metadata facts
+- grouped complete-field inventories
+- explicit `report` issues and conflicts
+- readable timestamps and GPS when present
+- copyable JSON when you still want the exact envelope
+
 ## AWS Lambda
 
 The recommended AWS serverless production path today is the Node binding on
@@ -42,6 +51,13 @@ Start here:
 
 - [docs/adoption/AWS_LAMBDA_NODE.md](./docs/adoption/AWS_LAMBDA_NODE.md)
 - [examples/aws-sam-node](./examples/aws-sam-node)
+
+This Lambda path is now validated in the main CI workflow through:
+
+- local fixture invocation
+- layer assembly
+- `sam validate`
+- `sam build`
 
 ## Quickstart
 
@@ -138,6 +154,9 @@ system dependencies. Oracle-backed differential checks that use ExifTool and
 header-regeneration checks that use `cbindgen` live in a separate optional
 hygiene workflow rather than the default core validation path.
 
+The main CI workflow now also validates the AWS Lambda Node adoption path
+through the checked-in SAM example.
+
 FFI verification:
 
 ```bash
@@ -154,8 +173,9 @@ cargo test -p xifty-ffi
 - [XIFtyRust](https://github.com/XIFtySense/XIFtyRust)
 - [XIFtyCpp](https://github.com/XIFtySense/XIFtyCpp)
 
-Several of those repos still build against a sibling checkout of this core
-repository today. Distribution hardening is an active next-stage concern.
+Several of those repos are now usable and documented publicly, but distribution
+hardening is still an active next-stage concern. Node is the most mature
+consumer package today; the others remain more source-first than turnkey.
 
 The main XIFty repository is intentionally the core engine repo. Canonical
 language package implementations now live in their own repositories rather than

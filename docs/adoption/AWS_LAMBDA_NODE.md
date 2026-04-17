@@ -16,7 +16,7 @@ binding is the intended production surface.
 
 Start from the example in:
 
-- [examples/aws-sam-node](/Users/k/Projects/XIFty/examples/aws-sam-node)
+- [examples/aws-sam-node](../../examples/aws-sam-node)
 
 That example gives you:
 
@@ -24,6 +24,7 @@ That example gives you:
 - a SAM template
 - a reproducible local layer build path
 - a local invocation flow for checked-in fixtures
+- CI-backed validation in the main repository
 
 ## Supported Runtime Direction
 
@@ -50,6 +51,10 @@ The layer strategy is intentionally simple:
 
 The layer is a packaging aid, not a separate XIFty API.
 
+The produced zip artifact is:
+
+- `examples/aws-sam-node/layer/xifty-node-layer.zip`
+
 ## Local Workflow
 
 From the example directory:
@@ -60,14 +65,20 @@ npm run prepare:layer
 npm run validate
 npm run invoke:fixture
 npm run invoke:gps
+npm run build:layer:zip
+sam build --template-file template.yaml --build-dir .aws-sam/build
 ```
 
 That validates:
 
 - the handler shape
 - the layer assembly path
+- the Lambda-ready layer zip output
 - the SAM template
+- the SAM application build path
 - the XIFty extraction result against local fixture files
+
+The same path is now exercised in the main repository CI workflow.
 
 ## Why Node Lambda Instead Of WASM
 
@@ -90,3 +101,5 @@ Choose WASM when you want:
 - Lambda layers are useful when multiple functions need the same XIFty package.
 - If a single function owns XIFty alone, bundling directly into the function may
   also be a reasonable choice.
+- The current verified Lambda architecture target is `x86_64`.
+- `arm64` remains intentionally deferred until it is actually built and tested.
