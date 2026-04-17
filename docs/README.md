@@ -36,3 +36,5 @@ These remain at the repository root:
 - [iterations/ITERATION_SEVEN_CHECKLIST.md](./iterations/ITERATION_SEVEN_CHECKLIST.md)
 - [iterations/ITERATION_EIGHT_PLAN.md](./iterations/ITERATION_EIGHT_PLAN.md)
 - [iterations/ITERATION_EIGHT_CHECKLIST.md](./iterations/ITERATION_EIGHT_CHECKLIST.md)
+- [iterations/ITERATION_NINE_PLAN.md](./iterations/ITERATION_NINE_PLAN.md)
+- [iterations/ITERATION_NINE_CHECKLIST.md](./iterations/ITERATION_NINE_CHECKLIST.md)

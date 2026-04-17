@@ -22,6 +22,7 @@ members = [
   "crates/xifty-json",
   "crates/xifty-ffi",
   "crates/xifty-cli",
+  "crates/xifty-wasm",
 ]
 resolver = "2"
 

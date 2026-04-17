@@ -1,5 +1,5 @@
 use flate2::read::ZlibDecoder;
-use std::io::Read;
+use std::{io::Read, path::PathBuf};
 use xifty_container_isobmff::parse as parse_isobmff;
 use xifty_container_jpeg::parse as parse_jpeg;
 use xifty_container_png::parse as parse_png;
@@ -22,8 +22,17 @@ use xifty_normalize::normalize_with_policy;
 use xifty_source::SourceBytes;
 use xifty_validate::build_report;
 
-pub fn probe_path(path: std::path::PathBuf) -> Result<ProbeOutput, XiftyError> {
+pub fn probe_path(path: PathBuf) -> Result<ProbeOutput, XiftyError> {
     let source = SourceBytes::from_path(&path)?;
+    probe_source(&source)
+}
+
+pub fn probe_bytes(bytes: Vec<u8>, file_name: Option<String>) -> Result<ProbeOutput, XiftyError> {
+    let source = SourceBytes::new(browser_path(file_name), bytes);
+    probe_source(&source)
+}
+
+fn probe_source(source: &SourceBytes) -> Result<ProbeOutput, XiftyError> {
     let format = detect(&source)?;
     let (container, nodes, issues) = match format {
         Format::Jpeg => {
@@ -58,7 +67,7 @@ pub fn probe_path(path: std::path::PathBuf) -> Result<ProbeOutput, XiftyError> {
     Ok(ProbeOutput {
         schema_version: SCHEMA_VERSION.into(),
         input: ProbeInput {
-            path,
+            path: source.source.path.clone(),
             detected_format: format.as_str().into(),
             container,
         },
@@ -67,11 +76,21 @@ pub fn probe_path(path: std::path::PathBuf) -> Result<ProbeOutput, XiftyError> {
     })
 }
 
-pub fn extract_path(
-    path: std::path::PathBuf,
+pub fn extract_path(path: PathBuf, view_mode: ViewMode) -> Result<AnalysisOutput, XiftyError> {
+    let source = SourceBytes::from_path(&path)?;
+    extract_source(&source, view_mode)
+}
+
+pub fn extract_bytes(
+    bytes: Vec<u8>,
+    file_name: Option<String>,
     view_mode: ViewMode,
 ) -> Result<AnalysisOutput, XiftyError> {
-    let source = SourceBytes::from_path(&path)?;
+    let source = SourceBytes::new(browser_path(file_name), bytes);
+    extract_source(&source, view_mode)
+}
+
+fn extract_source(source: &SourceBytes, view_mode: ViewMode) -> Result<AnalysisOutput, XiftyError> {
     let format = detect(&source)?;
 
     let (container_name, nodes, entries, issues) = match format {
@@ -335,7 +354,7 @@ pub fn extract_path(
     Ok(AnalysisOutput {
         schema_version: SCHEMA_VERSION.into(),
         input: ProbeInput {
-            path,
+            path: source.source.path.clone(),
             detected_format: format.as_str().into(),
             container: container_name,
         },
@@ -355,6 +374,13 @@ pub fn extract_path(
         }),
         report,
     })
+}
+
+fn browser_path(file_name: Option<String>) -> PathBuf {
+    match file_name {
+        Some(name) if !name.trim().is_empty() => PathBuf::from(name),
+        _ => PathBuf::from("<memory>"),
+    }
 }
 
 fn payload_slice(bytes: &[u8], absolute_offset: u64, len: usize) -> Option<&[u8]> {

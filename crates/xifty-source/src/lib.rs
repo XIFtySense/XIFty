@@ -8,14 +8,19 @@ pub struct SourceBytes {
 }
 
 impl SourceBytes {
-    pub fn from_path(path: impl AsRef<Path>) -> Result<Self, XiftyError> {
+    pub fn new(path: impl AsRef<Path>, bytes: Vec<u8>) -> Self {
         let path = path.as_ref();
-        let bytes = fs::read(path)?;
         let source = SourceRef {
             path: path.to_path_buf(),
             size_bytes: bytes.len() as u64,
         };
-        Ok(Self { source, bytes })
+        Self { source, bytes }
+    }
+
+    pub fn from_path(path: impl AsRef<Path>) -> Result<Self, XiftyError> {
+        let path = path.as_ref();
+        let bytes = fs::read(path)?;
+        Ok(Self::new(path, bytes))
     }
 
     pub fn bytes(&self) -> &[u8] {
