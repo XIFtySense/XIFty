@@ -1,0 +1,75 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://xiftysense.github.io/XIFty/schemas/xifty-probe-0.1.0.schema.json",
+  "title": "XIFty Probe Output",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "input", "containers", "report"],
+  "properties": {
+    "schema_version": {
+      "const": "0.1.0"
+    },
+    "input": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "detected_format", "container"],
+      "properties": {
+        "path": { "type": "string" },
+        "detected_format": { "type": "string" },
+        "container": { "type": "string" }
+      }
+    },
+    "containers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["kind", "label", "offset_start", "offset_end"],
+        "properties": {
+          "kind": { "type": "string" },
+          "label": { "type": "string" },
+          "offset_start": { "type": "integer", "minimum": 0 },
+          "offset_end": { "type": "integer", "minimum": 0 },
+          "parent_label": { "type": "string" }
+        }
+      }
+    },
+    "report": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["issues", "conflicts"],
+      "properties": {
+        "issues": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["severity", "code", "message"],
+            "properties": {
+              "severity": {
+                "type": "string",
+                "enum": ["info", "warning", "error"]
+              },
+              "code": { "type": "string" },
+              "message": { "type": "string" },
+              "offset": { "type": "integer", "minimum": 0 },
+              "context": { "type": "string" }
+            }
+          }
+        },
+        "conflicts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["field", "message"],
+            "properties": {
+              "field": { "type": "string" },
+              "message": { "type": "string" }
+            }
+          }
+        }
+      }
+    }
+  }
+}

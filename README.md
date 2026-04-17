@@ -110,6 +110,10 @@ Current product surfaces:
 Support claims are tracked explicitly in [CAPABILITIES.json](./CAPABILITIES.json).
 Keep that artifact narrow and honest.
 
+The public JSON contract is also tracked explicitly through checked-in schema
+artifacts in [schemas/](./schemas/) and the schema lifecycle rules in
+[docs/SCHEMA_POLICY.md](./docs/SCHEMA_POLICY.md).
+
 ## What Makes It Different
 
 XIFty is opinionated about structure:
@@ -129,6 +133,7 @@ Start here:
 - [CONTRIBUTING.md](./CONTRIBUTING.md): contributor entry point
 - [ENGINEERING_PRINCIPLES.md](./ENGINEERING_PRINCIPLES.md): clean-code and clean-architecture expectations
 - [FFI_CONTRACT.md](./FFI_CONTRACT.md): embedding contract for the `C ABI`
+- [docs/SCHEMA_POLICY.md](./docs/SCHEMA_POLICY.md): schema-versioning and compatibility rules for the JSON envelope
 - [docs/README.md](./docs/README.md): architecture, research, and iteration history
 
 Important directories:

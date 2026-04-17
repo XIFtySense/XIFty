@@ -13,6 +13,7 @@ These remain at the repository root:
 - [CONTRIBUTING.md](../CONTRIBUTING.md)
 - [ENGINEERING_PRINCIPLES.md](../ENGINEERING_PRINCIPLES.md)
 - [FFI_CONTRACT.md](../FFI_CONTRACT.md)
+- [SCHEMA_POLICY.md](./SCHEMA_POLICY.md)
 
 ## Architecture And Research
 
@@ -22,6 +23,11 @@ These remain at the repository root:
 ## Adoption
 
 - [adoption/AWS_LAMBDA_NODE.md](./adoption/AWS_LAMBDA_NODE.md)
+
+## Schemas
+
+- [SCHEMA_POLICY.md](./SCHEMA_POLICY.md)
+- [../schemas/README.md](../schemas/README.md)
 
 ## Iteration History
 

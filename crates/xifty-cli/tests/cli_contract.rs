@@ -649,6 +649,26 @@ fn capability_artifact_declares_iteration_five_support() {
 }
 
 #[test]
+fn checked_in_schema_artifacts_match_current_schema_version() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../");
+    let analysis = root.join("schemas/xifty-analysis-0.1.0.schema.json");
+    let probe = root.join("schemas/xifty-probe-0.1.0.schema.json");
+
+    for path in [analysis, probe] {
+        let content = std::fs::read_to_string(&path).expect("missing schema artifact");
+        let parsed: Value = serde_json::from_str(&content).expect("invalid schema artifact");
+        assert_eq!(
+            parsed["$schema"],
+            Value::String("https://json-schema.org/draft/2020-12/schema".into())
+        );
+        assert_eq!(
+            parsed["properties"]["schema_version"]["const"],
+            Value::String(xifty_core::SCHEMA_VERSION.into())
+        );
+    }
+}
+
+#[test]
 fn exiftool_differential_happy_jpeg_supported_fields() {
     differential_assert("happy.jpg", false);
 }

@@ -1,0 +1,291 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://xiftysense.github.io/XIFty/schemas/xifty-analysis-0.1.0.schema.json",
+  "title": "XIFty Analysis Output",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "input", "report"],
+  "properties": {
+    "schema_version": {
+      "const": "0.1.0"
+    },
+    "input": {
+      "$ref": "#/$defs/probe_input"
+    },
+    "raw": {
+      "$ref": "#/$defs/raw_view"
+    },
+    "interpreted": {
+      "$ref": "#/$defs/interpreted_view"
+    },
+    "normalized": {
+      "$ref": "#/$defs/normalized_view"
+    },
+    "report": {
+      "$ref": "#/$defs/report"
+    }
+  },
+  "$defs": {
+    "probe_input": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "detected_format", "container"],
+      "properties": {
+        "path": { "type": "string" },
+        "detected_format": { "type": "string" },
+        "container": { "type": "string" }
+      }
+    },
+    "container_node": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "label", "offset_start", "offset_end"],
+      "properties": {
+        "kind": { "type": "string" },
+        "label": { "type": "string" },
+        "offset_start": { "type": "integer", "minimum": 0 },
+        "offset_end": { "type": "integer", "minimum": 0 },
+        "parent_label": { "type": "string" }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["container", "namespace"],
+      "properties": {
+        "container": { "type": "string" },
+        "namespace": { "type": "string" },
+        "path": { "type": "string" },
+        "offset_start": { "type": "integer", "minimum": 0 },
+        "offset_end": { "type": "integer", "minimum": 0 },
+        "notes": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "rational_value": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["numerator", "denominator"],
+      "properties": {
+        "numerator": { "type": "integer" },
+        "denominator": { "type": "integer" }
+      }
+    },
+    "typed_value": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "value"],
+          "properties": {
+            "kind": { "const": "string" },
+            "value": { "type": "string" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "value"],
+          "properties": {
+            "kind": { "const": "integer" },
+            "value": { "type": "integer" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "value"],
+          "properties": {
+            "kind": { "const": "float" },
+            "value": { "type": "number" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "value"],
+          "properties": {
+            "kind": { "const": "rational" },
+            "value": { "$ref": "#/$defs/rational_value" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "value"],
+          "properties": {
+            "kind": { "const": "rational_list" },
+            "value": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/rational_value" }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "value"],
+          "properties": {
+            "kind": { "const": "bytes" },
+            "value": {
+              "type": "array",
+              "items": { "type": "integer", "minimum": 0, "maximum": 255 }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "value"],
+          "properties": {
+            "kind": { "const": "timestamp" },
+            "value": { "type": "string" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "value"],
+          "properties": {
+            "kind": { "const": "coordinates" },
+            "value": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["latitude", "longitude"],
+              "properties": {
+                "latitude": { "type": "number" },
+                "longitude": { "type": "number" }
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "value"],
+          "properties": {
+            "kind": { "const": "dimensions" },
+            "value": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["width", "height"],
+              "properties": {
+                "width": { "type": "integer", "minimum": 0 },
+                "height": { "type": "integer", "minimum": 0 }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "metadata_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["namespace", "tag_id", "tag_name", "value", "provenance"],
+      "properties": {
+        "namespace": { "type": "string" },
+        "tag_id": { "type": "string" },
+        "tag_name": { "type": "string" },
+        "value": { "$ref": "#/$defs/typed_value" },
+        "provenance": { "$ref": "#/$defs/provenance" },
+        "notes": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "normalized_field": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["field", "value", "confidence", "sources"],
+      "properties": {
+        "field": { "type": "string" },
+        "value": { "$ref": "#/$defs/typed_value" },
+        "confidence": { "type": "number" },
+        "sources": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/provenance" }
+        },
+        "notes": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "issue": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["severity", "code", "message"],
+      "properties": {
+        "severity": {
+          "type": "string",
+          "enum": ["info", "warning", "error"]
+        },
+        "code": { "type": "string" },
+        "message": { "type": "string" },
+        "offset": { "type": "integer", "minimum": 0 },
+        "context": { "type": "string" }
+      }
+    },
+    "conflict": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["field", "message"],
+      "properties": {
+        "field": { "type": "string" },
+        "message": { "type": "string" }
+      }
+    },
+    "raw_view": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "containers": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/container_node" }
+        },
+        "metadata": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/metadata_entry" }
+        }
+      }
+    },
+    "interpreted_view": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "metadata": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/metadata_entry" }
+        }
+      }
+    },
+    "normalized_view": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "fields": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/normalized_field" }
+        }
+      }
+    },
+    "report": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["issues", "conflicts"],
+      "properties": {
+        "issues": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/issue" }
+        },
+        "conflicts": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/conflict" }
+        }
+      }
+    }
+  }
+}
