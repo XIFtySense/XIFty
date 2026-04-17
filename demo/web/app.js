@@ -176,6 +176,7 @@ function renderCurrentView() {
 function renderNormalized(payload) {
   const fieldList = payload.normalized?.fields ?? [];
   const fields = Object.fromEntries(fieldList.map((field) => [field.field, field]));
+  const locationField = fields["location"];
   const groups = [
     {
       title: "Core facts",
@@ -186,7 +187,8 @@ function renderNormalized(payload) {
           "Dimensions",
           combineValues(fields, ["dimensions.width", "dimensions.height"], " × "),
         ),
-        labelEntry("Location", formatKnownValue("location", fields["location"]?.value)),
+        labelEntry("Location", formatKnownValue("location", locationField?.value)),
+        mapPinEntry(locationField),
         labelEntry("Orientation", fieldValue(fields["orientation"])),
         labelEntry("Software", fieldValue(fields["software"])),
       ],
@@ -273,7 +275,7 @@ function renderNormalized(payload) {
                     (entry) => `
                       <div class="nutrition-row">
                         <span>${escapeHtml(entry.label)}</span>
-                        <strong>${escapeHtml(entry.value)}</strong>
+                        <strong>${entry.html ?? escapeHtml(entry.value)}</strong>
                       </div>`,
                   )
                   .join("")}
@@ -415,6 +417,22 @@ async function yieldToBrowser() {
 
 function labelEntry(label, value) {
   return { label, value: value || "—" };
+}
+
+function mapPinEntry(field) {
+  const coordinates = field?.value?.kind === "coordinates" ? field.value.value : null;
+  const latitude = coordinates?.latitude;
+  const longitude = coordinates?.longitude;
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+    return labelEntry("Map pin", null);
+  }
+
+  const href = mapHref(latitude, longitude);
+  return {
+    label: "Map pin",
+    value: "Open map",
+    html: `<a class="nutrition-link" href="${href}" target="_blank" rel="noreferrer">Open map</a>`,
+  };
 }
 
 function renderFieldCatalog({ kicker, title, subtitle, groups, emptyText }) {
@@ -700,6 +718,11 @@ function formatInteger(value) {
 
 function appendUnit(value, unit) {
   return value ? `${value} ${unit}` : null;
+}
+
+function mapHref(latitude, longitude) {
+  const query = `${latitude},${longitude}`;
+  return `https://www.openstreetmap.org/?mlat=${encodeURIComponent(latitude)}&mlon=${encodeURIComponent(longitude)}#map=15/${encodeURIComponent(latitude)}/${encodeURIComponent(longitude)}`;
 }
 
 function formatKnownValue(label, value) {

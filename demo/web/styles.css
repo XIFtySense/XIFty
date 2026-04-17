@@ -501,6 +501,16 @@ body {
   line-height: 1.2;
 }
 
+.nutrition-link {
+  color: var(--accent);
+  text-decoration-thickness: 0.08em;
+  text-underline-offset: 0.16em;
+}
+
+.nutrition-link:hover {
+  color: #145338;
+}
+
 .structured-layout {
   display: grid;
   gap: 1rem;
