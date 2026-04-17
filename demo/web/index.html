@@ -41,18 +41,17 @@
       </section>
 
       <section class="panel summary-panel" id="summary-panel" hidden>
-        <div>
-          <p class="section-label">File</p>
-          <h2 id="file-name">No file selected</h2>
+        <div class="summary-heading">
+          <div>
+            <p class="section-label">Serving</p>
+            <h2 id="file-name">No file selected</h2>
+          </div>
+          <div class="summary-badge" id="file-format-badge">—</div>
         </div>
         <dl class="summary-grid">
           <div>
-            <dt>Size</dt>
+            <dt>Serving size</dt>
             <dd id="file-size">—</dd>
-          </div>
-          <div>
-            <dt>Detected format</dt>
-            <dd id="file-format">—</dd>
           </div>
           <div>
             <dt>Container</dt>
@@ -61,6 +60,10 @@
           <div>
             <dt>Issues</dt>
             <dd id="file-issues">—</dd>
+          </div>
+          <div>
+            <dt>Local processing</dt>
+            <dd>Yes</dd>
           </div>
         </dl>
       </section>
@@ -82,7 +85,10 @@
           <span class="status" id="status-text">Ready</span>
         </div>
 
-        <pre class="result" id="result-output"></pre>
+        <div class="result-shell">
+          <div class="structured-output" id="structured-output" hidden></div>
+          <pre class="result" id="result-output"></pre>
+        </div>
       </section>
 
       <section class="panel error-panel" id="error-panel" hidden>
