@@ -19,7 +19,7 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -33,6 +33,17 @@ jobs:
       - name: Validate CAPABILITIES.json
         run: python3 -m json.tool CAPABILITIES.json > /dev/null
 
+      - name: Validate schema artifacts
+        run: |
+          python3 -m json.tool schemas/xifty-probe-0.1.0.schema.json > /dev/null
+          python3 -m json.tool schemas/xifty-analysis-0.1.0.schema.json > /dev/null
+
+      - name: Install schema validation dependency
+        run: python3 -m pip install --user jsonschema
+
+      - name: Validate example outputs against checked-in schemas
+        run: python3 tools/validate_schema_examples.py
+
       - name: Verify checked-in header matches generated output
         run: cargo test -p xifty-ffi checked_in_header_matches_generated_output -- --exact
         env:
@@ -44,7 +55,7 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable

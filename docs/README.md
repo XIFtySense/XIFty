@@ -14,6 +14,7 @@ These remain at the repository root:
 - [ENGINEERING_PRINCIPLES.md](../ENGINEERING_PRINCIPLES.md)
 - [FFI_CONTRACT.md](../FFI_CONTRACT.md)
 - [SCHEMA_POLICY.md](./SCHEMA_POLICY.md)
+- [RELEASE_CHECKLIST.md](./RELEASE_CHECKLIST.md)
 
 ## Architecture And Research
 
@@ -28,6 +29,10 @@ These remain at the repository root:
 
 - [SCHEMA_POLICY.md](./SCHEMA_POLICY.md)
 - [../schemas/README.md](../schemas/README.md)
+
+## Release Discipline
+
+- [RELEASE_CHECKLIST.md](./RELEASE_CHECKLIST.md)
 
 ## Iteration History
 
