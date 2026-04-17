@@ -67,8 +67,7 @@ mod tests {
     use serde_json::Value;
 
     const HAPPY_JPEG: &[u8] = include_bytes!("../../../fixtures/minimal/happy.jpg");
-    const MALFORMED_JPEG: &[u8] =
-        include_bytes!("../../../fixtures/minimal/malformed_app1.jpg");
+    const MALFORMED_JPEG: &[u8] = include_bytes!("../../../fixtures/minimal/malformed_app1.jpg");
 
     #[test]
     fn probe_bytes_json_preserves_filename_hint() {

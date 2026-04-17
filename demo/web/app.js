@@ -117,6 +117,16 @@ function renderCurrentView() {
     return;
   }
 
+  if (currentView === "interpreted") {
+    renderInterpreted(payload);
+    return;
+  }
+
+  if (currentView === "raw") {
+    renderRaw(payload);
+    return;
+  }
+
   if (currentView === "report") {
     renderReport(payload);
     return;
@@ -128,19 +138,19 @@ function renderCurrentView() {
 }
 
 function renderNormalized(payload) {
-  const fields = Object.fromEntries(
-    (payload.normalized?.fields ?? []).map((field) => [field.field, field]),
-  );
+  const fieldList = payload.normalized?.fields ?? [];
+  const fields = Object.fromEntries(fieldList.map((field) => [field.field, field]));
   const groups = [
     {
       title: "Core facts",
       entries: [
         labelEntry("Device", combineValues(fields, ["device.make", "device.model"])),
-        labelEntry("Captured", fieldValue(fields["captured_at"])),
+        labelEntry("Captured", formatKnownValue("captured_at", fields["captured_at"]?.value)),
         labelEntry(
           "Dimensions",
           combineValues(fields, ["dimensions.width", "dimensions.height"], " × "),
         ),
+        labelEntry("Location", formatKnownValue("location", fields["location"]?.value)),
         labelEntry("Orientation", fieldValue(fields["orientation"])),
         labelEntry("Software", fieldValue(fields["software"])),
       ],
@@ -194,45 +204,88 @@ function renderNormalized(payload) {
     { label: "Format", value: payload.input?.detected_format ?? "—" },
     { label: "Container", value: payload.input?.container ?? "—" },
   ];
+  const completeGroups = groupNormalizedFields(fieldList);
 
   structuredOutput.innerHTML = `
-    <section class="nutrition-card" aria-label="Normalized metadata label">
-      <header class="nutrition-header">
-        <p class="label-kicker">XIFty</p>
-        <h3>Metadata facts</h3>
-        <p class="label-caption">Normalized application-facing fields from local browser extraction</p>
-      </header>
-      <div class="nutrition-summary">
-        ${summaryFacts
+    <section class="structured-layout">
+      <section class="nutrition-card" aria-label="Normalized metadata label">
+        <header class="nutrition-header">
+          <p class="label-kicker">XIFty</p>
+          <h3>Metadata facts</h3>
+          <p class="label-caption">Normalized application-facing fields from local browser extraction</p>
+        </header>
+        <div class="nutrition-summary">
+          ${summaryFacts
+            .map(
+              (fact) => `
+                <div class="nutrition-summary-item">
+                  <span>${escapeHtml(fact.label)}</span>
+                  <strong>${escapeHtml(fact.value)}</strong>
+                </div>`,
+            )
+            .join("")}
+        </div>
+        ${groups
           .map(
-            (fact) => `
-              <div class="nutrition-summary-item">
-                <span>${escapeHtml(fact.label)}</span>
-                <strong>${escapeHtml(fact.value)}</strong>
-              </div>`,
+            (group) => `
+              <section class="nutrition-group">
+                <h4>${escapeHtml(group.title)}</h4>
+                ${group.entries
+                  .map(
+                    (entry) => `
+                      <div class="nutrition-row">
+                        <span>${escapeHtml(entry.label)}</span>
+                        <strong>${escapeHtml(entry.value)}</strong>
+                      </div>`,
+                  )
+                  .join("")}
+              </section>`,
           )
           .join("")}
-      </div>
-      ${groups
-        .map(
-          (group) => `
-            <section class="nutrition-group">
-              <h4>${escapeHtml(group.title)}</h4>
-              ${group.entries
-                .map(
-                  (entry) => `
-                    <div class="nutrition-row">
-                      <span>${escapeHtml(entry.label)}</span>
-                      <strong>${escapeHtml(entry.value)}</strong>
-                    </div>`,
-                )
-                .join("")}
-            </section>`,
-        )
-        .join("")}
+      </section>
+      ${renderFieldCatalog({
+        kicker: "Expanded view",
+        title: "Complete normalized field inventory",
+        subtitle: "Every normalized field currently present, grouped for browsing instead of hidden in JSON.",
+        groups: completeGroups,
+        emptyText: "No normalized fields reported.",
+      })}
     </section>
   `;
 
+  structuredOutput.hidden = false;
+  resultOutput.hidden = true;
+}
+
+function renderInterpreted(payload) {
+  const metadata = payload.interpreted?.metadata ?? [];
+  structuredOutput.innerHTML = renderFieldCatalog({
+    kicker: "Interpreted",
+    title: "Decoded metadata inventory",
+    subtitle: "All interpreted metadata entries grouped by namespace, with tag identity and source path preserved.",
+    groups: groupMetadataEntries(metadata),
+    emptyText: "No interpreted metadata reported.",
+  });
+  structuredOutput.hidden = false;
+  resultOutput.hidden = true;
+}
+
+function renderRaw(payload) {
+  const containers = payload.raw?.containers ?? [];
+  const metadata = payload.raw?.metadata ?? [];
+
+  structuredOutput.innerHTML = `
+    <section class="structured-layout">
+      ${renderContainerCatalog(containers)}
+      ${renderFieldCatalog({
+        kicker: "Raw",
+        title: "Raw metadata inventory",
+        subtitle: "All raw metadata entries grouped by namespace, with offsets and provenance available for every item.",
+        groups: groupMetadataEntries(metadata),
+        emptyText: "No raw metadata reported.",
+      })}
+    </section>
+  `;
   structuredOutput.hidden = false;
   resultOutput.hidden = true;
 }
@@ -317,6 +370,156 @@ function labelEntry(label, value) {
   return { label, value: value || "—" };
 }
 
+function renderFieldCatalog({ kicker, title, subtitle, groups, emptyText }) {
+  return `
+    <section class="catalog-card">
+      <header class="catalog-header">
+        <p class="label-kicker">${escapeHtml(kicker)}</p>
+        <h3>${escapeHtml(title)}</h3>
+        <p class="label-caption">${escapeHtml(subtitle)}</p>
+      </header>
+      ${
+        groups.length
+          ? `<div class="catalog-grid">
+              ${groups.map((group) => renderCatalogGroup(group)).join("")}
+            </div>`
+          : `<p class="report-empty">${escapeHtml(emptyText)}</p>`
+      }
+    </section>
+  `;
+}
+
+function renderCatalogGroup(group) {
+  return `
+    <section class="catalog-group">
+      <h4>${escapeHtml(group.title)}</h4>
+      ${group.entries.map((entry) => renderCatalogRow(entry)).join("")}
+    </section>
+  `;
+}
+
+function renderCatalogRow(entry) {
+  return `
+    <div class="catalog-row">
+      <div class="catalog-copy">
+        <span class="catalog-label">${escapeHtml(entry.label)}</span>
+        ${entry.meta ? `<span class="catalog-meta">${escapeHtml(entry.meta)}</span>` : ""}
+      </div>
+      <strong class="catalog-value">${escapeHtml(entry.value)}</strong>
+    </div>
+  `;
+}
+
+function renderContainerCatalog(containers) {
+  const entries = containers.map((container) => ({
+    label: `${container.kind} · ${container.label}`,
+    value: `${formatOffsetRange(container.offset_start, container.offset_end)}`,
+    meta: container.parent_label
+      ? `parent ${container.parent_label}`
+      : "top-level container",
+  }));
+
+  return renderFieldCatalog({
+    kicker: "Raw",
+    title: "Container structure",
+    subtitle: "Physical structure discovered in the file before interpretation or normalization.",
+    groups: entries.length ? [{ title: "Segments and containers", entries }] : [],
+    emptyText: "No raw container structure reported.",
+  });
+}
+
+function groupNormalizedFields(fields) {
+  const groups = new Map();
+  for (const field of fields) {
+    const title = normalizedGroupTitle(field.field);
+    const entries = groups.get(title) ?? [];
+    entries.push({
+      label: prettyFieldLabel(field.field),
+      value: formatKnownValue(field.field, field.value),
+      meta: field.sources?.[0]
+        ? `${field.sources[0].namespace} · ${field.sources[0].path}`
+        : field.confidence != null
+          ? `confidence ${field.confidence}`
+          : null,
+    });
+    groups.set(title, entries);
+  }
+
+  return [...groups.entries()]
+    .map(([title, entries]) => ({
+      title,
+      entries: entries.sort((left, right) => left.label.localeCompare(right.label)),
+    }))
+    .sort((left, right) => left.title.localeCompare(right.title));
+}
+
+function groupMetadataEntries(entries) {
+  const groups = new Map();
+  for (const entry of entries) {
+    const title = entry.namespace?.toUpperCase() ?? "Metadata";
+    const groupEntries = groups.get(title) ?? [];
+    groupEntries.push({
+      label: entry.tag_name ?? entry.tag_id ?? "Unknown tag",
+      value: formatKnownValue(entry.tag_name ?? entry.tag_id ?? "", entry.value),
+      meta: [entry.tag_id, entry.provenance?.path].filter(Boolean).join(" · ") || null,
+    });
+    groups.set(title, groupEntries);
+  }
+
+  return [...groups.entries()]
+    .map(([title, groupEntries]) => ({
+      title,
+      entries: groupEntries.sort((left, right) => left.label.localeCompare(right.label)),
+    }))
+    .sort((left, right) => left.title.localeCompare(right.title));
+}
+
+function normalizedGroupTitle(fieldName) {
+  const prefix = fieldName.split(".")[0];
+  switch (prefix) {
+    case "device":
+      return "Device";
+    case "dimensions":
+      return "Dimensions";
+    case "exposure":
+      return "Exposure";
+    case "lens":
+      return "Lens";
+    case "video":
+    case "audio":
+    case "codec":
+      return "Media";
+    case "color":
+      return "Color";
+    case "location":
+      return "Location";
+    case "headline":
+    case "description":
+    case "keywords":
+      return "Editorial";
+    case "captured_at":
+    case "created_at":
+    case "modified_at":
+    case "duration":
+    case "orientation":
+    case "software":
+      return "General";
+    default:
+      return "General";
+  }
+}
+
+function prettyFieldLabel(fieldName) {
+  return fieldName
+    .split(".")
+    .map((segment) =>
+      segment
+        .replaceAll("_", " ")
+        .replace(/\b\w/g, (char) => char.toUpperCase()),
+    )
+    .join(" · ");
+}
+
 function combineValues(fields, keys, separator = " ") {
   const values = keys.map((key) => fieldValue(fields[key])).filter(Boolean);
   return values.length ? values.join(separator) : null;
@@ -380,6 +583,39 @@ function appendUnit(value, unit) {
   return value ? `${value} ${unit}` : null;
 }
 
+function formatKnownValue(label, value) {
+  if (!value) {
+    return "—";
+  }
+
+  const key = String(label).toLowerCase();
+  if (value.kind === "timestamp") {
+    return formatTimestampValue(value.value);
+  }
+  if (value.kind === "coordinates") {
+    return formatCoordinates(value.value);
+  }
+  if (key.includes("aperture") || key === "fnumber") {
+    return formatAperture({ value }) ?? typedValueToString(value);
+  }
+  if (key.includes("shutter") || key === "exposuretime") {
+    return formatShutter({ value }) ?? typedValueToString(value);
+  }
+  if (key.includes("focal")) {
+    return appendUnit(typedValueToString(value), "mm") ?? typedValueToString(value);
+  }
+  if (key.includes("sample rate")) {
+    return appendUnit(formatInteger(typedValueToString(value)), "Hz") ?? typedValueToString(value);
+  }
+  if (key.includes("frame rate")) {
+    return appendUnit(typedValueToString(value), "fps") ?? typedValueToString(value);
+  }
+  if (key.includes("bitrate")) {
+    return appendUnit(formatInteger(typedValueToString(value)), "bps") ?? typedValueToString(value);
+  }
+  return typedValueToString(value);
+}
+
 function typedValueToString(value) {
   switch (value.kind) {
     case "string":
@@ -389,7 +625,7 @@ function typedValueToString(value) {
     case "float":
       return String(value.value);
     case "rational":
-      return `${value.value?.numerator}/${value.value?.denominator}`;
+      return formatRationalValue(value.value?.numerator, value.value?.denominator);
     case "coordinates":
       return `${value.value?.latitude}, ${value.value?.longitude}`;
     case "dimensions":
@@ -397,6 +633,79 @@ function typedValueToString(value) {
     default:
       return JSON.stringify(value.value);
   }
+}
+
+function formatOffsetRange(start, end) {
+  return `${Intl.NumberFormat("en-US").format(start ?? 0)}–${Intl.NumberFormat("en-US").format(end ?? 0)}`;
+}
+
+function formatRationalValue(numerator, denominator) {
+  if (!numerator || !denominator) {
+    return `${numerator ?? "?"}/${denominator ?? "?"}`;
+  }
+  if (denominator === 1) {
+    return String(numerator);
+  }
+  const decimal = numerator / denominator;
+  if (Number.isFinite(decimal)) {
+    return Number.isInteger(decimal)
+      ? String(decimal)
+      : decimal.toFixed(3).replace(/0+$/, "").replace(/\.$/, "");
+  }
+  return `${numerator}/${denominator}`;
+}
+
+function formatTimestampValue(raw) {
+  const isoMatch = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(\.\d+)?(Z|[+-]\d{2}:\d{2})?$/.exec(
+    raw,
+  );
+  if (isoMatch) {
+    const [, year, month, day, hour, minute, second, fractional = "", zone = ""] = isoMatch;
+    return `${monthName(month)} ${Number(day)}, ${year} · ${hour}:${minute}:${second}${fractional}${zone ? ` ${zone}` : ""}`;
+  }
+
+  const exifMatch = /^(\d{4}):(\d{2}):(\d{2}) (\d{2}):(\d{2}):(\d{2})$/.exec(raw);
+  if (exifMatch) {
+    const [, year, month, day, hour, minute, second] = exifMatch;
+    return `${monthName(month)} ${Number(day)}, ${year} · ${hour}:${minute}:${second}`;
+  }
+
+  return raw;
+}
+
+function formatCoordinates(value) {
+  const latitude = value?.latitude;
+  const longitude = value?.longitude;
+  if (latitude == null || longitude == null) {
+    return "—";
+  }
+
+  return `${formatCoordinatePart(latitude, "N", "S")}, ${formatCoordinatePart(longitude, "E", "W")}`;
+}
+
+function formatCoordinatePart(number, positive, negative) {
+  const direction = number >= 0 ? positive : negative;
+  const magnitude = Intl.NumberFormat("en-US", {
+    maximumFractionDigits: 6,
+  }).format(Math.abs(number));
+  return `${magnitude}° ${direction}`;
+}
+
+function monthName(month) {
+  return [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+  ][Number(month) - 1];
 }
 
 function formatBytes(size) {
