@@ -98,6 +98,7 @@ Start here:
 Important directories:
 
 - `crates/`: Rust workspace crates
+- `demo/`: browser demo assets and local demo instructions
 - `fixtures/minimal/`: checked-in fixtures for examples and tests
 - `fixtures/local/`: local-only larger real-world regression fixtures
 - `examples/`: minimal core-repo examples, currently centered on the C ABI seam

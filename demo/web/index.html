@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <title>XIFty Demo</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="page">
+      <section class="hero">
+        <p class="eyebrow">XIFty Browser Demo</p>
+        <h1>Inspect metadata locally in your browser.</h1>
+        <p class="lede">
+          Drop in a supported file and XIFty will extract metadata without
+          uploading it anywhere.
+        </p>
+        <div class="hero-notes">
+          <span class="pill">Local processing only</span>
+          <span class="pill">Still-image MVP</span>
+          <span class="pill">raw / interpreted / normalized / report</span>
+        </div>
+      </section>
+
+      <section class="panel upload-panel">
+        <div class="upload-copy">
+          <h2>Choose a file</h2>
+          <p>
+            Current browser-first support is aimed at JPEG, TIFF, PNG, and
+            WebP.
+          </p>
+        </div>
+        <label class="upload-zone" for="file-input" id="drop-zone">
+          <input id="file-input" type="file" />
+          <span class="upload-title">Drop a file here</span>
+          <span class="upload-subtitle">or click to browse</span>
+        </label>
+      </section>
+
+      <section class="panel summary-panel" id="summary-panel" hidden>
+        <div>
+          <p class="section-label">File</p>
+          <h2 id="file-name">No file selected</h2>
+        </div>
+        <dl class="summary-grid">
+          <div>
+            <dt>Size</dt>
+            <dd id="file-size">—</dd>
+          </div>
+          <div>
+            <dt>Detected format</dt>
+            <dd id="file-format">—</dd>
+          </div>
+          <div>
+            <dt>Container</dt>
+            <dd id="file-container">—</dd>
+          </div>
+          <div>
+            <dt>Issues</dt>
+            <dd id="file-issues">—</dd>
+          </div>
+        </dl>
+      </section>
+
+      <section class="panel" id="results-panel" hidden>
+        <div class="tabs" role="tablist" aria-label="Metadata views">
+          <button class="tab is-active" data-view="normalized" role="tab">
+            normalized
+          </button>
+          <button class="tab" data-view="interpreted" role="tab">
+            interpreted
+          </button>
+          <button class="tab" data-view="raw" role="tab">raw</button>
+          <button class="tab" data-view="report" role="tab">report</button>
+        </div>
+
+        <div class="actions">
+          <button class="secondary-button" id="copy-json">Copy JSON</button>
+          <span class="status" id="status-text">Ready</span>
+        </div>
+
+        <pre class="result" id="result-output"></pre>
+      </section>
+
+      <section class="panel error-panel" id="error-panel" hidden>
+        <p class="section-label">Problem</p>
+        <h2>Extraction failed</h2>
+        <p id="error-text"></p>
+      </section>
+    </main>
+
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>
