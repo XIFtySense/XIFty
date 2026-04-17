@@ -33,6 +33,16 @@ The current browser path is intentionally narrower than the native/server
 surface. It is aimed first at local, in-browser inspection of still images,
 with files processed locally in the browser rather than uploaded to a backend.
 
+## AWS Lambda
+
+The recommended AWS serverless production path today is the Node binding on
+Lambda, not the browser/WASM surface.
+
+Start here:
+
+- [docs/adoption/AWS_LAMBDA_NODE.md](./docs/adoption/AWS_LAMBDA_NODE.md)
+- [examples/aws-sam-node](./examples/aws-sam-node)
+
 ## Quickstart
 
 Build and run the CLI directly from the repo:
@@ -112,6 +122,7 @@ Important directories:
 - `fixtures/minimal/`: checked-in fixtures for examples and tests
 - `fixtures/local/`: local-only larger real-world regression fixtures
 - `examples/`: minimal core-repo examples, currently centered on the C ABI seam
+  plus the AWS SAM Node Lambda example
 - `fuzz/`: parser and routing fuzz targets
 
 ## Verification

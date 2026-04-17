@@ -1,0 +1,5 @@
+{
+  "bucket": "replace-with-your-media-bucket",
+  "key": "incoming/example.jpg",
+  "view": "normalized"
+}

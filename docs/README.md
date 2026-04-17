@@ -19,6 +19,10 @@ These remain at the repository root:
 - [architecture/ARCHITECTURE_PLAN.md](./architecture/ARCHITECTURE_PLAN.md)
 - [architecture/RESEARCH.md](./architecture/RESEARCH.md)
 
+## Adoption
+
+- [adoption/AWS_LAMBDA_NODE.md](./adoption/AWS_LAMBDA_NODE.md)
+
 ## Iteration History
 
 - [iterations/ITERATION_ONE_CHECKLIST.md](./iterations/ITERATION_ONE_CHECKLIST.md)
@@ -38,3 +42,5 @@ These remain at the repository root:
 - [iterations/ITERATION_EIGHT_CHECKLIST.md](./iterations/ITERATION_EIGHT_CHECKLIST.md)
 - [iterations/ITERATION_NINE_PLAN.md](./iterations/ITERATION_NINE_PLAN.md)
 - [iterations/ITERATION_NINE_CHECKLIST.md](./iterations/ITERATION_NINE_CHECKLIST.md)
+- [iterations/ITERATION_TEN_PLAN.md](./iterations/ITERATION_TEN_PLAN.md)
+- [iterations/ITERATION_TEN_CHECKLIST.md](./iterations/ITERATION_TEN_CHECKLIST.md)

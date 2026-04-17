@@ -1,0 +1,53 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: XIFty AWS SAM example for Node.js Lambda adoption
+
+Globals:
+  Function:
+    Runtime: nodejs22.x
+    Architectures:
+      - x86_64
+    Timeout: 30
+    MemorySize: 512
+
+Resources:
+  XiftyNodeLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: xifty-node
+      Description: XIFty Node.js binding packaged for AWS Lambda
+      ContentUri: layer/
+      CompatibleRuntimes:
+        - nodejs22.x
+        - nodejs24.x
+      CompatibleArchitectures:
+        - x86_64
+      RetentionPolicy: Retain
+
+  XiftyInspectFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: xifty-inspect
+      CodeUri: .
+      Handler: src/handler.handler
+      Layers:
+        - !Ref XiftyNodeLayer
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - Statement:
+            - Effect: Allow
+              Action:
+                - s3:GetObject
+              Resource: "*"
+      Environment:
+        Variables:
+          XIFTY_TMP_DIR: /tmp/xifty
+
+Outputs:
+  XiftyInspectFunctionName:
+    Description: Name of the Lambda function
+    Value: !Ref XiftyInspectFunction
+
+  XiftyNodeLayerArn:
+    Description: Layer version ARN
+    Value: !Ref XiftyNodeLayer

@@ -1,0 +1,19 @@
+{
+  "name": "xifty-aws-sam-node-example",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Official AWS SAM example for XIFty on Node.js Lambda",
+  "license": "MIT",
+  "type": "commonjs",
+  "scripts": {
+    "prepare:layer": "../../tools/build-node-lambda-layer.sh layer",
+    "build:layer:zip": "../../tools/build-node-lambda-layer.sh layer layer/xifty-node-layer.zip",
+    "validate": "sam validate --template-file template.yaml",
+    "invoke:fixture": "node scripts/invoke-local.cjs events/local-file.json",
+    "invoke:gps": "node scripts/invoke-local.cjs events/local-gps-file.json"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.901.0",
+    "@xifty/xifty": "0.1.2"
+  }
+}

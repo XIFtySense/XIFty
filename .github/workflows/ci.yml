@@ -21,7 +21,7 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -39,3 +39,54 @@ jobs:
 
       - name: Run FFI tests
         run: cargo test -p xifty-ffi
+
+  lambda-node-example:
+    name: Lambda Node Example
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          package-manager-cache: false
+
+      - name: Set up AWS SAM CLI
+        uses: aws-actions/setup-sam@v2
+        with:
+          use-installer: true
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install example dependencies
+        working-directory: examples/aws-sam-node
+        run: npm ci
+
+      - name: Prepare Lambda layer
+        working-directory: examples/aws-sam-node
+        run: npm run prepare:layer
+
+      - name: Validate SAM template
+        working-directory: examples/aws-sam-node
+        run: npm run validate
+
+      - name: Invoke fixture example locally
+        working-directory: examples/aws-sam-node
+        run: npm run invoke:fixture > /tmp/xifty-sam-fixture.json
+
+      - name: Invoke GPS fixture locally
+        working-directory: examples/aws-sam-node
+        run: npm run invoke:gps > /tmp/xifty-sam-gps.json
+
+      - name: Build Lambda layer zip
+        working-directory: examples/aws-sam-node
+        run: npm run build:layer:zip
+
+      - name: Verify Lambda layer artifact exists
+        run: test -f examples/aws-sam-node/layer/xifty-node-layer.zip
+
+      - name: Build AWS SAM application
+        working-directory: examples/aws-sam-node
+        run: sam build --template-file template.yaml --build-dir .aws-sam/build
