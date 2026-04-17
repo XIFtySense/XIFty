@@ -56,3 +56,5 @@ These remain at the repository root:
 - [iterations/ITERATION_NINE_CHECKLIST.md](./iterations/ITERATION_NINE_CHECKLIST.md)
 - [iterations/ITERATION_TEN_PLAN.md](./iterations/ITERATION_TEN_PLAN.md)
 - [iterations/ITERATION_TEN_CHECKLIST.md](./iterations/ITERATION_TEN_CHECKLIST.md)
+- [iterations/ITERATION_ELEVEN_PLAN.md](./iterations/ITERATION_ELEVEN_PLAN.md)
+- [iterations/ITERATION_ELEVEN_CHECKLIST.md](./iterations/ITERATION_ELEVEN_CHECKLIST.md)
