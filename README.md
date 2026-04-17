@@ -117,6 +117,29 @@ artifacts in [schemas/](./schemas/) and the schema lifecycle rules in
 Release guardrails for core and package surfaces live in
 [docs/RELEASE_CHECKLIST.md](./docs/RELEASE_CHECKLIST.md).
 
+Canonical `xifty-ffi` runtime bundles are now defined in
+[docs/adoption/CORE_RUNTIME_ARTIFACTS.md](./docs/adoption/CORE_RUNTIME_ARTIFACTS.md).
+
+## Binding Maturity
+
+XIFty’s public bindings no longer all claim the same maturity level.
+
+| Repo | Package / Install | Current maturity | Supported targets |
+| --- | --- | --- | --- |
+| [XIFtyNode](https://github.com/XIFtySense/XIFtyNode) | `npm install @xifty/xifty` | Canonical production package today | `macos-arm64`, `linux-x64` |
+| [XIFtyPython](https://github.com/XIFtySense/XIFtyPython) | wheel build, PyPI not yet default | Release-ready package target | `macos-arm64`, `linux-x64` |
+| [XIFtyRust](https://github.com/XIFtySense/XIFtyRust) | crate repo, crates.io not yet default | Release-ready but still source-first | current runtime artifacts on `macos-arm64`, `linux-x64` |
+| [XIFtySwift](https://github.com/XIFtySense/XIFtySwift) | SwiftPM source dependency | Source-first binding | source-first |
+| [XIFtyGo](https://github.com/XIFtySense/XIFtyGo) | Go module source dependency | Source-first binding | source-first |
+| [XIFtyCpp](https://github.com/XIFtySense/XIFtyCpp) | CMake / source integration | Source-first binding | source-first |
+
+For non-Node bindings, the preferred native-runtime contract is now:
+
+1. bundled runtime inside the package, if present
+2. `XIFTY_RUNTIME_DIR`, if explicitly set
+3. repo-local runtime cache populated from canonical core release artifacts
+4. `XIFTY_CORE_DIR` only as an explicit source-tree override
+
 ## What Makes It Different
 
 XIFty is opinionated about structure:
@@ -149,6 +172,7 @@ Important directories:
 - `examples/`: minimal core-repo examples, currently centered on the C ABI seam
   plus the AWS SAM Node Lambda example
 - `fuzz/`: parser and routing fuzz targets
+- `schemas/`: checked-in JSON schema artifacts for the public envelope
 
 ## Verification
 
@@ -182,9 +206,11 @@ cargo test -p xifty-ffi
 - [XIFtyRust](https://github.com/XIFtySense/XIFtyRust)
 - [XIFtyCpp](https://github.com/XIFtySense/XIFtyCpp)
 
-Several of those repos are now usable and documented publicly, but distribution
-hardening is still an active next-stage concern. Node is the most mature
-consumer package today; the others remain more source-first than turnkey.
+Those repos are now intentionally tiered instead of pretending equal maturity.
+Node is the canonical production package today. Python is the first binding on
+the new self-contained runtime-artifact path. Rust is cleaner and more
+release-ready now, but still honestly source-first. Swift, Go, and C++ remain
+source-first until their runtime/distribution story is hardened further.
 
 The main XIFty repository is intentionally the core engine repo. Canonical
 language package implementations now live in their own repositories rather than

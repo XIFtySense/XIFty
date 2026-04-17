@@ -46,6 +46,30 @@ jobs:
       - name: Run FFI tests
         run: cargo test -p xifty-ffi
 
+  runtime-artifact:
+    name: Runtime Artifact
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo artifacts
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build runtime artifact
+        run: |
+          python3 tools/build-runtime-artifact.py \
+            --output /tmp/xifty-runtime-linux-x64.tar.gz
+
+      - name: Validate runtime artifact
+        run: |
+          python3 tools/validate-runtime-artifact.py \
+            --artifact /tmp/xifty-runtime-linux-x64.tar.gz
+
   lambda-node-example:
     name: Lambda Node Example
     runs-on: ubuntu-latest

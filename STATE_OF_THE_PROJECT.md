@@ -14,6 +14,12 @@ The core thesis from the vision has been proven in code:
 - the engine is now embeddable through a real `C ABI`
 - the project now has a real browser-native WASM surface and public demo
 - the project now has a first-party Node-on-Lambda adoption path
+- the project now has checked-in JSON schema artifacts and schema lifecycle
+  rules
+- the project now has release hygiene that verifies shipped artifacts, not just
+  repo code
+- the project now has a canonical runtime-artifact contract for package-facing
+  bindings
 
 The main remaining gaps are no longer architectural. They are breadth,
 distribution maturity, deployment ergonomics, and ecosystem polish relative to
@@ -116,6 +122,9 @@ beginning to become a small ecosystem centered on the same `C ABI`.
 The repository is doing a better job of being honest about what it supports:
 
 - `CAPABILITIES.json` records bounded capability claims explicitly
+- checked-in JSON Schema artifacts now exist for the probe and analysis
+  envelopes
+- a schema policy now defines additive vs breaking JSON changes
 - local-only large camera/media fixtures are kept out of git
 - differential testing exists for supported oracle-backed slices
 - iteration checklists have been used to close scope honestly instead of
@@ -123,6 +132,24 @@ The repository is doing a better job of being honest about what it supports:
 
 This matters because a metadata engine can easily overclaim. XIFty has been
 moving in the healthier direction.
+
+### 10. Release discipline is starting to match repository discipline
+
+One of the most important recent lessons was that "fix merged in the repo" is
+not the same thing as "fix shipped to users."
+
+That gap is now being addressed more explicitly:
+
+- the core repo has a checked-in release checklist
+- hygiene now validates real CLI output against checked-in JSON schemas
+- the Node package now smoke-tests the packed tarball, not just the repo
+  checkout
+- release-sensitive local verification can now be pointed at real local
+  fixtures such as the Sony XAVC sample that previously exposed a shipped
+  artifact mismatch
+
+This is a meaningful milestone because XIFty is now hardening the path between
+correct code and correct customer-facing artifacts.
 
 ### 8. Browser-native inspection is now real
 
@@ -170,6 +197,8 @@ These parts of the vision are now materially real:
 - thin language-facing wrappers built above the ABI rather than around it
 - a browser-native WASM demo surface
 - a first-party Node-on-Lambda adoption path
+- a managed JSON schema surface for the public envelope
+- early shipped-artifact hygiene for core and Node releases
 
 In other words: the project's architectural promises are mostly no longer
 aspirational.
@@ -188,6 +217,8 @@ These parts are present, but still deliberately bounded:
 - multi-language package ecosystem
 - browser-native UX
 - serverless adoption
+- public schema governance
+- shipped-artifact verification discipline
 
 XIFty is now on the board in all of these areas, but it is not yet broad or
 deep enough to claim exhaustive support.
@@ -205,6 +236,8 @@ The clearest remaining gaps relative to the original vision are:
 - broader first-party deployment paths beyond the current Node Lambda story
 - eventual write/repair-oriented workflows, which remain intentionally out of
   scope for now
+- fully automated package publishing/release discipline across all public
+  binding repos
 
 ## What Is Still Missing
 
@@ -228,16 +261,40 @@ These are product-capability gaps, not design gaps.
 
 This is now one of the biggest practical gaps.
 
-The binding repos exist, but the public package story is still immature:
+The binding repos now have a clearer maturity ladder, but the ecosystem is
+still deliberately tiered rather than uniformly turnkey:
 
 - Node now has a real npm package with a documented Lambda path, but its
   release automation and supported-platform matrix are still intentionally
   narrow
-- Swift does not yet have a cleaner artifact/package distribution strategy
-- Python/Go/Rust/C++ are public wrapper repos with stronger docs/examples, but
-  they are still source-first rather than frictionless consumer packages
+- the core repo now defines canonical `xifty-ffi` runtime bundles for
+  `macos-arm64` and `linux-x64`
+- Python is now on a self-contained wheel path built around those runtime
+  artifacts, but that story still needs publication discipline and broader
+  target coverage before it feels finished
+- Rust is now on the same runtime contract for release validation and local
+  use, but it remains honestly source-first rather than a turnkey published
+  crate
+- Swift, Go, and C++ still do not yet have a cleaner artifact/package
+  distribution strategy
 
 This means XIFty has proven embeddability, but not yet frictionless adoption.
+
+### Release and artifact gaps
+
+XIFty is in a much better place here than it was even a short while ago, but
+this area is still maturing:
+
+- the core repo now has schema and release hygiene, but that process still
+  depends partly on human discipline
+- the Node package now verifies packed tarballs and real local fixtures, but
+  manual npm publishing is still the active release path
+- Python and Rust are moving onto cleaner runtime-backed validation paths, but
+  the other binding repos do not yet all have the same level of
+  shipped-artifact verification parity
+
+So the project now understands this class of failure much better, but has not
+fully eliminated it across the ecosystem.
 
 ### Corpus and verification gaps
 
@@ -277,9 +334,15 @@ XIFty is behind mainly in:
 - higher-level SDK/documentation surface area
 - broader deployment packaging and runtime coverage
 - broader external-corpus and capability automation
+- ecosystem-wide release automation and shipped-artifact verification parity
 
 This is a healthy trade so far. The project chose to prove durable structure
 before chasing superficial completeness.
+
+What has changed recently is that XIFty is also starting to prove the
+operational layer around that structure: schema governance, release checklists,
+artifact smoke checks, canonical runtime bundles, and customer-facing
+verification against real local fixtures.
 
 ## Roadmap Implication
 

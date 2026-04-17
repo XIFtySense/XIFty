@@ -24,6 +24,7 @@ These remain at the repository root:
 ## Adoption
 
 - [adoption/AWS_LAMBDA_NODE.md](./adoption/AWS_LAMBDA_NODE.md)
+- [adoption/CORE_RUNTIME_ARTIFACTS.md](./adoption/CORE_RUNTIME_ARTIFACTS.md)
 
 ## Schemas
 

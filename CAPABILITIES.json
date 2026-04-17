@@ -94,6 +94,12 @@
     "orientation",
     "location",
     "software",
+    "exposure.iso",
+    "exposure.aperture",
+    "exposure.shutter_speed",
+    "exposure.focal_length_mm",
+    "lens.model",
+    "lens.make",
     "author",
     "copyright",
     "headline",
@@ -103,8 +109,12 @@
     "color.profile.class",
     "color.space",
     "duration",
+    "video.framerate",
+    "video.bitrate",
     "codec.video",
-    "codec.audio"
+    "codec.audio",
+    "audio.channels",
+    "audio.sample_rate"
   ],
   "surfaces": {
     "cli": {
@@ -127,6 +137,36 @@
         "xifty_free_buffer"
       ]
     },
+    "runtime_artifacts": {
+      "status": "supported",
+      "contract": "xifty_runtime_targeted_bundle",
+      "targets": [
+        "macos-arm64",
+        "linux-x64"
+      ]
+    },
+    "wasm": {
+      "status": "supported",
+      "exchange_format": "json",
+      "views": [
+        "raw",
+        "interpreted",
+        "normalized",
+        "report"
+      ]
+    },
+    "browser_demo": {
+      "status": "supported",
+      "deployment": "github_pages",
+      "processing": "local_browser_only"
+    },
+    "lambda_node": {
+      "status": "supported",
+      "path": "aws_sam_example_and_layer_builder",
+      "architectures": [
+        "x86_64"
+      ]
+    },
     "bindings": {
       "python": "public_wrapper_repo",
       "node": "public_wrapper_repo",
@@ -134,6 +174,13 @@
       "go": "public_wrapper_repo",
       "rust": "public_wrapper_repo",
       "cpp": "public_wrapper_repo"
+    },
+    "schemas": {
+      "status": "supported",
+      "artifacts": [
+        "schemas/xifty-probe-0.1.0.schema.json",
+        "schemas/xifty-analysis-0.1.0.schema.json"
+      ]
     }
   }
 }
