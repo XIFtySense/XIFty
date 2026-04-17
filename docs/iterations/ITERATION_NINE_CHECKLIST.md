@@ -6,7 +6,7 @@ This checklist turns the WASM/browser-demo iteration into executable work.
 
 - [x] Add a browser-safe XIFty surface through WebAssembly
 - [x] Preserve the existing four-view JSON product model in the browser
-- [ ] Publish a public demo experience through GitHub Pages
+- [x] Publish a public demo experience through GitHub Pages
 
 ## WASM Boundary
 
@@ -58,9 +58,9 @@ This checklist turns the WASM/browser-demo iteration into executable work.
 
 - [ ] Decide whether the initial demo lives in the main repo or a dedicated demo repo
 - [x] Add a GitHub Pages build/deploy workflow
-- [ ] Confirm the generated Pages artifact is static-only
-- [ ] Publish a public demo URL
-- [ ] Link the demo from the main repo once it is real
+- [x] Confirm the generated Pages artifact is static-only
+- [x] Publish a public demo URL
+- [x] Link the demo from the main repo once it is real
 
 ## Capability Honesty
 
@@ -71,8 +71,8 @@ This checklist turns the WASM/browser-demo iteration into executable work.
 
 ## Done Criteria
 
-- [ ] XIFty can compile to WebAssembly through a dedicated crate
+- [x] XIFty can compile to WebAssembly through a dedicated crate
 - [ ] A user can open the public demo and inspect metadata from a local file
 - [ ] The browser path preserves the four-view XIFty product model
-- [ ] The demo is hosted statically through GitHub Pages
+- [x] The demo is hosted statically through GitHub Pages
 - [ ] Browser support boundaries are explicit and honest

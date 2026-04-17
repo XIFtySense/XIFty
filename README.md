@@ -23,6 +23,16 @@ XIFty makes that model explicit through four views of the same asset:
 - `normalized`
 - `report`
 
+## Browser Demo
+
+Try the live browser demo:
+
+- [XIFty Web Demo](https://xiftysense.github.io/XIFty/)
+
+The current browser path is intentionally narrower than the native/server
+surface. It is aimed first at local, in-browser inspection of still images,
+with files processed locally in the browser rather than uploaded to a backend.
+
 ## Quickstart
 
 Build and run the CLI directly from the repo:
