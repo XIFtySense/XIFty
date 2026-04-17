@@ -5,6 +5,14 @@ const dropZone = document.getElementById("drop-zone");
 const summaryPanel = document.getElementById("summary-panel");
 const resultsPanel = document.getElementById("results-panel");
 const errorPanel = document.getElementById("error-panel");
+const statePanel = document.getElementById("state-panel");
+const stateLabel = document.getElementById("state-label");
+const stateTitle = document.getElementById("state-title");
+const stateDetail = document.getElementById("state-detail");
+const stateSpinner = document.getElementById("state-spinner");
+const stateMeter = document.getElementById("state-meter");
+const stateMeterBar = document.getElementById("state-meter-bar");
+const statePhase = document.getElementById("state-phase");
 const structuredOutput = document.getElementById("structured-output");
 const resultOutput = document.getElementById("result-output");
 const statusText = document.getElementById("status-text");
@@ -71,14 +79,32 @@ copyJsonButton.addEventListener("click", async () => {
 async function handleFile(file) {
   currentFile = file;
   hideError();
+  setUiState("loading", {
+    label: "Processing",
+    title: `Inspecting ${file.name}`,
+    detail: "Reading bytes, probing the container, then extracting each metadata view locally in your browser.",
+    phase: "Reading file bytes",
+    progress: 8,
+  });
   statusText.textContent = "Reading file…";
+  setBusy(true);
 
   try {
+    await yieldToBrowser();
     const bytes = new Uint8Array(await file.arrayBuffer());
+    await advanceLoadingStep({
+      phase: "Probing container and format",
+      progress: 20,
+    });
     const probe = JSON.parse(probe_bytes(bytes, file.name));
     const views = {};
+    const viewSequence = ["normalized", "interpreted", "raw", "report"];
 
-    for (const view of ["normalized", "interpreted", "raw", "report"]) {
+    for (const [index, view] of viewSequence.entries()) {
+      await advanceLoadingStep({
+        phase: `Extracting ${view} view`,
+        progress: 32 + Math.round(((index + 1) / viewSequence.length) * 56),
+      });
       views[view] = JSON.parse(extract_bytes(bytes, file.name, view));
     }
 
@@ -88,9 +114,19 @@ async function handleFile(file) {
     updateTabs();
     renderCurrentView();
     resultsPanel.hidden = false;
+    setUiState("ready", {
+      label: "Ready",
+      title: `Metadata loaded for ${file.name}`,
+      detail:
+        "Browse the normalized label, then move through interpreted, raw, and report views for the full evidence trail.",
+      phase: "Local extraction complete",
+      progress: 100,
+    });
     statusText.textContent = "Local extraction complete";
   } catch (error) {
     showError(error);
+  } finally {
+    setBusy(false);
   }
 }
 
@@ -198,6 +234,8 @@ function renderNormalized(payload) {
 
   const issueCount = currentViews.report?.report?.issues?.length ?? 0;
   const conflictCount = currentViews.report?.report?.conflicts?.length ?? 0;
+  const issues = currentViews.report?.report?.issues ?? [];
+  const conflicts = currentViews.report?.report?.conflicts ?? [];
   const summaryFacts = [
     { label: "Issues", value: String(issueCount) },
     { label: "Conflicts", value: String(conflictCount) },
@@ -250,6 +288,7 @@ function renderNormalized(payload) {
         groups: completeGroups,
         emptyText: "No normalized fields reported.",
       })}
+      ${renderReportHighlights(issues, conflicts)}
     </section>
   `;
 
@@ -294,54 +333,13 @@ function renderReport(payload) {
   const issues = payload.report?.issues ?? [];
   const conflicts = payload.report?.conflicts ?? [];
 
-  structuredOutput.innerHTML = `
-    <section class="report-layout">
-      <div class="report-column">
-        <div class="report-head">
-          <p class="label-kicker">Report</p>
-          <h3>Issues</h3>
-        </div>
-        ${
-          issues.length
-            ? issues
-                .map(
-                  (issue) => `
-                    <article class="report-card severity-${escapeHtml(issue.severity ?? "warning")}">
-                      <div class="report-card-head">
-                        <strong>${escapeHtml(issue.code ?? "issue")}</strong>
-                        <span>${escapeHtml(issue.severity ?? "warning")}</span>
-                      </div>
-                      <p>${escapeHtml(issue.message ?? "No message")}</p>
-                    </article>`,
-                )
-                .join("")
-            : '<p class="report-empty">No issues reported.</p>'
-        }
-      </div>
-      <div class="report-column">
-        <div class="report-head">
-          <p class="label-kicker">Report</p>
-          <h3>Conflicts</h3>
-        </div>
-        ${
-          conflicts.length
-            ? conflicts
-                .map(
-                  (conflict) => `
-                    <article class="report-card severity-info">
-                      <div class="report-card-head">
-                        <strong>${escapeHtml(conflict.field ?? "conflict")}</strong>
-                        <span>conflict</span>
-                      </div>
-                      <p>${escapeHtml(conflict.message ?? "No message")}</p>
-                    </article>`,
-                )
-                .join("")
-            : '<p class="report-empty">No conflicts reported.</p>'
-        }
-      </div>
-    </section>
-  `;
+  structuredOutput.innerHTML = renderReportPanel({
+    kicker: "Report",
+    title: "Issues and conflicts",
+    subtitle: "Validation findings and metadata disagreements surfaced during extraction.",
+    issues,
+    conflicts,
+  });
 
   structuredOutput.hidden = false;
   resultOutput.hidden = true;
@@ -354,9 +352,16 @@ function updateTabs() {
 }
 
 function showError(error) {
+  setUiState("error", {
+    label: "Problem",
+    title: "Extraction failed",
+    detail: "The file could not be processed cleanly in the browser demo.",
+    phase: error instanceof Error ? error.message : String(error),
+    progress: 0,
+  });
   errorPanel.hidden = false;
   resultsPanel.hidden = true;
-  summaryPanel.hidden = Boolean(currentFile);
+  summaryPanel.hidden = true;
   errorText.textContent = error instanceof Error ? error.message : String(error);
   statusText.textContent = "Extraction failed";
 }
@@ -364,6 +369,48 @@ function showError(error) {
 function hideError() {
   errorPanel.hidden = true;
   errorText.textContent = "";
+}
+
+function setUiState(state, { label, title, detail, phase, progress } = {}) {
+  statePanel.dataset.state = state;
+  statePanel.hidden = false;
+  stateLabel.textContent = label ?? "Ready";
+  stateTitle.textContent = title ?? "Drop in a file to inspect everything XIFty can see.";
+  stateDetail.textContent =
+    detail ??
+    "The demo keeps extraction local, then lays out normalized facts, interpreted fields, raw metadata, and report findings in separate browsable views.";
+  statePhase.textContent = phase ?? "Waiting for a file";
+
+  const isLoading = state === "loading";
+  stateSpinner.hidden = !isLoading;
+  stateSpinner.setAttribute("aria-hidden", String(!isLoading));
+  stateMeter.hidden = !isLoading;
+  if (typeof progress === "number") {
+    stateMeterBar.style.width = `${Math.max(0, Math.min(progress, 100))}%`;
+  } else if (!isLoading) {
+    stateMeterBar.style.width = "0%";
+  }
+}
+
+function setBusy(isBusy) {
+  fileInput.disabled = isBusy;
+  copyJsonButton.disabled = isBusy;
+  dropZone.classList.toggle("is-busy", isBusy);
+  dropZone.setAttribute("aria-busy", String(isBusy));
+  tabs.forEach((tab) => {
+    tab.disabled = isBusy;
+  });
+}
+
+async function advanceLoadingStep({ phase, progress }) {
+  statePhase.textContent = phase;
+  stateMeterBar.style.width = `${Math.max(0, Math.min(progress, 100))}%`;
+  statusText.textContent = phase;
+  await yieldToBrowser();
+}
+
+async function yieldToBrowser() {
+  await new Promise((resolve) => requestAnimationFrame(() => resolve()));
 }
 
 function labelEntry(label, value) {
@@ -426,6 +473,78 @@ function renderContainerCatalog(containers) {
     groups: entries.length ? [{ title: "Segments and containers", entries }] : [],
     emptyText: "No raw container structure reported.",
   });
+}
+
+function renderReportHighlights(issues, conflicts) {
+  if (!issues.length && !conflicts.length) {
+    return "";
+  }
+
+  return renderReportPanel({
+    kicker: "Signals",
+    title: "Issues and conflicts behind the counts",
+    subtitle: "The same findings summarized in the facts strip, shown inline so you can inspect them without leaving the normalized view.",
+    issues,
+    conflicts,
+  });
+}
+
+function renderReportPanel({ kicker, title, subtitle, issues, conflicts }) {
+  return `
+    <section class="catalog-card">
+      <header class="catalog-header">
+        <p class="label-kicker">${escapeHtml(kicker)}</p>
+        <h3>${escapeHtml(title)}</h3>
+        <p class="label-caption">${escapeHtml(subtitle)}</p>
+      </header>
+      <section class="report-layout">
+        <div class="report-column">
+          <div class="report-head">
+            <p class="label-kicker">${escapeHtml(kicker)}</p>
+            <h3>Issues</h3>
+          </div>
+          ${
+            issues.length
+              ? issues
+                  .map(
+                    (issue) => `
+                      <article class="report-card severity-${escapeHtml(issue.severity ?? "warning")}">
+                        <div class="report-card-head">
+                          <strong>${escapeHtml(issue.code ?? "issue")}</strong>
+                          <span>${escapeHtml(issue.severity ?? "warning")}</span>
+                        </div>
+                        <p>${escapeHtml(issue.message ?? "No message")}</p>
+                      </article>`,
+                  )
+                  .join("")
+              : '<p class="report-empty">No issues reported.</p>'
+          }
+        </div>
+        <div class="report-column">
+          <div class="report-head">
+            <p class="label-kicker">${escapeHtml(kicker)}</p>
+            <h3>Conflicts</h3>
+          </div>
+          ${
+            conflicts.length
+              ? conflicts
+                  .map(
+                    (conflict) => `
+                      <article class="report-card severity-info">
+                        <div class="report-card-head">
+                          <strong>${escapeHtml(conflict.field ?? "conflict")}</strong>
+                          <span>conflict</span>
+                        </div>
+                        <p>${escapeHtml(conflict.message ?? "No message")}</p>
+                      </article>`,
+                  )
+                  .join("")
+              : '<p class="report-empty">No conflicts reported.</p>'
+          }
+        </div>
+      </section>
+    </section>
+  `;
 }
 
 function groupNormalizedFields(fields) {

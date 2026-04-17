@@ -44,6 +44,25 @@
         </label>
       </section>
 
+      <section class="panel state-panel" id="state-panel">
+        <div class="state-copy">
+          <p class="section-label" id="state-label">Ready</p>
+          <h2 id="state-title">Drop in a file to inspect everything XIFty can see.</h2>
+          <p id="state-detail">
+            The demo keeps extraction local, then lays out normalized facts,
+            interpreted fields, raw metadata, and report findings in separate
+            browsable views.
+          </p>
+        </div>
+        <div class="state-aside">
+          <div class="state-spinner" id="state-spinner" hidden aria-hidden="true"></div>
+          <div class="state-meter" id="state-meter" hidden>
+            <div class="state-meter-bar" id="state-meter-bar"></div>
+          </div>
+          <p class="state-phase" id="state-phase">Waiting for a file</p>
+        </div>
+      </section>
+
       <section class="panel summary-panel" id="summary-panel" hidden>
         <div class="summary-heading">
           <div>

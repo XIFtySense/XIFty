@@ -99,6 +99,77 @@ body {
   backdrop-filter: blur(18px);
 }
 
+.state-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 19rem;
+  gap: 1rem;
+  padding: 1.25rem;
+  align-items: center;
+}
+
+.state-copy h2 {
+  margin: 0;
+  font-size: clamp(1.35rem, 2.1vw, 2rem);
+  line-height: 1.02;
+  letter-spacing: -0.03em;
+}
+
+.state-copy p:last-child {
+  margin: 0.7rem 0 0;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.state-aside {
+  display: grid;
+  gap: 0.8rem;
+  padding: 1rem;
+  border-radius: 1.2rem;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.42);
+}
+
+.state-panel[data-state="loading"] .state-aside {
+  background:
+    linear-gradient(135deg, rgba(31, 111, 74, 0.08), rgba(184, 121, 46, 0.08)),
+    rgba(255, 255, 255, 0.64);
+}
+
+.state-panel[data-state="error"] .state-aside {
+  background: rgba(146, 37, 37, 0.08);
+}
+
+.state-spinner {
+  width: 1.2rem;
+  height: 1.2rem;
+  border-radius: 999px;
+  border: 2px solid rgba(31, 111, 74, 0.16);
+  border-top-color: var(--accent);
+  animation: spin 900ms linear infinite;
+}
+
+.state-meter {
+  height: 0.55rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(26, 29, 27, 0.08);
+}
+
+.state-meter-bar {
+  height: 100%;
+  width: 0%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--accent), #cb8d47);
+  transition: width 180ms ease;
+}
+
+.state-phase {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+
 .upload-panel {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(320px, 420px);
@@ -259,6 +330,17 @@ body {
 .secondary-button:hover {
   border-color: rgba(31, 111, 74, 0.3);
   color: var(--ink);
+}
+
+.tab:disabled,
+.secondary-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.upload-zone.is-busy {
+  opacity: 0.72;
+  pointer-events: none;
 }
 
 .tab.is-active {
@@ -581,6 +663,7 @@ body {
 }
 
 @media (max-width: 880px) {
+  .state-panel,
   .upload-panel {
     grid-template-columns: 1fr;
   }
@@ -599,6 +682,12 @@ body {
 
   .report-layout {
     grid-template-columns: 1fr;
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
   }
 }
 
