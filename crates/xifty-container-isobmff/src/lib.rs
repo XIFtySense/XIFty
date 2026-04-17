@@ -37,6 +37,7 @@ pub struct IsobmffContainer {
     pub audio_codec: Option<String>,
     pub video_frame_rate: Option<f64>,
     pub video_bitrate: Option<u32>,
+    pub video_bitrate_note: Option<String>,
     pub audio_channels: Option<u16>,
     pub audio_sample_rate: Option<u32>,
     pub primary_visual_dimensions: Option<IsobmffDimensions>,
@@ -116,6 +117,7 @@ struct TrackFacts {
     codec: Option<String>,
     frame_rate: Option<f64>,
     bitrate: Option<u32>,
+    total_sample_bytes: u64,
     audio_channels: Option<u16>,
     audio_sample_rate: Option<u32>,
     dimensions: Option<(u32, u32)>,
@@ -192,7 +194,20 @@ pub fn parse_bytes(bytes: &[u8], base_offset: u64) -> Result<IsobmffContainer, X
         .tracks
         .values()
         .find(|track| track.handler_type == Some(*b"vide"))
-        .and_then(|track| track.bitrate);
+        .and_then(|track| track.bitrate.or_else(|| derive_track_bitrate(track)));
+    let video_bitrate_note = state
+        .tracks
+        .values()
+        .find(|track| track.handler_type == Some(*b"vide"))
+        .and_then(|track| {
+            if track.bitrate.is_some() {
+                Some("derived from video sample description bitrate box".to_string())
+            } else if track.total_sample_bytes > 0 {
+                Some("derived from video track sample sizes and duration".to_string())
+            } else {
+                None
+            }
+        });
     let audio_codec = state
         .tracks
         .values()
@@ -239,6 +254,7 @@ pub fn parse_bytes(bytes: &[u8], base_offset: u64) -> Result<IsobmffContainer, X
         audio_codec,
         video_frame_rate,
         video_bitrate,
+        video_bitrate_note,
         audio_channels,
         audio_sample_rate,
         primary_visual_dimensions,
@@ -346,6 +362,7 @@ fn parse_children(
             b"hdlr" => parse_hdlr(cursor, &parsed, current_track.as_deref(), state, issues)?,
             b"stsd" => parse_stsd(cursor, &parsed, current_track.as_deref(), state, issues)?,
             b"stts" => parse_stts(cursor, &parsed, current_track.as_deref(), state, issues)?,
+            b"stsz" => parse_stsz(cursor, &parsed, current_track.as_deref(), state, issues)?,
             b"infe" => parse_infe(cursor, &parsed, state, issues)?,
             b"pitm" => parse_pitm(cursor, &parsed, state, issues)?,
             b"iloc" => parse_iloc(cursor, &parsed, state, issues)?,
@@ -967,7 +984,8 @@ fn parse_sample_entry_details(
         b"avc1" | b"hvc1" | b"hev1" | b"av01" => {
             parse_visual_sample_entry(cursor, data_offset, data_end, track)
         }
-        b"mp4a" | b"ac-3" | b"ec-3" | b"alac" => {
+        b"mp4a" | b"ac-3" | b"ec-3" | b"alac" | b"twos" | b"sowt" | b"lpcm" | b"in24" | b"in32"
+        | b"fl32" | b"fl64" | b"ulaw" | b"alaw" => {
             parse_audio_sample_entry(cursor, data_offset, data_end, track)
         }
         _ => Ok(()),
@@ -1020,6 +1038,55 @@ fn parse_audio_sample_entry(
         track.audio_sample_rate = Some(sample_rate);
     }
     Ok(())
+}
+
+fn parse_stsz(
+    cursor: &Cursor<'_>,
+    parsed: &ParsedBox,
+    track_key: Option<&str>,
+    state: &mut ParseState,
+    _issues: &mut Vec<Issue>,
+) -> Result<(), XiftyError> {
+    if parsed.data_offset + 12 > parsed.end {
+        return Ok(());
+    }
+    let sample_size = cursor.read_u32(parsed.data_offset + 4, Endian::Big)?;
+    let sample_count = cursor.read_u32(parsed.data_offset + 8, Endian::Big)? as usize;
+    let Some(key) = track_key else {
+        return Ok(());
+    };
+    let track = state.tracks.entry(key.to_string()).or_default();
+
+    if sample_size != 0 {
+        track.total_sample_bytes = sample_size as u64 * sample_count as u64;
+        return Ok(());
+    }
+
+    let table_start = parsed.data_offset + 12;
+    let table_bytes = sample_count.saturating_mul(4);
+    if table_start + table_bytes > parsed.end {
+        return Ok(());
+    }
+
+    let mut total = 0u64;
+    for index in 0..sample_count {
+        let sample = cursor.read_u32(table_start + (index * 4), Endian::Big)? as u64;
+        total = total.saturating_add(sample);
+    }
+    track.total_sample_bytes = total;
+    Ok(())
+}
+
+fn derive_track_bitrate(track: &TrackFacts) -> Option<u32> {
+    let duration = track.duration_seconds?;
+    if duration <= 0.0 || track.total_sample_bytes == 0 {
+        return None;
+    }
+    let bits_per_second = ((track.total_sample_bytes as f64 * 8.0) / duration).round();
+    if !(1.0..=u32::MAX as f64).contains(&bits_per_second) {
+        return None;
+    }
+    Some(bits_per_second as u32)
 }
 
 fn parse_quicktime_item(cursor: &Cursor<'_>, parsed: &ParsedBox) -> Option<IsobmffPayload> {
@@ -1372,6 +1439,20 @@ mod tests {
     }
 
     fn media_track(handler: &[u8; 4], codec: &[u8; 4], width: u32, height: u32) -> Vec<u8> {
+        media_track_with_tables(handler, codec, width, height, None, None, None, None, None)
+    }
+
+    fn media_track_with_tables(
+        handler: &[u8; 4],
+        codec: &[u8; 4],
+        width: u32,
+        height: u32,
+        video_bitrate: Option<u32>,
+        audio_channels: Option<u16>,
+        audio_sample_rate: Option<u32>,
+        sample_size: Option<u32>,
+        sample_count: Option<u32>,
+    ) -> Vec<u8> {
         let mut tkhd_payload = vec![0; 72];
         tkhd_payload.extend_from_slice(&(width << 16).to_be_bytes());
         tkhd_payload.extend_from_slice(&(height << 16).to_be_bytes());
@@ -1390,11 +1471,49 @@ mod tests {
         hdlr_payload.extend_from_slice(&[0; 12]);
         let hdlr = full_box(b"hdlr", [0, 0, 0, 0], &hdlr_payload);
 
-        let sample_entry = boxed(codec, &[0; 8]);
+        let sample_entry = if handler == b"vide" {
+            let mut payload = vec![0; 78];
+            if let Some(bitrate) = video_bitrate {
+                let mut btrt = Vec::new();
+                btrt.extend_from_slice(&(bitrate * 2).to_be_bytes());
+                btrt.extend_from_slice(&(bitrate * 2).to_be_bytes());
+                btrt.extend_from_slice(&bitrate.to_be_bytes());
+                payload.extend_from_slice(&boxed(b"btrt", &btrt));
+            }
+            boxed(codec, &payload)
+        } else {
+            let mut payload = vec![0; 28];
+            if let Some(channels) = audio_channels {
+                payload[16..18].copy_from_slice(&channels.to_be_bytes());
+            }
+            if let Some(sample_rate) = audio_sample_rate {
+                payload[24..28].copy_from_slice(&(sample_rate << 16).to_be_bytes());
+            }
+            boxed(codec, &payload)
+        };
         let mut stsd_payload = Vec::new();
         stsd_payload.extend_from_slice(&1u32.to_be_bytes());
         stsd_payload.extend_from_slice(&sample_entry);
         let stsd = full_box(b"stsd", [0, 0, 0, 0], &stsd_payload);
+        let stts = full_box(
+            b"stts",
+            [0, 0, 0, 0],
+            &[
+                1u32.to_be_bytes(),
+                24u32.to_be_bytes(),
+                1001u32.to_be_bytes(),
+            ]
+            .concat(),
+        );
+        let stsz = full_box(
+            b"stsz",
+            [0, 0, 0, 0],
+            &[
+                sample_size.unwrap_or(0).to_be_bytes(),
+                sample_count.unwrap_or(0).to_be_bytes(),
+            ]
+            .concat(),
+        );
 
         boxed(
             b"trak",
@@ -1402,7 +1521,12 @@ mod tests {
                 tkhd,
                 boxed(
                     b"mdia",
-                    &[mdhd, hdlr, boxed(b"minf", &boxed(b"stbl", &stsd))].concat(),
+                    &[
+                        mdhd,
+                        hdlr,
+                        boxed(b"minf", &boxed(b"stbl", &[stsd, stts, stsz].concat())),
+                    ]
+                    .concat(),
                 ),
             ]
             .concat(),
@@ -1535,5 +1659,83 @@ mod tests {
         let parsed = parse_bytes(&minimal_media_file(false, false), 0).unwrap();
         assert_eq!(parsed.video_codec.as_deref(), Some("avc1"));
         assert_eq!(parsed.audio_codec, None);
+    }
+
+    #[test]
+    fn derives_video_bitrate_from_sample_sizes_when_btrt_is_missing() {
+        let mut mvhd_payload = Vec::new();
+        mvhd_payload.extend_from_slice(&3_800_000_000u32.to_be_bytes());
+        mvhd_payload.extend_from_slice(&3_800_000_100u32.to_be_bytes());
+        mvhd_payload.extend_from_slice(&1_000u32.to_be_bytes());
+        mvhd_payload.extend_from_slice(&12_000u32.to_be_bytes());
+        mvhd_payload.extend_from_slice(&[0; 8]);
+        let mvhd = full_box(b"mvhd", [0, 0, 0, 0], &mvhd_payload);
+        let bytes = [
+            boxed(b"ftyp", b"isom\0\0\0\0mp42"),
+            boxed(
+                b"moov",
+                &[
+                    mvhd,
+                    media_track_with_tables(
+                        b"vide",
+                        b"avc1",
+                        1920,
+                        1080,
+                        None,
+                        None,
+                        None,
+                        Some(150_000),
+                        Some(240),
+                    ),
+                ]
+                .concat(),
+            ),
+        ]
+        .concat();
+
+        let parsed = parse_bytes(&bytes, 0).unwrap();
+        assert_eq!(parsed.video_bitrate, Some(24_000_000));
+        assert_eq!(
+            parsed.video_bitrate_note.as_deref(),
+            Some("derived from video track sample sizes and duration")
+        );
+    }
+
+    #[test]
+    fn parses_pcm_audio_sample_rate_for_twos_entries() {
+        let mut mvhd_payload = Vec::new();
+        mvhd_payload.extend_from_slice(&3_800_000_000u32.to_be_bytes());
+        mvhd_payload.extend_from_slice(&3_800_000_100u32.to_be_bytes());
+        mvhd_payload.extend_from_slice(&1_000u32.to_be_bytes());
+        mvhd_payload.extend_from_slice(&12_000u32.to_be_bytes());
+        mvhd_payload.extend_from_slice(&[0; 8]);
+        let mvhd = full_box(b"mvhd", [0, 0, 0, 0], &mvhd_payload);
+        let bytes = [
+            boxed(b"ftyp", b"isom\0\0\0\0mp42"),
+            boxed(
+                b"moov",
+                &[
+                    mvhd,
+                    media_track_with_tables(
+                        b"soun",
+                        b"twos",
+                        0,
+                        0,
+                        None,
+                        Some(2),
+                        Some(48_000),
+                        None,
+                        None,
+                    ),
+                ]
+                .concat(),
+            ),
+        ]
+        .concat();
+
+        let parsed = parse_bytes(&bytes, 0).unwrap();
+        assert_eq!(parsed.audio_codec.as_deref(), Some("twos"));
+        assert_eq!(parsed.audio_channels, Some(2));
+        assert_eq!(parsed.audio_sample_rate, Some(48_000));
     }
 }

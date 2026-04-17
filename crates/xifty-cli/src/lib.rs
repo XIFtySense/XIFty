@@ -577,7 +577,10 @@ fn isobmff_entries(
             format_name,
             "VideoBitrate",
             TypedValue::Integer(bitrate as i64),
-            "derived from video sample description bitrate box",
+            container
+                .video_bitrate_note
+                .as_deref()
+                .unwrap_or("derived from video track metadata"),
         ));
     }
     if let Some(channels) = container.audio_channels {

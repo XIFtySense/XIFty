@@ -171,6 +171,23 @@ expression: output
       },
       {
         "confidence": 0.949999988079071,
+        "field": "video.bitrate",
+        "sources": [
+          {
+            "container": "mp4",
+            "namespace": "quicktime",
+            "notes": [
+              "derived from video track sample sizes and duration"
+            ]
+          }
+        ],
+        "value": {
+          "kind": "integer",
+          "value": 95946182
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
         "field": "codec.video",
         "sources": [
           {
@@ -209,15 +226,32 @@ expression: output
         "sources": [
           {
             "container": "mp4",
-            "namespace": "rtmd",
-            "offset_end": 25170432,
-            "offset_start": 25168484,
-            "path": "non_real_time_meta"
+            "namespace": "quicktime",
+            "notes": [
+              "derived from audio track sample entry"
+            ]
           }
         ],
         "value": {
           "kind": "integer",
           "value": 2
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
+        "field": "audio.sample_rate",
+        "sources": [
+          {
+            "container": "mp4",
+            "namespace": "quicktime",
+            "notes": [
+              "derived from audio track sample entry"
+            ]
+          }
+        ],
+        "value": {
+          "kind": "integer",
+          "value": 48000
         }
       }
     ]

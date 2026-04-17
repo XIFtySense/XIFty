@@ -479,6 +479,30 @@ fn extract_snapshot_real_camera_mp4_interpreted() {
 }
 
 #[test]
+fn real_camera_mp4_normalization_includes_technical_media_fields() {
+    let Some(output) = extract_optional_json("C0242.MP4", ViewMode::Normalized) else {
+        skip_missing_local_fixture("C0242.MP4");
+        return;
+    };
+    let output = normalized_map(&output);
+
+    assert!(
+        output
+            .get("video.bitrate")
+            .and_then(|value| value["value"].as_i64())
+            .is_some_and(|value| value > 0),
+        "expected non-zero video.bitrate"
+    );
+    assert!(
+        output
+            .get("audio.sample_rate")
+            .and_then(|value| value["value"].as_i64())
+            .is_some_and(|value| value > 0),
+        "expected non-zero audio.sample_rate"
+    );
+}
+
+#[test]
 fn conflicting_png_report_snapshot() {
     assert_json_snapshot!(
         "conflicting_png_report",
