@@ -1,0 +1,92 @@
+# loswf2 factory configuration — copy to `.loswf/config.yaml` in any host repo and edit.
+# Schema reference: specs/SRS.md §4.7
+
+version: 2
+project: <repo-name>
+repo: <owner>/<repo-name>
+branch: main
+
+description: >
+  One paragraph describing what this repo does and what kind of work the
+  factory should handle for it. Injected into every agent's context.
+
+# Per-role model selection. Defaults inherit the Claude Code session model.
+# Set explicitly only when a role needs a different model (e.g. haiku for scout).
+models:
+  intake: sonnet
+  planner: sonnet
+  plan_reviewer: sonnet
+  builder: sonnet
+  reviewer: sonnet
+  escalation: sonnet
+  harvester: sonnet
+  curator: sonnet
+  architect: sonnet
+  designer: sonnet
+  scout: haiku
+  red_team: sonnet
+  documenter: sonnet
+
+# Validation commands the builder and reviewer MUST run before declaring done.
+# Order matters — fastest first, slowest last (fail fast).
+validate:
+  - name: lint
+    run: "npm run lint"
+  - name: typecheck
+    run: "npm run typecheck"
+  - name: test
+    run: "npm test"
+  - name: build
+    run: "npm run build"
+
+# Repo-specific rules injected into agent contexts. Keep tight — every guardrail
+# is a token tax on every invocation.
+guardrails:
+  - "Never push directly to main — all changes go through a branch and PR."
+  - "Never use --no-verify on git commits."
+  - "All new source files must have corresponding tests."
+
+# Language/runtime conventions agents reference when generating code.
+standards:
+  language: TypeScript
+  runtime: Node 20
+  test_runner: vitest
+  module_system: ESM
+  formatting: prettier (no linter rule enforcement)
+
+# Curator scoping — issues matching these are skipped by intake.
+curator:
+  ignore_labels: [question, wontfix, duplicate, dependencies, invalid]
+  ignore_authors: ["dependabot[bot]", "renovate[bot]", "github-actions[bot]"]
+  # Minimum hours between curator invocations from adws/adw_sweep.sh. The sweep
+  # checks mtime of .loswf/state/curator.last_run against this value.
+  cadence_hours: 1
+
+# Optional semantic code index (off by default).
+index:
+  enabled: false
+  top_k: 10
+  paths: [src/, specs/, docs/]
+  exclude: ["*.test.ts", "node_modules/", "dist/"]
+
+# Worktree concurrency cap for sweep parallelism.
+sweep:
+  max_concurrent_builds: 3
+  cycle_interval_minutes: 5
+
+# Grounded external review — optional OpenAI Responses API call from the
+# plan-reviewer agent that cross-checks plans against current public
+# knowledge. Gated on OPENAI_API_KEY and the `pyyaml` soft-dep. Silently
+# no-ops if unavailable. See specs/SRS.md §4.11.
+grounded_review:
+  enabled: true
+  model: gpt-5
+  timeout_seconds: 120
+  marker_prefix: "loswf:grounded"
+  budget:
+    feature: 2
+    task: 1
+    bug: 1
+    chore: 0
+    refactor: 1
+    docs: 0

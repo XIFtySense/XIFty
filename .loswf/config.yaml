@@ -1,0 +1,112 @@
+# loswf2 factory configuration for XIFty
+# Schema reference: .loswf/config.example.yaml and specs/SRS.md §4.7
+
+version: 2
+project: XIFty
+repo: XIFtySense/XIFty
+branch: main
+
+description: >
+  XIFty is a modern metadata engine for media files, written in Rust with a
+  C ABI embedding surface and thin bindings for Node, Python, and Swift. It
+  treats metadata extraction, interpretation, normalization, validation, and
+  conflict handling as distinct but connected concerns. The factory handles
+  work across the cargo workspace (core engine, container parsers, metadata
+  namespace parsers, normalization, policy, validation, JSON, FFI, CLI, and
+  WASM crates) as well as the TypeScript SDK/inspector and Python analysis
+  tooling. Container parsing and metadata interpretation must stay separate.
+
+# Per-role model selection. Defaults inherit the Claude Code session model.
+models:
+  intake: sonnet
+  planner: sonnet
+  plan_reviewer: sonnet
+  builder: sonnet
+  reviewer: sonnet
+  escalation: sonnet
+  harvester: sonnet
+  curator: sonnet
+  architect: sonnet
+  designer: sonnet
+  scout: haiku
+  red_team: sonnet
+  documenter: sonnet
+
+# Validation commands the builder and reviewer MUST run before declaring done.
+# Order matters — fastest first, slowest last (fail fast).
+validate:
+  - name: fmt
+    run: "cargo fmt --all -- --check"
+  - name: test-workspace
+    run: "cargo test --workspace --all-features"
+  - name: test-ffi
+    run: "cargo test -p xifty-ffi --all-features"
+
+# CI gating — plan-reviewer and reviewer will block on failing CI runs.
+ci_check: true
+
+# Repo-specific rules injected into agent contexts.
+guardrails:
+  - "Never push directly to main — all changes go through a branch and PR."
+  - "Never use --no-verify on git commits."
+  - "All new source files must have corresponding tests."
+  - "Container parsing and metadata interpretation must remain in separate crates — do not cross that boundary."
+  - "Preserve the C ABI stability of xifty-ffi; breaking changes require an explicit FFI_CONTRACT.md update and a rationale in the plan."
+  - "Raw source bytes and provenance must never be silently discarded during normalization."
+  - "When insta snapshot tests fail, review diffs before accepting via `cargo insta review` — never blanket-accept."
+
+# Language/runtime conventions agents reference when generating code.
+standards:
+  language: Rust
+  edition: "2024"
+  workspace: cargo workspace (crates/*)
+  test_runner: cargo test + insta (snapshot)
+  formatting: rustfmt
+  ffi_surface: C ABI via xifty-ffi (cbindgen)
+  bindings: Node, Python, Swift (thin)
+  auxiliary: TypeScript (SDK/inspector), Python (corpus + differential tooling)
+
+# Curator scoping — issues matching these are skipped by intake.
+curator:
+  ignore_labels: [question, wontfix, duplicate, dependencies, invalid]
+  ignore_authors: ["dependabot[bot]", "renovate[bot]", "github-actions[bot]"]
+  cadence_hours: 1
+
+# Semantic code index — Qdrant + Ollama both live locally.
+index:
+  enabled: true
+  qdrant_url: "http://localhost:6333"
+  ollama_url: "http://localhost:11434"
+  embed_model: "mxbai-embed-large"
+  collection: "xifty"
+  top_k: 10
+  paths: [crates/, specs/, docs/, include/, schemas/, tools/, demo/, examples/]
+  exclude:
+    - "target/"
+    - "fixtures/local/"
+    - "node_modules/"
+    - "dist/"
+    - ".build/"
+    - "demo/web/pkg/"
+    - "**/*.snap"
+    - "**/*.snap.new"
+
+# Worktree concurrency cap for sweep parallelism.
+sweep:
+  max_concurrent_builds: 3
+  cycle_interval_minutes: 5
+
+# Grounded external review — optional OpenAI Responses API call from the
+# plan-reviewer agent. Gated on OPENAI_API_KEY. Silently no-ops if unavailable.
+grounded_review:
+  enabled: true
+  model: gpt-5
+  timeout_seconds: 120
+  marker_prefix: "loswf:grounded"
+  budget:
+    feature: 2
+    task: 1
+    bug: 1
+    chore: 0
+    refactor: 1
+    docs: 0
