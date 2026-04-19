@@ -1,5 +1,6 @@
 ---
 source: crates/xifty-cli/tests/cli_contract.rs
+assertion_line: 478
 expression: output
 ---
 {
@@ -376,6 +377,54 @@ expression: output
         "value": {
           "kind": "float",
           "value": 23.976023976023978
+        }
+      },
+      {
+        "namespace": "quicktime",
+        "provenance": {
+          "container": "mp4",
+          "namespace": "quicktime",
+          "notes": [
+            "derived from video track sample sizes and duration"
+          ]
+        },
+        "tag_id": "VideoBitrate",
+        "tag_name": "VideoBitrate",
+        "value": {
+          "kind": "integer",
+          "value": 95946182
+        }
+      },
+      {
+        "namespace": "quicktime",
+        "provenance": {
+          "container": "mp4",
+          "namespace": "quicktime",
+          "notes": [
+            "derived from audio track sample entry"
+          ]
+        },
+        "tag_id": "AudioChannels",
+        "tag_name": "AudioChannels",
+        "value": {
+          "kind": "integer",
+          "value": 2
+        }
+      },
+      {
+        "namespace": "quicktime",
+        "provenance": {
+          "container": "mp4",
+          "namespace": "quicktime",
+          "notes": [
+            "derived from audio track sample entry"
+          ]
+        },
+        "tag_id": "AudioSampleRate",
+        "tag_name": "AudioSampleRate",
+        "value": {
+          "kind": "integer",
+          "value": 48000
         }
       },
       {
