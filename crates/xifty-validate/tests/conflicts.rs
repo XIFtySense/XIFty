@@ -120,6 +120,55 @@ fn numeric_agreement_across_namespaces_produces_no_conflict() {
 }
 
 #[test]
+fn cross_namespace_copyright_disagreement_is_reported() {
+    // Parsers emit tag_name="Copyright" for EXIF, XMP (dc:rights), and IPTC (2,116).
+    let entries = vec![
+        string_entry("exif", "Copyright", "(c) Alice"),
+        string_entry("xmp", "Copyright", "(c) Bob"),
+        string_entry("iptc", "Copyright", "(c) Carol"),
+    ];
+    let report = build_report(Vec::new(), &entries);
+    let hits: Vec<_> = report
+        .conflicts
+        .iter()
+        .filter(|c| c.field == "copyright")
+        .collect();
+    assert_eq!(
+        hits.len(),
+        1,
+        "expected exactly one copyright conflict, got: {:?}",
+        report.conflicts
+    );
+    // BTreeMap canonicalises by value string, so which two namespaces appear
+    // in the message is order-dependent — assert membership, not ordering.
+    let msg = &hits[0].message;
+    let namespaces_mentioned = ["exif", "xmp", "iptc"]
+        .iter()
+        .filter(|ns| msg.contains(**ns))
+        .count();
+    assert!(
+        namespaces_mentioned >= 2,
+        "expected at least two namespaces in message, got: {}",
+        msg
+    );
+}
+
+#[test]
+fn copyright_agreement_across_namespaces_produces_no_conflict() {
+    let entries = vec![
+        string_entry("exif", "Copyright", "(c) Alice"),
+        string_entry("xmp", "Copyright", "(c) Alice"),
+        string_entry("iptc", "Copyright", "(c) Alice"),
+    ];
+    let report = build_report(Vec::new(), &entries);
+    assert!(
+        !report.conflicts.iter().any(|c| c.field == "copyright"),
+        "unexpected copyright conflict: {:?}",
+        report.conflicts
+    );
+}
+
+#[test]
 fn agreement_across_namespaces_produces_no_conflict() {
     let entries = vec![
         string_entry("exif", "Make", "Canon"),
