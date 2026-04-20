@@ -67,6 +67,8 @@ Build and run the CLI directly from the repo:
 cargo run -p xifty-cli -- probe fixtures/minimal/happy.jpg
 cargo run -p xifty-cli -- extract fixtures/minimal/happy.jpg
 cargo run -p xifty-cli -- extract fixtures/minimal/gps.jpg --view normalized
+cargo run -p xifty-cli -- probe fixtures/minimal/happy.aiff
+cargo run -p xifty-cli -- extract fixtures/minimal/happy.aiff --view normalized
 ```
 
 Or install the CLI locally from the workspace:
@@ -91,6 +93,7 @@ Current container coverage:
 - HEIF / HEIC
 - MP4 / MOV
 - FLAC
+- AIFF / AIFC
 
 Current namespace coverage:
 
@@ -102,6 +105,11 @@ Current namespace coverage:
 - selected Sony and Apple vendor metadata paths
 - bounded Vorbis comment (FLAC)
 - bounded FLAC stream info (sample rate, channels, bit depth, duration, embedded picture)
+- bounded AIFF stream info (sample rate, channels, bit depth, duration from `COMM` chunk)
+
+  Note: AIFF files may contain an embedded `ID3 ` chunk. The chunk offset is
+  located and tracked but the tag payload is not decoded in this release — tag
+  decoding is a follow-up once an ID3v2 decoder crate is available.
 
 Current product surfaces:
 
