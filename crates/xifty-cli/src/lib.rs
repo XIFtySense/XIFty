@@ -22,6 +22,9 @@ use xifty_normalize::normalize_with_policy;
 use xifty_source::SourceBytes;
 use xifty_validate::build_report;
 
+mod conflict_dedupe;
+use conflict_dedupe::dedupe_conflicts;
+
 pub fn probe_path(path: PathBuf) -> Result<ProbeOutput, XiftyError> {
     let source = SourceBytes::from_path(&path)?;
     probe_source(&source)
@@ -471,7 +474,9 @@ fn extract_source(source: &SourceBytes, view_mode: ViewMode) -> Result<AnalysisO
 
     let normalization = normalize_with_policy(&entries);
     let mut report = build_report(issues, &entries);
-    report.conflicts.extend(normalization.conflicts);
+    let mut merged = std::mem::take(&mut report.conflicts);
+    merged.extend(normalization.conflicts);
+    report.conflicts = dedupe_conflicts(merged);
     Ok(AnalysisOutput {
         schema_version: SCHEMA_VERSION.into(),
         input: ProbeInput {

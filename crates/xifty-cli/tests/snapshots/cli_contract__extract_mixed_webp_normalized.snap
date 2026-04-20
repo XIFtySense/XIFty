@@ -389,44 +389,6 @@ expression: "extract_json(\"mixed.webp\", ViewMode::Normalized)"
       },
       {
         "field": "device.model",
-        "message": "exif:Model=IterationOne vs xmp:Model=IterationTwo",
-        "sources": [
-          {
-            "namespace": "exif",
-            "provenance": {
-              "container": "webp",
-              "namespace": "exif",
-              "offset_end": 78,
-              "offset_start": 66,
-              "path": "ifd0"
-            },
-            "tag_id": "0x0110",
-            "tag_name": "Model",
-            "value": {
-              "kind": "string",
-              "value": "IterationOne"
-            }
-          },
-          {
-            "namespace": "xmp",
-            "provenance": {
-              "container": "webp",
-              "namespace": "xmp",
-              "offset_end": 1004,
-              "offset_start": 350,
-              "path": "xmp_packet"
-            },
-            "tag_id": "Model",
-            "tag_name": "Model",
-            "value": {
-              "kind": "string",
-              "value": "IterationTwo"
-            }
-          }
-        ]
-      },
-      {
-        "field": "device.model",
         "message": "multiple candidates disagreed; selected Model from exif",
         "sources": [
           {

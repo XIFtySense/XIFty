@@ -13,82 +13,6 @@ expression: "extract_json(\"conflicting.png\", ViewMode::Report)"
     "conflicts": [
       {
         "field": "captured_at",
-        "message": "xmp:CreateDate=2024-04-17T00:00:00 vs exif:DateTimeOriginal=2024:04:16 12:34:56",
-        "sources": [
-          {
-            "namespace": "xmp",
-            "provenance": {
-              "container": "png",
-              "namespace": "xmp",
-              "offset_end": 999,
-              "offset_start": 375,
-              "path": "xmp_packet"
-            },
-            "tag_id": "CreateDate",
-            "tag_name": "CreateDate",
-            "value": {
-              "kind": "string",
-              "value": "2024-04-17T00:00:00"
-            }
-          },
-          {
-            "namespace": "exif",
-            "provenance": {
-              "container": "png",
-              "namespace": "exif",
-              "offset_end": 191,
-              "offset_start": 179,
-              "path": "exif_ifd"
-            },
-            "tag_id": "0x9003",
-            "tag_name": "DateTimeOriginal",
-            "value": {
-              "kind": "timestamp",
-              "value": "2024:04:16 12:34:56"
-            }
-          }
-        ]
-      },
-      {
-        "field": "device.model",
-        "message": "exif:Model=IterationOne vs xmp:Model=IterationTwoXmp",
-        "sources": [
-          {
-            "namespace": "exif",
-            "provenance": {
-              "container": "png",
-              "namespace": "exif",
-              "offset_end": 99,
-              "offset_start": 87,
-              "path": "ifd0"
-            },
-            "tag_id": "0x0110",
-            "tag_name": "Model",
-            "value": {
-              "kind": "string",
-              "value": "IterationOne"
-            }
-          },
-          {
-            "namespace": "xmp",
-            "provenance": {
-              "container": "png",
-              "namespace": "xmp",
-              "offset_end": 999,
-              "offset_start": 375,
-              "path": "xmp_packet"
-            },
-            "tag_id": "Model",
-            "tag_name": "Model",
-            "value": {
-              "kind": "string",
-              "value": "IterationTwoXmp"
-            }
-          }
-        ]
-      },
-      {
-        "field": "captured_at",
         "message": "multiple candidates disagreed; selected DateTimeOriginal from exif",
         "sources": [
           {
@@ -102,44 +26,6 @@ expression: "extract_json(\"conflicting.png\", ViewMode::Report)"
             },
             "tag_id": "0x9003",
             "tag_name": "DateTimeOriginal",
-            "value": {
-              "kind": "timestamp",
-              "value": "2024:04:16 12:34:56"
-            }
-          },
-          {
-            "namespace": "xmp",
-            "provenance": {
-              "container": "png",
-              "namespace": "xmp",
-              "offset_end": 999,
-              "offset_start": 375,
-              "path": "xmp_packet"
-            },
-            "tag_id": "CreateDate",
-            "tag_name": "CreateDate",
-            "value": {
-              "kind": "string",
-              "value": "2024-04-17T00:00:00"
-            }
-          }
-        ]
-      },
-      {
-        "field": "created_at",
-        "message": "multiple candidates disagreed; selected CreateDate from exif",
-        "sources": [
-          {
-            "namespace": "exif",
-            "provenance": {
-              "container": "png",
-              "namespace": "exif",
-              "offset_end": 203,
-              "offset_start": 191,
-              "path": "exif_ifd"
-            },
-            "tag_id": "0x9004",
-            "tag_name": "CreateDate",
             "value": {
               "kind": "timestamp",
               "value": "2024:04:16 12:34:56"
@@ -197,6 +83,44 @@ expression: "extract_json(\"conflicting.png\", ViewMode::Report)"
             "value": {
               "kind": "string",
               "value": "IterationTwoXmp"
+            }
+          }
+        ]
+      },
+      {
+        "field": "created_at",
+        "message": "multiple candidates disagreed; selected CreateDate from exif",
+        "sources": [
+          {
+            "namespace": "exif",
+            "provenance": {
+              "container": "png",
+              "namespace": "exif",
+              "offset_end": 203,
+              "offset_start": 191,
+              "path": "exif_ifd"
+            },
+            "tag_id": "0x9004",
+            "tag_name": "CreateDate",
+            "value": {
+              "kind": "timestamp",
+              "value": "2024:04:16 12:34:56"
+            }
+          },
+          {
+            "namespace": "xmp",
+            "provenance": {
+              "container": "png",
+              "namespace": "xmp",
+              "offset_end": 999,
+              "offset_start": 375,
+              "path": "xmp_packet"
+            },
+            "tag_id": "CreateDate",
+            "tag_name": "CreateDate",
+            "value": {
+              "kind": "string",
+              "value": "2024-04-17T00:00:00"
             }
           }
         ]
