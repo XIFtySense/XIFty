@@ -35,7 +35,17 @@ class TiffBuilder:
         return bytes(out)
 
 
-def build_tiff(endian="II", gps=False, bad_offsets=False, no_exif=False, width=800, height=600):
+def build_tiff(
+    endian="II",
+    gps=False,
+    bad_offsets=False,
+    no_exif=False,
+    width=800,
+    height=600,
+    xmp_payload=None,
+    icc_payload=None,
+    iptc_payload=None,
+):
     b = TiffBuilder(endian)
     p16, p32 = b.pack16, b.pack32
 
@@ -48,7 +58,10 @@ def build_tiff(endian="II", gps=False, bad_offsets=False, no_exif=False, width=8
     lat_ref = b.ascii_blob("N")
     lon_ref = b.ascii_blob("W")
 
-    ifd0_count = 6 + (0 if no_exif else 1) + (1 if gps and not no_exif else 0)
+    extra_count = sum(
+        1 for blob in (xmp_payload, icc_payload, iptc_payload) if blob is not None
+    )
+    ifd0_count = 6 + extra_count + (0 if no_exif else 1) + (1 if gps and not no_exif else 0)
     ifd0_size = 2 + ifd0_count * 12 + 4
     data_base = 8 + ifd0_size
 
@@ -64,6 +77,16 @@ def build_tiff(endian="II", gps=False, bad_offsets=False, no_exif=False, width=8
         (0x0112, 3, 1, p16(1) + b"\x00\x00"),
         (0x0131, 2, len(software), p32(software_off)),
     ]
+
+    if xmp_payload is not None:
+        xmp_off = b.add_blob(xmp_payload, data_base)
+        ifd0.append((0x02BC, 7, len(xmp_payload), p32(xmp_off)))
+    if icc_payload is not None:
+        icc_off = b.add_blob(icc_payload, data_base)
+        ifd0.append((0x8773, 7, len(icc_payload), p32(icc_off)))
+    if iptc_payload is not None:
+        iptc_off = b.add_blob(iptc_payload, data_base)
+        ifd0.append((0x83BB, 7, len(iptc_payload), p32(iptc_off)))
 
     exif_ifd = b""
     gps_ifd = b""
@@ -620,6 +643,9 @@ def main():
         "no_exif.jpg": build_jpeg(None),
         "malformed_app1.jpg": build_jpeg(build_tiff(gps=False), malformed=True),
         "happy.tiff": build_tiff(gps=False),
+        "xmp.tiff": build_tiff(gps=False, xmp_payload=xmp),
+        "icc.tiff": build_tiff(gps=False, icc_payload=icc),
+        "iptc.tiff": build_tiff(gps=False, iptc_payload=build_iptc_iim()),
         "gps.tiff": build_tiff(gps=True),
         "big_endian.tiff": build_tiff(endian="MM", gps=False, width=1024, height=768),
         "malformed_offsets.tiff": build_tiff(gps=True, bad_offsets=True),
