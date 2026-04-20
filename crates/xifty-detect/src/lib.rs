@@ -33,6 +33,10 @@ pub fn detect(source: &SourceBytes) -> Result<Format, XiftyError> {
         return Ok(Format::Flac);
     }
 
+    if bytes.len() >= 4 && &bytes[0..4] == b"OggS" {
+        return Ok(Format::Ogg);
+    }
+
     if bytes.len() >= 16 && &bytes[4..8] == b"ftyp" {
         if is_heif_brand(bytes) {
             return Ok(Format::Heif);
@@ -202,6 +206,7 @@ mod tests {
         let flac = temp_file("a.flac", b"fLaC\x00\x00\x00\x22");
         let aiff = temp_file("a.aiff", b"FORM\x00\x00\x00\x04AIFF");
         let aifc = temp_file("a.aifc", b"FORM\x00\x00\x00\x04AIFC");
+        let ogg = temp_file("a.ogg", b"OggS\x00\x02\x00\x00");
         assert_eq!(
             detect(&SourceBytes::from_path(&jpeg).unwrap()).unwrap(),
             Format::Jpeg
@@ -254,6 +259,10 @@ mod tests {
             detect(&SourceBytes::from_path(&aifc).unwrap()).unwrap(),
             Format::Aiff
         );
+        assert_eq!(
+            detect(&SourceBytes::from_path(&ogg).unwrap()).unwrap(),
+            Format::Ogg
+        );
         let _ = fs::remove_file(jpeg);
         let _ = fs::remove_file(tiff);
         let _ = fs::remove_file(png);
@@ -267,6 +276,7 @@ mod tests {
         let _ = fs::remove_file(flac);
         let _ = fs::remove_file(aiff);
         let _ = fs::remove_file(aifc);
+        let _ = fs::remove_file(ogg);
     }
 
     /// Build a minimal little-endian TIFF with a single IFD0 entry carrying `tag`.

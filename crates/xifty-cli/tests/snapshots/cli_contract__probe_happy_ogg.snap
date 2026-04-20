@@ -1,0 +1,51 @@
+---
+source: crates/xifty-cli/tests/cli_contract.rs
+expression: "probe_json(\"happy.ogg\")"
+---
+{
+  "containers": [
+    {
+      "kind": "container",
+      "label": "ogg",
+      "offset_end": 230,
+      "offset_start": 0
+    },
+    {
+      "kind": "page",
+      "label": "page",
+      "offset_end": 58,
+      "offset_start": 0,
+      "parent_label": "ogg"
+    },
+    {
+      "kind": "page",
+      "label": "page",
+      "offset_end": 186,
+      "offset_start": 58,
+      "parent_label": "ogg"
+    },
+    {
+      "kind": "page",
+      "label": "page",
+      "offset_end": 230,
+      "offset_start": 186,
+      "parent_label": "ogg"
+    }
+  ],
+  "input": {
+    "container": "ogg",
+    "detected_format": "ogg",
+    "path": "happy.ogg"
+  },
+  "report": {
+    "conflicts": [],
+    "issues": [
+      {
+        "code": "no_metadata_entries",
+        "message": "no supported metadata entries were decoded",
+        "severity": "info"
+      }
+    ]
+  },
+  "schema_version": "0.1.0"
+}

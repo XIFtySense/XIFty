@@ -1,0 +1,100 @@
+---
+source: crates/xifty-cli/tests/cli_contract.rs
+expression: "extract_json(\"happy.opus\", ViewMode::Normalized)"
+---
+{
+  "input": {
+    "container": "ogg",
+    "detected_format": "ogg",
+    "path": "happy.opus"
+  },
+  "normalized": {
+    "fields": [
+      {
+        "confidence": 0.949999988079071,
+        "field": "duration",
+        "sources": [
+          {
+            "container": "ogg",
+            "namespace": "ogg",
+            "notes": [
+              "derived from (last-page granule - pre_skip) / 48000"
+            ],
+            "offset_end": 47,
+            "offset_start": 28,
+            "path": "opus_head"
+          }
+        ],
+        "value": {
+          "kind": "float",
+          "value": 1.0
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
+        "field": "codec.audio",
+        "sources": [
+          {
+            "container": "ogg",
+            "namespace": "ogg",
+            "notes": [
+              "derived from first packet signature"
+            ],
+            "offset_end": 47,
+            "offset_start": 28,
+            "path": "opus_head"
+          }
+        ],
+        "value": {
+          "kind": "string",
+          "value": "opus"
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
+        "field": "audio.channels",
+        "sources": [
+          {
+            "container": "ogg",
+            "namespace": "ogg",
+            "notes": [
+              "derived from Opus identification header"
+            ],
+            "offset_end": 47,
+            "offset_start": 28,
+            "path": "opus_head"
+          }
+        ],
+        "value": {
+          "kind": "integer",
+          "value": 2
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
+        "field": "audio.sample_rate",
+        "sources": [
+          {
+            "container": "ogg",
+            "namespace": "ogg",
+            "notes": [
+              "opus decoded rate per RFC 7845"
+            ],
+            "offset_end": 47,
+            "offset_start": 28,
+            "path": "opus_head"
+          }
+        ],
+        "value": {
+          "kind": "integer",
+          "value": 48000
+        }
+      }
+    ]
+  },
+  "report": {
+    "conflicts": [],
+    "issues": []
+  },
+  "schema_version": "0.1.0"
+}
