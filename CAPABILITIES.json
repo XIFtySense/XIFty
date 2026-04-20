@@ -68,7 +68,8 @@
         "exif": "supported",
         "xmp": "supported",
         "icc": "not_yet_supported",
-        "iptc": "not_yet_supported"
+        "iptc": "not_yet_supported",
+        "heif": "supported"
       }
     },
     "mp4": {

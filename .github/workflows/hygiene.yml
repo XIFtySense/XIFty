@@ -37,6 +37,9 @@ jobs:
       - name: Validate CAPABILITIES.json
         run: python3 -m json.tool CAPABILITIES.json > /dev/null
 
+      - name: Validate CAPABILITIES.json against fixtures
+        run: python3 tools/generate_capabilities.py --check
+
       - name: Validate schema artifacts
         run: |
           python3 -m json.tool schemas/xifty-probe-0.1.0.schema.json > /dev/null
