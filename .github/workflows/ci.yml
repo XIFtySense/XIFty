@@ -47,8 +47,16 @@ jobs:
         run: cargo test -p xifty-ffi
 
   runtime-artifact:
-    name: Runtime Artifact
-    runs-on: ubuntu-latest
+    name: Runtime Artifact (${{ matrix.target }})
+    runs-on: ${{ matrix.runs_on }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: macos-arm64
+            runs_on: macos-14
+          - target: linux-x64
+            runs_on: ubuntu-latest
 
     steps:
       - name: Check out repository
@@ -63,12 +71,12 @@ jobs:
       - name: Build runtime artifact
         run: |
           python3 tools/build-runtime-artifact.py \
-            --output /tmp/xifty-runtime-linux-x64.tar.gz
+            --output /tmp/xifty-runtime-${{ matrix.target }}.tar.gz
 
       - name: Validate runtime artifact
         run: |
           python3 tools/validate-runtime-artifact.py \
-            --artifact /tmp/xifty-runtime-linux-x64.tar.gz
+            --artifact /tmp/xifty-runtime-${{ matrix.target }}.tar.gz
 
   lambda-node-example:
     name: Lambda Node Example
