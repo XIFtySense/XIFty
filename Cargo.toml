@@ -9,6 +9,7 @@ members = [
   "crates/xifty-container-riff",
   "crates/xifty-container-isobmff",
   "crates/xifty-container-flac",
+  "crates/xifty-container-aiff",
   "crates/xifty-meta-exif",
   "crates/xifty-meta-icc",
   "crates/xifty-meta-iptc",

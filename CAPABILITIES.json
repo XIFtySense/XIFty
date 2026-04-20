@@ -57,6 +57,15 @@
         "PictureWidth",
         "PictureHeight"
       ]
+    },
+    "aiff": {
+      "status": "bounded",
+      "supported_tags": [
+        "AudioSampleRate",
+        "AudioChannels",
+        "AudioBitDepth",
+        "DurationSeconds"
+      ]
     }
   },
   "containers": {
@@ -116,6 +125,11 @@
       "namespaces": {
         "flac": "bounded",
         "vorbis_comment": "bounded"
+      }
+    },
+    "aiff": {
+      "namespaces": {
+        "aiff": "bounded"
       }
     }
   },

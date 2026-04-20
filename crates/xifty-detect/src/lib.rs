@@ -19,6 +19,13 @@ pub fn detect(source: &SourceBytes) -> Result<Format, XiftyError> {
         return Ok(Format::Webp);
     }
 
+    if bytes.len() >= 12
+        && &bytes[0..4] == b"FORM"
+        && (&bytes[8..12] == b"AIFF" || &bytes[8..12] == b"AIFC")
+    {
+        return Ok(Format::Aiff);
+    }
+
     if bytes.len() >= 4 && &bytes[0..4] == b"fLaC" {
         return Ok(Format::Flac);
     }
@@ -130,6 +137,8 @@ mod tests {
         let mp4 = temp_file("a.mp4", b"\x00\x00\x00\x18ftypisom\0\0\0\0mp42");
         let mov = temp_file("a.mov", b"\x00\x00\x00\x14ftypqt  \0\0\0\0");
         let flac = temp_file("a.flac", b"fLaC\x00\x00\x00\x22");
+        let aiff = temp_file("a.aiff", b"FORM\x00\x00\x00\x04AIFF");
+        let aifc = temp_file("a.aifc", b"FORM\x00\x00\x00\x04AIFC");
         assert_eq!(
             detect(&SourceBytes::from_path(&jpeg).unwrap()).unwrap(),
             Format::Jpeg
@@ -162,6 +171,14 @@ mod tests {
             detect(&SourceBytes::from_path(&flac).unwrap()).unwrap(),
             Format::Flac
         );
+        assert_eq!(
+            detect(&SourceBytes::from_path(&aiff).unwrap()).unwrap(),
+            Format::Aiff
+        );
+        assert_eq!(
+            detect(&SourceBytes::from_path(&aifc).unwrap()).unwrap(),
+            Format::Aiff
+        );
         let _ = fs::remove_file(jpeg);
         let _ = fs::remove_file(tiff);
         let _ = fs::remove_file(png);
@@ -170,5 +187,7 @@ mod tests {
         let _ = fs::remove_file(mp4);
         let _ = fs::remove_file(mov);
         let _ = fs::remove_file(flac);
+        let _ = fs::remove_file(aiff);
+        let _ = fs::remove_file(aifc);
     }
 }

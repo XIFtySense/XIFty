@@ -791,6 +791,7 @@ dependencies = [
  "flate2",
  "insta",
  "serde_json",
+ "xifty-container-aiff",
  "xifty-container-flac",
  "xifty-container-isobmff",
  "xifty-container-jpeg",
@@ -813,6 +814,14 @@ dependencies = [
  "xifty-policy",
  "xifty-source",
  "xifty-validate",
+]
+
+[[package]]
+name = "xifty-container-aiff"
+version = "0.1.5"
+dependencies = [
+ "xifty-core",
+ "xifty-source",
 ]
 
 [[package]]
