@@ -46,6 +46,7 @@ def build_tiff(
     icc_payload=None,
     iptc_payload=None,
     make="XIFtyCam",
+    dng=False,
 ):
     b = TiffBuilder(endian)
     p16, p32 = b.pack16, b.pack32
@@ -58,11 +59,14 @@ def build_tiff(
     lens_model = b.ascii_blob("XIFty 50mm F2")
     lat_ref = b.ascii_blob("N")
     lon_ref = b.ascii_blob("W")
+    unique_camera_model = b.ascii_blob("XIFtyCam DNG Test")
 
     extra_count = sum(
         1 for blob in (xmp_payload, icc_payload, iptc_payload) if blob is not None
     )
-    ifd0_count = 6 + extra_count + (0 if no_exif else 1) + (1 if gps and not no_exif else 0)
+    # DNG adds DNGVersion (0xC612), DNGBackwardVersion (0xC613), UniqueCameraModel (0xC614).
+    dng_count = 3 if dng else 0
+    ifd0_count = 6 + extra_count + dng_count + (0 if no_exif else 1) + (1 if gps and not no_exif else 0)
     ifd0_size = 2 + ifd0_count * 12 + 4
     data_base = 8 + ifd0_size
 
@@ -79,6 +83,16 @@ def build_tiff(
         (0x0131, 2, len(software), p32(software_off)),
     ]
 
+    if dng:
+        # DNG marker tags. DNGVersion/DNGBackwardVersion are 4-byte BYTE arrays
+        # (type 1, count 4) and fit inline in the 4-byte value field.
+        # UniqueCameraModel is ASCII (type 2) and uses an offset.
+        dng_version = b"\x01\x04\x00\x00"  # 1.4.0.0
+        dng_backward_version = b"\x01\x04\x00\x00"  # 1.4.0.0
+        ucm_off = b.add_blob(unique_camera_model, data_base)
+        ifd0.append((0xC612, 1, 4, dng_version))
+        ifd0.append((0xC613, 1, 4, dng_backward_version))
+        ifd0.append((0xC614, 2, len(unique_camera_model), p32(ucm_off)))
     if xmp_payload is not None:
         xmp_off = b.add_blob(xmp_payload, data_base)
         ifd0.append((0x02BC, 7, len(xmp_payload), p32(xmp_off)))
@@ -970,6 +984,7 @@ def main():
         "big_endian.tiff": build_tiff(endian="MM", gps=False, width=1024, height=768),
         "malformed_offsets.tiff": build_tiff(gps=True, bad_offsets=True),
         "no_exif.tiff": build_tiff(no_exif=True),
+        "happy.dng": build_tiff(gps=False, dng=True),
         "happy.png": build_png(build_tiff(gps=False)),
         "icc.png": build_png_with_icc(icc),
         "iptc.png": build_png_with_iptc(build_iptc_iim()),
