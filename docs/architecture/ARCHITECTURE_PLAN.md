@@ -236,6 +236,12 @@ This crate should hold policy, not parsers.
 - suspicious-offset detection
 - impossible-value detection
 - namespace/container inconsistency checks
+- entry-level conflict detection rules (shipped in `src/rules.rs`):
+  - cross-namespace semantic-tag disagreement via a curated `SEMANTIC_GROUPS`
+    table covering `captured_at`, `device.make`, `device.model`, `copyright`
+  - timestamp timezone/offset mismatch (same wall time, differing UTC offset)
+  - numeric precision mismatch at 0.5% relative tolerance for `exposure.iso`,
+    `exposure.aperture`, `exposure.focal_length_mm`, `exposure.shutter_speed`
 
 ### `xifty-json`
 
