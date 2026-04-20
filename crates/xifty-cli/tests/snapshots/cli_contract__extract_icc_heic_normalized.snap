@@ -1,0 +1,81 @@
+---
+source: crates/xifty-cli/tests/cli_contract.rs
+assertion_line: 349
+expression: "extract_json(\"icc.heic\", ViewMode::Normalized)"
+---
+{
+  "input": {
+    "container": "isobmff",
+    "detected_format": "heif",
+    "path": "icc.heic"
+  },
+  "normalized": {
+    "fields": [
+      {
+        "confidence": 0.949999988079071,
+        "field": "color.profile.name",
+        "notes": [
+          "selected bounded ICC metadata as authoritative color-profile source"
+        ],
+        "sources": [
+          {
+            "container": "heif",
+            "namespace": "icc",
+            "offset_end": 244,
+            "offset_start": 52,
+            "path": "heif_icc"
+          }
+        ],
+        "value": {
+          "kind": "string",
+          "value": "XIFty Display Profile"
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
+        "field": "color.profile.class",
+        "notes": [
+          "selected bounded ICC metadata as authoritative color-profile source"
+        ],
+        "sources": [
+          {
+            "container": "heif",
+            "namespace": "icc",
+            "offset_end": 244,
+            "offset_start": 52,
+            "path": "heif_icc"
+          }
+        ],
+        "value": {
+          "kind": "string",
+          "value": "display"
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
+        "field": "color.space",
+        "notes": [
+          "selected bounded ICC metadata as authoritative color-profile source"
+        ],
+        "sources": [
+          {
+            "container": "heif",
+            "namespace": "icc",
+            "offset_end": 244,
+            "offset_start": 52,
+            "path": "heif_icc"
+          }
+        ],
+        "value": {
+          "kind": "string",
+          "value": "RGB"
+        }
+      }
+    ]
+  },
+  "report": {
+    "conflicts": [],
+    "issues": []
+  },
+  "schema_version": "0.1.0"
+}

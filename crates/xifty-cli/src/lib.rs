@@ -442,33 +442,21 @@ fn extract_source(source: &SourceBytes, view_mode: ViewMode) -> Result<AnalysisO
         }
         Format::Heif => {
             let isobmff = parse_isobmff(&source)?;
-            let entries = isobmff_entries(&isobmff, source.bytes(), format.as_str());
-            (
-                "isobmff".to_string(),
-                isobmff.nodes,
-                entries,
-                isobmff.issues,
-            )
+            let mut issues = isobmff.issues.clone();
+            let entries = isobmff_entries(&isobmff, source.bytes(), format.as_str(), &mut issues);
+            ("isobmff".to_string(), isobmff.nodes, entries, issues)
         }
         Format::Mp4 => {
             let isobmff = parse_isobmff(&source)?;
-            let entries = isobmff_entries(&isobmff, source.bytes(), format.as_str());
-            (
-                "isobmff".to_string(),
-                isobmff.nodes,
-                entries,
-                isobmff.issues,
-            )
+            let mut issues = isobmff.issues.clone();
+            let entries = isobmff_entries(&isobmff, source.bytes(), format.as_str(), &mut issues);
+            ("isobmff".to_string(), isobmff.nodes, entries, issues)
         }
         Format::Mov => {
             let isobmff = parse_isobmff(&source)?;
-            let entries = isobmff_entries(&isobmff, source.bytes(), format.as_str());
-            (
-                "isobmff".to_string(),
-                isobmff.nodes,
-                entries,
-                isobmff.issues,
-            )
+            let mut issues = isobmff.issues.clone();
+            let entries = isobmff_entries(&isobmff, source.bytes(), format.as_str(), &mut issues);
+            ("isobmff".to_string(), isobmff.nodes, entries, issues)
         }
     };
 
@@ -693,6 +681,7 @@ fn isobmff_entries(
     container: &xifty_container_isobmff::IsobmffContainer,
     bytes: &[u8],
     format_name: &str,
+    issues: &mut Vec<Issue>,
 ) -> Vec<MetadataEntry> {
     let mut entries = Vec::new();
 
@@ -745,6 +734,52 @@ fn isobmff_entries(
             } else {
                 entries.extend(rtmd_entries);
             }
+        }
+    }
+
+    for payload in container.icc_payloads() {
+        if let Some(payload_bytes) =
+            payload_slice(bytes, payload.data_offset, payload.data_length as usize)
+        {
+            let decoded = decode_icc_payload(IccPayload {
+                bytes: payload_bytes,
+                container: format_name,
+                path: "heif_icc",
+                offset_start: payload.offset_start,
+                offset_end: payload.offset_end,
+            });
+            if decoded.is_empty() {
+                issues.push(namespace_issue(
+                    "icc_decode_empty",
+                    "recognized ICC payload but could not decode bounded ICC fields",
+                    payload.offset_start,
+                    "heif_icc",
+                ));
+            }
+            entries.extend(decoded);
+        }
+    }
+
+    for payload in container.iptc_payloads() {
+        if let Some(payload_bytes) =
+            payload_slice(bytes, payload.data_offset, payload.data_length as usize)
+        {
+            let decoded = decode_iptc_payload(IptcPayload {
+                bytes: payload_bytes,
+                container: format_name,
+                path: "heif_iptc",
+                offset_start: payload.offset_start,
+                offset_end: payload.offset_end,
+            });
+            if decoded.is_empty() {
+                issues.push(namespace_issue(
+                    "iptc_decode_empty",
+                    "recognized IPTC payload but could not decode bounded IPTC datasets",
+                    payload.offset_start,
+                    "heif_iptc",
+                ));
+            }
+            entries.extend(decoded);
         }
     }
 

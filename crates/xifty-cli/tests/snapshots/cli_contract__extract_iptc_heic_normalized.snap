@@ -1,0 +1,109 @@
+---
+source: crates/xifty-cli/tests/cli_contract.rs
+assertion_line: 357
+expression: "extract_json(\"iptc.heic\", ViewMode::Normalized)"
+---
+{
+  "input": {
+    "container": "isobmff",
+    "detected_format": "heif",
+    "path": "iptc.heic"
+  },
+  "normalized": {
+    "fields": [
+      {
+        "confidence": 0.949999988079071,
+        "field": "author",
+        "sources": [
+          {
+            "container": "heif",
+            "namespace": "iptc",
+            "offset_end": 110,
+            "offset_start": 32,
+            "path": "heif_iptc"
+          }
+        ],
+        "value": {
+          "kind": "string",
+          "value": "Kai"
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
+        "field": "copyright",
+        "sources": [
+          {
+            "container": "heif",
+            "namespace": "iptc",
+            "offset_end": 110,
+            "offset_start": 32,
+            "path": "heif_iptc"
+          }
+        ],
+        "value": {
+          "kind": "string",
+          "value": "XIFty"
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
+        "field": "headline",
+        "sources": [
+          {
+            "container": "heif",
+            "namespace": "iptc",
+            "offset_end": 110,
+            "offset_start": 32,
+            "path": "heif_iptc"
+          }
+        ],
+        "value": {
+          "kind": "string",
+          "value": "XIFty Headline"
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
+        "field": "description",
+        "sources": [
+          {
+            "container": "heif",
+            "namespace": "iptc",
+            "offset_end": 110,
+            "offset_start": 32,
+            "path": "heif_iptc"
+          }
+        ],
+        "value": {
+          "kind": "string",
+          "value": "XIFty Caption"
+        }
+      },
+      {
+        "confidence": 0.8999999761581421,
+        "field": "keywords",
+        "notes": [
+          "derived from repeated Keywords metadata"
+        ],
+        "sources": [
+          {
+            "container": "heif",
+            "namespace": "iptc",
+            "offset_end": 110,
+            "offset_start": 32,
+            "path": "heif_iptc"
+          }
+        ],
+        "value": {
+          "kind": "string",
+          "value": "xifty, metadata"
+        }
+      }
+    ]
+  },
+  "report": {
+    "conflicts": [],
+    "issues": []
+  },
+  "schema_version": "0.1.0"
+}
