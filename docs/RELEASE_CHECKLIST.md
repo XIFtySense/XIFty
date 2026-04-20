@@ -60,6 +60,20 @@ npm run verify:tarball
 npm view @xifty/xifty version dist-tags.latest --json
 ```
 
+## Branch Protection
+
+Required status checks on `main` (configure in GitHub repository settings under
+Branches → Branch protection rules):
+
+- `Rust Core` (from `ci.yml`)
+- `Runtime Artifact` (from `ci.yml`)
+- `Lambda Node Example` (from `ci.yml`)
+- `Docs And Contract` (from `hygiene.yml`) — enforces the cbindgen header
+  staleness check and JSON schema artifact validation on every PR
+
+`Oracle Differentials` (from `hygiene.yml`) is intentionally not a required
+check: it runs ExifTool on the weekly schedule and on manual dispatch only.
+
 ## Closing Customer Issues
 
 Do not close issues based only on:

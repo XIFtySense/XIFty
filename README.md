@@ -183,9 +183,13 @@ cargo test --workspace
 ```
 
 The main CI workflow is intentionally kept free of extra test-only tooling and
-system dependencies. Oracle-backed differential checks that use ExifTool and
-header-regeneration checks that use `cbindgen` live in a separate optional
-hygiene workflow rather than the default core validation path.
+system dependencies. Merge-blocking hygiene gates that are cheap and
+deterministic — the `cbindgen`-based header staleness check and the JSON
+schema artifact validation — run on every pull request and push to `main` via
+the `Docs And Contract` job of the hygiene workflow. Oracle-backed
+differential checks that require ExifTool remain opt-in and run only on the
+weekly schedule and on manual dispatch, keeping the PR path free of external
+system dependencies.
 
 The main CI workflow now also validates the AWS Lambda Node adoption path
 through the checked-in SAM example.
