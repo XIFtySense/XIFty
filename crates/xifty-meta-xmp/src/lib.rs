@@ -437,6 +437,14 @@ mod tests {
             TypedValue::String(value) => assert_eq!(value, "A photo of a cat."),
             other => panic!("expected string, got {other:?}"),
         }
+        assert!(
+            description
+                .notes
+                .iter()
+                .any(|note| note.contains("rdf:Alt x-default")),
+            "expected x-default note, got {:?}",
+            description.notes
+        );
     }
 
     #[test]
