@@ -140,6 +140,13 @@ pub fn decode_packet(packet: XmpPacket<'_>) -> Vec<MetadataEntry> {
         find_text(text, &["dc:description", "photoshop:Caption-Abstract"]),
         false,
     );
+    push_string_multi(
+        &mut entries,
+        packet.clone(),
+        "Keywords",
+        "Keywords",
+        find_element_all(text, "dc:subject"),
+    );
 
     entries
 }
@@ -223,6 +230,38 @@ fn push_string(
         },
         notes: vec![decoded.note],
     });
+}
+
+/// Like `push_string`, but emits one `MetadataEntry` per decoded value. Used
+/// for XMP bag/seq fields such as `dc:subject` where each `rdf:li` becomes a
+/// distinct `Keywords` entry (mirroring the IPTC Keywords path).
+///
+/// Unlike `push_string`, the value type is always `TypedValue::String`
+/// (keywords are never timestamps), so there is no `timestamp` parameter.
+fn push_string_multi(
+    entries: &mut Vec<MetadataEntry>,
+    packet: XmpPacket<'_>,
+    tag_id: &str,
+    tag_name: &str,
+    values: Vec<DecodedText>,
+) {
+    for decoded in values {
+        entries.push(MetadataEntry {
+            namespace: "xmp".into(),
+            tag_id: tag_id.into(),
+            tag_name: tag_name.into(),
+            value: TypedValue::String(decoded.value),
+            provenance: Provenance {
+                container: packet.container.into(),
+                namespace: "xmp".into(),
+                path: Some("xmp_packet".into()),
+                offset_start: Some(packet.offset_start),
+                offset_end: Some(packet.offset_end),
+                notes: Vec::new(),
+            },
+            notes: vec![decoded.note],
+        });
+    }
 }
 
 fn push_integer(
@@ -348,6 +387,39 @@ fn find_element(xml: &str, name: &str) -> Option<DecodedText> {
     None
 }
 
+/// Return every `<rdf:li …>…</rdf:li>` payload inside the first `<{name}>…</{name}>`
+/// element. Used for XMP `rdf:Bag`/`rdf:Seq` fields such as `dc:subject` where
+/// each `rdf:li` is a distinct value (e.g. a keyword). Accepts both bare
+/// `<rdf:li>` and attributed `<rdf:li xml:lang="…">` openings via the shared
+/// `next_rdf_li` matcher. Returns an empty Vec if the element is absent or has
+/// no `rdf:li` children.
+fn find_element_all(xml: &str, name: &str) -> Vec<DecodedText> {
+    let mut values = Vec::new();
+    let open = format!("<{name}>");
+    let Some(start) = xml.find(&open) else {
+        return values;
+    };
+    let body = &xml[start + open.len()..];
+    let close = format!("</{name}>");
+    let scan_slice = match body.find(&close) {
+        Some(end) => &body[..end],
+        None => body,
+    };
+    let mut cursor = scan_slice;
+    while let Some((_, body_start, li_value)) = next_rdf_li(cursor) {
+        values.push(DecodedText {
+            value: xml_unescape(&li_value),
+            note: format!("decoded from xmp rdf:li inside {name}"),
+        });
+        let consumed = match cursor[body_start..].find("</rdf:li>") {
+            Some(end) => body_start + end + "</rdf:li>".len(),
+            None => break,
+        };
+        cursor = &cursor[consumed..];
+    }
+    values
+}
+
 /// Locate the next `<rdf:li …>` element inside `body`, accepting both the bare
 /// `<rdf:li>` form and the attributed `<rdf:li xml:lang="x-default">` form.
 ///
@@ -445,6 +517,39 @@ mod tests {
             "expected x-default note, got {:?}",
             description.notes
         );
+    }
+
+    #[test]
+    fn xmp_decoder_extracts_keywords_from_dc_subject() {
+        let entries = decode_packet(XmpPacket {
+            bytes: br#"<x:xmpmeta><rdf:Description><dc:subject><rdf:Bag><rdf:li>alpha</rdf:li><rdf:li>beta</rdf:li></rdf:Bag></dc:subject></rdf:Description></x:xmpmeta>"#,
+            container: "png",
+            offset_start: 0,
+            offset_end: 160,
+        });
+        let keywords: Vec<&MetadataEntry> = entries
+            .iter()
+            .filter(|entry| entry.tag_name == "Keywords")
+            .collect();
+        assert_eq!(keywords.len(), 2, "expected two Keywords entries");
+        let values: Vec<&str> = keywords
+            .iter()
+            .filter_map(|entry| match &entry.value {
+                TypedValue::String(value) => Some(value.as_str()),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(values, vec!["alpha", "beta"]);
+        for entry in &keywords {
+            assert!(
+                entry
+                    .notes
+                    .iter()
+                    .any(|note| note == "decoded from xmp rdf:li inside dc:subject"),
+                "expected rdf:li inside dc:subject note, got {:?}",
+                entry.notes
+            );
+        }
     }
 
     #[test]

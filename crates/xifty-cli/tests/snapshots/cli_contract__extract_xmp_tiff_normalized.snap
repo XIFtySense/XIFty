@@ -18,8 +18,8 @@ expression: "extract_json(\"xmp.tiff\", ViewMode::Normalized)"
           {
             "container": "tiff",
             "namespace": "exif",
-            "offset_end": 750,
-            "offset_start": 738,
+            "offset_end": 838,
+            "offset_start": 826,
             "path": "exif_ifd"
           }
         ],
@@ -35,8 +35,8 @@ expression: "extract_json(\"xmp.tiff\", ViewMode::Normalized)"
           {
             "container": "tiff",
             "namespace": "exif",
-            "offset_end": 762,
-            "offset_start": 750,
+            "offset_end": 850,
+            "offset_start": 838,
             "path": "exif_ifd"
           }
         ],
@@ -52,7 +52,7 @@ expression: "extract_json(\"xmp.tiff\", ViewMode::Normalized)"
           {
             "container": "tiff",
             "namespace": "xmp",
-            "offset_end": 735,
+            "offset_end": 823,
             "offset_start": 148,
             "path": "xmp_packet"
           }
@@ -126,7 +126,7 @@ expression: "extract_json(\"xmp.tiff\", ViewMode::Normalized)"
           {
             "container": "tiff",
             "namespace": "xmp",
-            "offset_end": 735,
+            "offset_end": 823,
             "offset_start": 148,
             "path": "xmp_packet"
           }
@@ -143,7 +143,7 @@ expression: "extract_json(\"xmp.tiff\", ViewMode::Normalized)"
           {
             "container": "tiff",
             "namespace": "xmp",
-            "offset_end": 735,
+            "offset_end": 823,
             "offset_start": 148,
             "path": "xmp_packet"
           }
@@ -217,8 +217,8 @@ expression: "extract_json(\"xmp.tiff\", ViewMode::Normalized)"
           {
             "container": "tiff",
             "namespace": "exif",
-            "offset_end": 798,
-            "offset_start": 786,
+            "offset_end": 886,
+            "offset_start": 874,
             "path": "exif_ifd"
           }
         ],
@@ -234,8 +234,8 @@ expression: "extract_json(\"xmp.tiff\", ViewMode::Normalized)"
           {
             "container": "tiff",
             "namespace": "exif",
-            "offset_end": 786,
-            "offset_start": 774,
+            "offset_end": 874,
+            "offset_start": 862,
             "path": "exif_ifd"
           }
         ],
@@ -254,8 +254,8 @@ expression: "extract_json(\"xmp.tiff\", ViewMode::Normalized)"
           {
             "container": "tiff",
             "namespace": "exif",
-            "offset_end": 774,
-            "offset_start": 762,
+            "offset_end": 862,
+            "offset_start": 850,
             "path": "exif_ifd"
           }
         ],
@@ -274,8 +274,8 @@ expression: "extract_json(\"xmp.tiff\", ViewMode::Normalized)"
           {
             "container": "tiff",
             "namespace": "exif",
-            "offset_end": 810,
-            "offset_start": 798,
+            "offset_end": 898,
+            "offset_start": 886,
             "path": "exif_ifd"
           }
         ],
@@ -291,8 +291,8 @@ expression: "extract_json(\"xmp.tiff\", ViewMode::Normalized)"
           {
             "container": "tiff",
             "namespace": "exif",
-            "offset_end": 834,
-            "offset_start": 822,
+            "offset_end": 922,
+            "offset_start": 910,
             "path": "exif_ifd"
           }
         ],
@@ -308,14 +308,34 @@ expression: "extract_json(\"xmp.tiff\", ViewMode::Normalized)"
           {
             "container": "tiff",
             "namespace": "exif",
-            "offset_end": 822,
-            "offset_start": 810,
+            "offset_end": 910,
+            "offset_start": 898,
             "path": "exif_ifd"
           }
         ],
         "value": {
           "kind": "string",
           "value": "XIFty Optics"
+        }
+      },
+      {
+        "confidence": 0.8999999761581421,
+        "field": "keywords",
+        "notes": [
+          "derived from repeated Keywords metadata"
+        ],
+        "sources": [
+          {
+            "container": "tiff",
+            "namespace": "xmp",
+            "offset_end": 823,
+            "offset_start": 148,
+            "path": "xmp_packet"
+          }
+        ],
+        "value": {
+          "kind": "string",
+          "value": "alpha, beta"
         }
       }
     ]
@@ -331,7 +351,7 @@ expression: "extract_json(\"xmp.tiff\", ViewMode::Normalized)"
             "provenance": {
               "container": "tiff",
               "namespace": "xmp",
-              "offset_end": 735,
+              "offset_end": 823,
               "offset_start": 148,
               "path": "xmp_packet"
             },
@@ -347,8 +367,8 @@ expression: "extract_json(\"xmp.tiff\", ViewMode::Normalized)"
             "provenance": {
               "container": "tiff",
               "namespace": "exif",
-              "offset_end": 750,
-              "offset_start": 738,
+              "offset_end": 838,
+              "offset_start": 826,
               "path": "exif_ifd"
             },
             "tag_id": "0x9003",
@@ -385,7 +405,7 @@ expression: "extract_json(\"xmp.tiff\", ViewMode::Normalized)"
             "provenance": {
               "container": "tiff",
               "namespace": "xmp",
-              "offset_end": 735,
+              "offset_end": 823,
               "offset_start": 148,
               "path": "xmp_packet"
             },
@@ -423,7 +443,7 @@ expression: "extract_json(\"xmp.tiff\", ViewMode::Normalized)"
             "provenance": {
               "container": "tiff",
               "namespace": "xmp",
-              "offset_end": 735,
+              "offset_end": 823,
               "offset_start": 148,
               "path": "xmp_packet"
             },
@@ -461,7 +481,7 @@ expression: "extract_json(\"xmp.tiff\", ViewMode::Normalized)"
             "provenance": {
               "container": "tiff",
               "namespace": "xmp",
-              "offset_end": 735,
+              "offset_end": 823,
               "offset_start": 148,
               "path": "xmp_packet"
             },
@@ -499,7 +519,7 @@ expression: "extract_json(\"xmp.tiff\", ViewMode::Normalized)"
             "provenance": {
               "container": "tiff",
               "namespace": "xmp",
-              "offset_end": 735,
+              "offset_end": 823,
               "offset_start": 148,
               "path": "xmp_packet"
             },

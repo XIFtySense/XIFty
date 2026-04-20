@@ -294,12 +294,17 @@ def build_xmp(
     copyright_text="XIFty",
     gps_latitude=None,
     gps_longitude=None,
+    keywords=None,
 ):
     gps_attrs = ""
     if gps_latitude is not None:
         gps_attrs += f'\n  exif:GPSLatitude="{gps_latitude}"'
     if gps_longitude is not None:
         gps_attrs += f'\n  exif:GPSLongitude="{gps_longitude}"'
+    subject_block = ""
+    if keywords:
+        items = "".join(f"<rdf:li>{kw}</rdf:li>" for kw in keywords)
+        subject_block = f"\n<dc:subject><rdf:Bag>{items}</rdf:Bag></dc:subject>"
     return f"""<x:xmpmeta>
 <rdf:Description
   xmlns:xmp="adobe:ns:meta/"
@@ -316,7 +321,7 @@ def build_xmp(
   tiff:Orientation="1"{gps_attrs}>
 </rdf:Description>
 <dc:creator><rdf:Seq><rdf:li>{author}</rdf:li></rdf:Seq></dc:creator>
-<dc:rights><rdf:Alt><rdf:li>{copyright_text}</rdf:li></rdf:Alt></dc:rights>
+<dc:rights><rdf:Alt><rdf:li>{copyright_text}</rdf:li></rdf:Alt></dc:rights>{subject_block}
 </x:xmpmeta>""".encode("utf-8")
 
 
@@ -681,6 +686,7 @@ def build_no_metadata_mp4():
 def main():
     ROOT.mkdir(parents=True, exist_ok=True)
     xmp = build_xmp()
+    xmp_with_keywords = build_xmp(keywords=["alpha", "beta"])
     xmp_with_location = build_xmp(gps_latitude="40.4462", gps_longitude="-79.98")
     xmp_conflict = build_xmp(model="IterationTwoXmp", create_date="2024-04-17T00:00:00")
     icc = build_icc_profile()
@@ -710,7 +716,7 @@ def main():
         "no_exif.jpg": build_jpeg(None),
         "malformed_app1.jpg": build_jpeg(build_tiff(gps=False), malformed=True),
         "happy.tiff": build_tiff(gps=False),
-        "xmp.tiff": build_tiff(gps=False, xmp_payload=xmp),
+        "xmp.tiff": build_tiff(gps=False, xmp_payload=xmp_with_keywords),
         "icc.tiff": build_tiff(gps=False, icc_payload=icc),
         "iptc.tiff": build_tiff(gps=False, iptc_payload=build_iptc_iim()),
         "gps.tiff": build_tiff(gps=True),
