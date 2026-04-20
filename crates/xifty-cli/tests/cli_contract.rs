@@ -582,6 +582,99 @@ fn conflicting_png_report_exposes_source_namespaces() {
 }
 
 #[test]
+fn validate_rules_fire_end_to_end_on_cross_namespace_fixture() {
+    // Proves xifty-validate's cross-namespace disagreement rule
+    // (detect_cross_namespace_disagreement in xifty-validate/src/rules.rs:94-137)
+    // actually runs in the CLI pipeline. The load-bearing asymmetry is the
+    // `captured_at` field on fixtures/minimal/validate_conflicts.png:
+    //   - exif DateTimeOriginal = "2024:04:16 12:34:56" (EXIF colon-date form)
+    //   - xmp  CreateDate       = "2024-04-16T12:34:56" (XMP ISO form)
+    // xifty-policy's `normalize_timestamp` (xifty-policy/src/lib.rs:575-592)
+    // canonicalises EXIF colon-dates to the ISO form, so policy's
+    // `typed_values_equal` reports no material difference and emits NO
+    // captured_at conflict. xifty-validate canonicalises with plain
+    // `trimmed.to_string()`, treats the two strings as distinct, and emits a
+    // conflict with the distinctive "xmp:CreateDate=... vs
+    // exif:DateTimeOriginal=..." message.
+    //
+    // The negative assertion on "selected" is the load-bearing piece: policy
+    // messages carry "selected"; validate messages do not. If someone drops
+    // `detect_conflicts` from the pipeline, the captured_at entry vanishes
+    // entirely (policy is silent on this field) and the `.expect` fires. If
+    // someone weakens `normalize_timestamp` so policy also emits this field,
+    // dedupe tie-breaks to the policy message and the "selected"-negative
+    // assertion fires. Either regression is caught here.
+    let output = extract_json("validate_conflicts.png", ViewMode::Report);
+    let conflicts = output["report"]["conflicts"].as_array().unwrap();
+    let captured_at = conflicts
+        .iter()
+        .find(|c| c["field"] == "captured_at")
+        .expect(
+            "missing captured_at conflict in report.conflicts — \
+             xifty-validate detect_cross_namespace_disagreement appears not \
+             to have fired; xifty-policy does not emit this field because \
+             normalize_timestamp collapses EXIF colon-date and XMP ISO-date \
+             to the same canonical form",
+        );
+    let message = captured_at["message"]
+        .as_str()
+        .expect("captured_at conflict missing message");
+    assert!(
+        message.contains(" vs "),
+        "expected validate-rule ' vs ' infix in captured_at message, got {:?}",
+        message
+    );
+    assert!(
+        message.contains("CreateDate"),
+        "expected xmp:CreateDate tag name in captured_at message, got {:?}",
+        message
+    );
+    assert!(
+        message.contains("DateTimeOriginal"),
+        "expected exif:DateTimeOriginal tag name in captured_at message, got {:?}",
+        message
+    );
+    assert!(
+        !message.contains("selected"),
+        "captured_at message contains 'selected' — this is the policy-layer \
+         format, indicating either dedupe collapsed the validate entry into a \
+         policy entry or the validate rule did not fire at all; got {:?}",
+        message
+    );
+    let sources = captured_at["sources"]
+        .as_array()
+        .expect("captured_at conflict missing sources");
+    assert!(
+        sources.len() >= 2,
+        "expected at least two sides for captured_at conflict, got {}",
+        sources.len()
+    );
+    let namespaces: std::collections::BTreeSet<&str> = sources
+        .iter()
+        .filter_map(|side| side["provenance"]["namespace"].as_str())
+        .collect();
+    assert!(
+        namespaces.contains("exif") && namespaces.contains("xmp"),
+        "expected both exif and xmp namespaces in captured_at sources, got {:?}",
+        namespaces
+    );
+    let values: std::collections::BTreeSet<&str> = sources
+        .iter()
+        .filter_map(|side| side["value"]["value"].as_str())
+        .collect();
+    assert!(
+        values.contains("2024:04:16 12:34:56"),
+        "expected raw EXIF colon-date value in captured_at sources, got {:?}",
+        values
+    );
+    assert!(
+        values.contains("2024-04-16T12:34:56"),
+        "expected raw XMP ISO-date value in captured_at sources, got {:?}",
+        values
+    );
+}
+
+#[test]
 fn icc_png_interpreted_view_includes_icc_fields() {
     let output = extract_json("icc.png", ViewMode::Interpreted);
     assert_eq!(
@@ -674,6 +767,14 @@ fn conflicting_png_report_snapshot() {
     assert_json_snapshot!(
         "conflicting_png_report",
         extract_json("conflicting.png", ViewMode::Report)
+    );
+}
+
+#[test]
+fn validate_conflicts_png_report_snapshot() {
+    assert_json_snapshot!(
+        "validate_conflicts_png_report",
+        extract_json("validate_conflicts.png", ViewMode::Report)
     );
 }
 
