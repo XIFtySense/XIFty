@@ -8,7 +8,7 @@
   "scripts": {
     "prepare:layer": "../../tools/build-node-lambda-layer.sh layer",
     "build:layer:zip": "../../tools/build-node-lambda-layer.sh layer layer/xifty-node-layer.zip",
-    "validate": "sam validate --template-file template.yaml",
+    "validate": "sam validate --template-file template.yaml --region us-east-1",
     "invoke:fixture": "node scripts/invoke-local.cjs events/local-file.json",
     "invoke:gps": "node scripts/invoke-local.cjs events/local-gps-file.json"
   },

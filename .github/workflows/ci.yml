@@ -127,4 +127,4 @@ jobs:
 
       - name: Build AWS SAM application
         working-directory: examples/aws-sam-node
-        run: sam build --template-file template.yaml --build-dir .aws-sam/build
+        run: sam build --template-file template.yaml --build-dir .aws-sam/build --region us-east-1
