@@ -530,6 +530,50 @@ fn conflicting_png_report_exposes_source_namespaces() {
 }
 
 #[test]
+fn validate_rules_fire_end_to_end_on_cross_namespace_fixture() {
+    // Exercises the conflict-detection pipeline end-to-end on a fixture
+    // whose only disagreement is a cross-namespace `device.make` string
+    // (exif="Canon" vs xmp:tiff:Make="Nikon"). The xifty-validate
+    // cross-namespace string-disagreement rule fires on this pairing
+    // (rules.rs:94-137); its message is collapsed against the policy-layer
+    // conflict by the CLI-side dedupe (see crates/xifty-cli/src/conflict_dedupe.rs),
+    // so we assert on observable evidence rather than message format:
+    // the device.make conflict must reach `report.conflicts` with both
+    // raw values and both source namespaces preserved.
+    // Timestamp and numeric rules deferred — see issue #43 plan notes.
+    let output = extract_json("validate_conflicts.png", ViewMode::Report);
+    let conflicts = output["report"]["conflicts"].as_array().unwrap();
+    let make_conflict = conflicts
+        .iter()
+        .find(|c| c["field"] == "device.make")
+        .expect("missing device.make conflict in report.conflicts");
+    let sources = make_conflict["sources"].as_array().expect("sources array");
+    assert!(
+        sources.len() >= 2,
+        "expected at least two sides for device.make conflict, got {}",
+        sources.len()
+    );
+    let namespaces: std::collections::BTreeSet<&str> = sources
+        .iter()
+        .filter_map(|side| side["provenance"]["namespace"].as_str())
+        .collect();
+    assert!(
+        namespaces.contains("exif") && namespaces.contains("xmp"),
+        "expected both exif and xmp namespaces in device.make sources, got {:?}",
+        namespaces
+    );
+    let values: std::collections::BTreeSet<&str> = sources
+        .iter()
+        .filter_map(|side| side["value"]["value"].as_str())
+        .collect();
+    assert!(
+        values.contains("Canon") && values.contains("Nikon"),
+        "expected Canon and Nikon raw source values, got {:?}",
+        values
+    );
+}
+
+#[test]
 fn icc_png_interpreted_view_includes_icc_fields() {
     let output = extract_json("icc.png", ViewMode::Interpreted);
     assert_eq!(
@@ -622,6 +666,14 @@ fn conflicting_png_report_snapshot() {
     assert_json_snapshot!(
         "conflicting_png_report",
         extract_json("conflicting.png", ViewMode::Report)
+    );
+}
+
+#[test]
+fn validate_conflicts_png_report_snapshot() {
+    assert_json_snapshot!(
+        "validate_conflicts_png_report",
+        extract_json("validate_conflicts.png", ViewMode::Report)
     );
 }
 
