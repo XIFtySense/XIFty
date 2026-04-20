@@ -65,9 +65,19 @@ What is now proven:
 
 - EXIF and XMP coexistence
 - policy-driven normalized field selection
-- explicit conflict reporting
+- explicit conflict reporting from two independent sources: entry-level
+  detection rules in `xifty-validate` and winner-selection conflicts from
+  `xifty-policy`
 - provenance-preserving normalized derivation
 - bounded editorial precedence such as XMP-over-IPTC where explicitly modeled
+
+`xifty-validate` now runs three rule families over the full `entries` slice
+before normalization: cross-namespace semantic-tag disagreement (e.g. EXIF
+`Make` vs XMP `Make` for the same file), timestamp timezone/offset mismatch
+(same wall time, differing UTC offset), and numeric precision mismatch (0.5%
+relative tolerance for ISO, aperture, focal length, shutter speed). Both
+validate- and policy-produced conflicts are accumulated with `.extend` in the
+CLI path, so `Report.conflicts` can contain entries from either source.
 
 That moves the project beyond "can we decode bytes?" into "can we derive
 explainable, stable application fields from messy real-world metadata?"
