@@ -4,9 +4,8 @@
 //!   `vendor_length | vendor_string | user_comment_list_length | (length | "KEY=VALUE")*`
 //! All lengths are little-endian u32 — distinct from the big-endian FLAC
 //! block framing that wraps the payload. This crate is container-agnostic:
-//! FLAC passes `"flac"` as the container, and the OGG work (see issue
-//! tracking the OGG audio phase) will pass `"ogg"` without any change to
-//! this crate.
+//! FLAC passes `"flac"` as the container, and OGG passes `"ogg"` as the
+//! container — both consume the same decoder without modification.
 
 use xifty_core::{MetadataEntry, Provenance, TypedValue};
 

@@ -795,6 +795,7 @@ dependencies = [
  "xifty-container-flac",
  "xifty-container-isobmff",
  "xifty-container-jpeg",
+ "xifty-container-ogg",
  "xifty-container-png",
  "xifty-container-riff",
  "xifty-container-tiff",
@@ -843,6 +844,14 @@ dependencies = [
 
 [[package]]
 name = "xifty-container-jpeg"
+version = "0.1.5"
+dependencies = [
+ "xifty-core",
+ "xifty-source",
+]
+
+[[package]]
+name = "xifty-container-ogg"
 version = "0.1.5"
 dependencies = [
  "xifty-core",

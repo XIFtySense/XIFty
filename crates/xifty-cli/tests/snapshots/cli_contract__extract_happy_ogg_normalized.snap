@@ -1,0 +1,120 @@
+---
+source: crates/xifty-cli/tests/cli_contract.rs
+expression: "extract_json(\"happy.ogg\", ViewMode::Normalized)"
+---
+{
+  "input": {
+    "container": "ogg",
+    "detected_format": "ogg",
+    "path": "happy.ogg"
+  },
+  "normalized": {
+    "fields": [
+      {
+        "confidence": 0.949999988079071,
+        "field": "duration",
+        "sources": [
+          {
+            "container": "ogg",
+            "namespace": "ogg",
+            "notes": [
+              "derived from last-page granule / sample_rate"
+            ],
+            "offset_end": 58,
+            "offset_start": 28,
+            "path": "vorbis_ident"
+          }
+        ],
+        "value": {
+          "kind": "float",
+          "value": 1.0
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
+        "field": "codec.audio",
+        "sources": [
+          {
+            "container": "ogg",
+            "namespace": "ogg",
+            "notes": [
+              "derived from first packet signature"
+            ],
+            "offset_end": 58,
+            "offset_start": 28,
+            "path": "vorbis_ident"
+          }
+        ],
+        "value": {
+          "kind": "string",
+          "value": "vorbis"
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
+        "field": "audio.channels",
+        "sources": [
+          {
+            "container": "ogg",
+            "namespace": "ogg",
+            "notes": [
+              "derived from Vorbis identification header"
+            ],
+            "offset_end": 58,
+            "offset_start": 28,
+            "path": "vorbis_ident"
+          }
+        ],
+        "value": {
+          "kind": "integer",
+          "value": 2
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
+        "field": "audio.sample_rate",
+        "sources": [
+          {
+            "container": "ogg",
+            "namespace": "ogg",
+            "notes": [
+              "derived from Vorbis identification header"
+            ],
+            "offset_end": 58,
+            "offset_start": 28,
+            "path": "vorbis_ident"
+          }
+        ],
+        "value": {
+          "kind": "integer",
+          "value": 44100
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
+        "field": "audio.bit_depth",
+        "sources": [
+          {
+            "container": "ogg",
+            "namespace": "ogg",
+            "notes": [
+              "default assumption; vorbis ident header does not encode bits_per_sample"
+            ],
+            "offset_end": 58,
+            "offset_start": 28,
+            "path": "vorbis_ident"
+          }
+        ],
+        "value": {
+          "kind": "integer",
+          "value": 16
+        }
+      }
+    ]
+  },
+  "report": {
+    "conflicts": [],
+    "issues": []
+  },
+  "schema_version": "0.1.0"
+}

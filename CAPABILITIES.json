@@ -67,6 +67,17 @@
         "DurationSeconds"
       ]
     },
+    "ogg": {
+      "status": "bounded",
+      "supported_tags": [
+        "AudioSampleRate",
+        "AudioChannels",
+        "AudioBitDepth",
+        "AudioCodec",
+        "DurationSeconds",
+        "OpusInputSampleRate"
+      ]
+    },
     "itunes": {
       "status": "bounded",
       "supported_tags": [
@@ -164,6 +175,12 @@
     "aiff": {
       "namespaces": {
         "aiff": "bounded"
+      }
+    },
+    "ogg": {
+      "namespaces": {
+        "ogg": "bounded",
+        "vorbis_comment": "bounded"
       }
     }
   },
