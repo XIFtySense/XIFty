@@ -17,6 +17,7 @@ members = [
   "crates/xifty-meta-sony",
   "crates/xifty-meta-xmp",
   "crates/xifty-meta-quicktime",
+  "crates/xifty-meta-itunes",
   "crates/xifty-meta-rtmd",
   "crates/xifty-meta-vorbis-comment",
   "crates/xifty-normalize",

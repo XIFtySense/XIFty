@@ -37,6 +37,9 @@ pub fn detect(source: &SourceBytes) -> Result<Format, XiftyError> {
         if is_mov_brand(bytes) {
             return Ok(Format::Mov);
         }
+        if is_m4a_brand(bytes) {
+            return Ok(Format::M4a);
+        }
         if is_mp4_brand(bytes) {
             return Ok(Format::Mp4);
         }
@@ -94,17 +97,15 @@ fn is_mp4_brand(bytes: &[u8]) -> bool {
 fn mp4_brand(brand: [u8; 4]) -> bool {
     matches!(
         &brand,
-        b"isom"
-            | b"iso2"
-            | b"mp41"
-            | b"mp42"
-            | b"avc1"
-            | b"M4A "
-            | b"M4V "
-            | b"3gp4"
-            | b"3gp5"
-            | b"3g2a"
+        b"isom" | b"iso2" | b"mp41" | b"mp42" | b"avc1" | b"M4V " | b"3gp4" | b"3gp5" | b"3g2a"
     )
+}
+
+fn is_m4a_brand(bytes: &[u8]) -> bool {
+    let Some(brand_bytes) = bytes.get(8..12) else {
+        return false;
+    };
+    matches!(brand_bytes, b"M4A " | b"M4B " | b"M4P ")
 }
 
 #[cfg(test)]
@@ -136,6 +137,9 @@ mod tests {
         let heif = temp_file("a.heic", b"\x00\x00\x00\x18ftypheic\0\0\0\0mif1");
         let mp4 = temp_file("a.mp4", b"\x00\x00\x00\x18ftypisom\0\0\0\0mp42");
         let mov = temp_file("a.mov", b"\x00\x00\x00\x14ftypqt  \0\0\0\0");
+        let m4a = temp_file("a.m4a", b"\x00\x00\x00\x18ftypM4A \0\0\0\0mp42");
+        let m4b = temp_file("a.m4b", b"\x00\x00\x00\x18ftypM4B \0\0\0\0mp42");
+        let m4p = temp_file("a.m4p", b"\x00\x00\x00\x18ftypM4P \0\0\0\0mp42");
         let flac = temp_file("a.flac", b"fLaC\x00\x00\x00\x22");
         let aiff = temp_file("a.aiff", b"FORM\x00\x00\x00\x04AIFF");
         let aifc = temp_file("a.aifc", b"FORM\x00\x00\x00\x04AIFC");
@@ -168,6 +172,18 @@ mod tests {
             Format::Mov
         );
         assert_eq!(
+            detect(&SourceBytes::from_path(&m4a).unwrap()).unwrap(),
+            Format::M4a
+        );
+        assert_eq!(
+            detect(&SourceBytes::from_path(&m4b).unwrap()).unwrap(),
+            Format::M4a
+        );
+        assert_eq!(
+            detect(&SourceBytes::from_path(&m4p).unwrap()).unwrap(),
+            Format::M4a
+        );
+        assert_eq!(
             detect(&SourceBytes::from_path(&flac).unwrap()).unwrap(),
             Format::Flac
         );
@@ -186,6 +202,9 @@ mod tests {
         let _ = fs::remove_file(heif);
         let _ = fs::remove_file(mp4);
         let _ = fs::remove_file(mov);
+        let _ = fs::remove_file(m4a);
+        let _ = fs::remove_file(m4b);
+        let _ = fs::remove_file(m4p);
         let _ = fs::remove_file(flac);
         let _ = fs::remove_file(aiff);
         let _ = fs::remove_file(aifc);

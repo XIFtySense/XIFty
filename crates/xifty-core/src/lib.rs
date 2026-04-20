@@ -13,6 +13,7 @@ pub enum Format {
     Heif,
     Mp4,
     Mov,
+    M4a,
     Flac,
     Aiff,
 }
@@ -27,6 +28,7 @@ impl Format {
             Self::Heif => "heif",
             Self::Mp4 => "mp4",
             Self::Mov => "mov",
+            Self::M4a => "m4a",
             Self::Flac => "flac",
             Self::Aiff => "aiff",
         }

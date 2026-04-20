@@ -1,0 +1,391 @@
+---
+source: crates/xifty-cli/tests/cli_contract.rs
+expression: "extract_json(\"happy.m4a\", ViewMode::Interpreted)"
+---
+{
+  "input": {
+    "container": "isobmff",
+    "detected_format": "m4a",
+    "path": "happy.m4a"
+  },
+  "interpreted": {
+    "metadata": [
+      {
+        "namespace": "quicktime",
+        "notes": [
+          "decoded from quicktime metadata payload title"
+        ],
+        "provenance": {
+          "container": "m4a",
+          "namespace": "quicktime",
+          "offset_end": 399,
+          "offset_start": 360,
+          "path": "quicktime_data"
+        },
+        "tag_id": "Title",
+        "tag_name": "Title",
+        "value": {
+          "kind": "string",
+          "value": "XIFty M4A Track"
+        }
+      },
+      {
+        "namespace": "quicktime",
+        "notes": [
+          "decoded from quicktime metadata payload author"
+        ],
+        "provenance": {
+          "container": "m4a",
+          "namespace": "quicktime",
+          "offset_end": 435,
+          "offset_start": 399,
+          "path": "quicktime_data"
+        },
+        "tag_id": "Author",
+        "tag_name": "Author",
+        "value": {
+          "kind": "string",
+          "value": "XIFty Artist"
+        }
+      },
+      {
+        "namespace": "quicktime",
+        "notes": [
+          "decoded from quicktime metadata payload software"
+        ],
+        "provenance": {
+          "container": "m4a",
+          "namespace": "quicktime",
+          "offset_end": 606,
+          "offset_start": 571,
+          "path": "quicktime_data"
+        },
+        "tag_id": "Software",
+        "tag_name": "Software",
+        "value": {
+          "kind": "string",
+          "value": "XIFtyM4aGen"
+        }
+      },
+      {
+        "namespace": "quicktime",
+        "provenance": {
+          "container": "m4a",
+          "namespace": "quicktime",
+          "notes": [
+            "derived from mvhd or media track timing"
+          ]
+        },
+        "tag_id": "DurationSeconds",
+        "tag_name": "DurationSeconds",
+        "value": {
+          "kind": "float",
+          "value": 12.0
+        }
+      },
+      {
+        "namespace": "quicktime",
+        "provenance": {
+          "container": "m4a",
+          "namespace": "quicktime",
+          "notes": [
+            "derived from audio track sample description"
+          ]
+        },
+        "tag_id": "AudioCodec",
+        "tag_name": "AudioCodec",
+        "value": {
+          "kind": "string",
+          "value": "mp4a"
+        }
+      },
+      {
+        "namespace": "quicktime",
+        "provenance": {
+          "container": "m4a",
+          "namespace": "quicktime",
+          "notes": [
+            "derived from audio track sample entry"
+          ]
+        },
+        "tag_id": "AudioChannels",
+        "tag_name": "AudioChannels",
+        "value": {
+          "kind": "integer",
+          "value": 2
+        }
+      },
+      {
+        "namespace": "quicktime",
+        "provenance": {
+          "container": "m4a",
+          "namespace": "quicktime",
+          "notes": [
+            "derived from audio track sample entry"
+          ]
+        },
+        "tag_id": "AudioSampleRate",
+        "tag_name": "AudioSampleRate",
+        "value": {
+          "kind": "integer",
+          "value": 44100
+        }
+      },
+      {
+        "namespace": "quicktime",
+        "provenance": {
+          "container": "m4a",
+          "namespace": "quicktime",
+          "notes": [
+            "derived from movie header creation time"
+          ]
+        },
+        "tag_id": "CreateDate",
+        "tag_name": "CreateDate",
+        "value": {
+          "kind": "timestamp",
+          "value": "2024-04-16T12:34:56"
+        }
+      },
+      {
+        "namespace": "quicktime",
+        "provenance": {
+          "container": "m4a",
+          "namespace": "quicktime",
+          "notes": [
+            "derived from movie header modification time"
+          ]
+        },
+        "tag_id": "ModifyDate",
+        "tag_name": "ModifyDate",
+        "value": {
+          "kind": "timestamp",
+          "value": "2024-04-16T13:00:00"
+        }
+      },
+      {
+        "namespace": "itunes",
+        "notes": [
+          "decoded from itunes ©nam"
+        ],
+        "provenance": {
+          "container": "m4a",
+          "namespace": "itunes",
+          "offset_end": 399,
+          "offset_start": 360,
+          "path": "itunes_ilst"
+        },
+        "tag_id": "Title",
+        "tag_name": "Title",
+        "value": {
+          "kind": "string",
+          "value": "XIFty M4A Track"
+        }
+      },
+      {
+        "namespace": "itunes",
+        "notes": [
+          "decoded from itunes ©ART"
+        ],
+        "provenance": {
+          "container": "m4a",
+          "namespace": "itunes",
+          "offset_end": 435,
+          "offset_start": 399,
+          "path": "itunes_ilst"
+        },
+        "tag_id": "Artist",
+        "tag_name": "Artist",
+        "value": {
+          "kind": "string",
+          "value": "XIFty Artist"
+        }
+      },
+      {
+        "namespace": "itunes",
+        "notes": [
+          "decoded from itunes ©alb"
+        ],
+        "provenance": {
+          "container": "m4a",
+          "namespace": "itunes",
+          "offset_end": 470,
+          "offset_start": 435,
+          "path": "itunes_ilst"
+        },
+        "tag_id": "Album",
+        "tag_name": "Album",
+        "value": {
+          "kind": "string",
+          "value": "XIFty Album"
+        }
+      },
+      {
+        "namespace": "itunes",
+        "notes": [
+          "decoded from itunes ©day"
+        ],
+        "provenance": {
+          "container": "m4a",
+          "namespace": "itunes",
+          "offset_end": 498,
+          "offset_start": 470,
+          "path": "itunes_ilst"
+        },
+        "tag_id": "Year",
+        "tag_name": "Year",
+        "value": {
+          "kind": "string",
+          "value": "2024"
+        }
+      },
+      {
+        "namespace": "itunes",
+        "notes": [
+          "decoded from itunes ©gen"
+        ],
+        "provenance": {
+          "container": "m4a",
+          "namespace": "itunes",
+          "offset_end": 529,
+          "offset_start": 498,
+          "path": "itunes_ilst"
+        },
+        "tag_id": "Genre",
+        "tag_name": "Genre",
+        "value": {
+          "kind": "string",
+          "value": "Ambient"
+        }
+      },
+      {
+        "namespace": "itunes",
+        "notes": [
+          "decoded from itunes aART"
+        ],
+        "provenance": {
+          "container": "m4a",
+          "namespace": "itunes",
+          "offset_end": 571,
+          "offset_start": 529,
+          "path": "itunes_ilst"
+        },
+        "tag_id": "AlbumArtist",
+        "tag_name": "AlbumArtist",
+        "value": {
+          "kind": "string",
+          "value": "XIFty Album Artist"
+        }
+      },
+      {
+        "namespace": "itunes",
+        "notes": [
+          "decoded from itunes ©too"
+        ],
+        "provenance": {
+          "container": "m4a",
+          "namespace": "itunes",
+          "offset_end": 606,
+          "offset_start": 571,
+          "path": "itunes_ilst"
+        },
+        "tag_id": "Encoder",
+        "tag_name": "Encoder",
+        "value": {
+          "kind": "string",
+          "value": "XIFtyM4aGen"
+        }
+      },
+      {
+        "namespace": "itunes",
+        "notes": [
+          "decoded from itunes trkn"
+        ],
+        "provenance": {
+          "container": "m4a",
+          "namespace": "itunes",
+          "offset_end": 638,
+          "offset_start": 606,
+          "path": "itunes_ilst"
+        },
+        "tag_id": "TrackNumber",
+        "tag_name": "TrackNumber",
+        "value": {
+          "kind": "string",
+          "value": "3/10"
+        }
+      },
+      {
+        "namespace": "itunes",
+        "notes": [
+          "decoded from itunes disk"
+        ],
+        "provenance": {
+          "container": "m4a",
+          "namespace": "itunes",
+          "offset_end": 670,
+          "offset_start": 638,
+          "path": "itunes_ilst"
+        },
+        "tag_id": "DiskNumber",
+        "tag_name": "DiskNumber",
+        "value": {
+          "kind": "string",
+          "value": "1/1"
+        }
+      },
+      {
+        "namespace": "itunes",
+        "notes": [
+          "decoded from itunes cpil"
+        ],
+        "provenance": {
+          "container": "m4a",
+          "namespace": "itunes",
+          "offset_end": 695,
+          "offset_start": 670,
+          "path": "itunes_ilst"
+        },
+        "tag_id": "Compilation",
+        "tag_name": "Compilation",
+        "value": {
+          "kind": "integer",
+          "value": 1
+        }
+      },
+      {
+        "namespace": "itunes",
+        "notes": [
+          "decoded from itunes covr (png cover art)"
+        ],
+        "provenance": {
+          "container": "m4a",
+          "namespace": "itunes",
+          "offset_end": 727,
+          "offset_start": 695,
+          "path": "itunes_ilst"
+        },
+        "tag_id": "CoverArt",
+        "tag_name": "CoverArt",
+        "value": {
+          "kind": "bytes",
+          "value": [
+            137,
+            80,
+            78,
+            71,
+            13,
+            10,
+            26,
+            10
+          ]
+        }
+      }
+    ]
+  },
+  "report": {
+    "conflicts": [],
+    "issues": []
+  },
+  "schema_version": "0.1.0"
+}

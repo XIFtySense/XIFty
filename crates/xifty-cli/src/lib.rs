@@ -16,6 +16,7 @@ use xifty_meta_apple::decode_from_tiff as decode_apple_from_tiff;
 use xifty_meta_exif::{decode_from_tiff, exif_payload_from_jpeg};
 use xifty_meta_icc::{IccPayload, decode_payload as decode_icc_payload};
 use xifty_meta_iptc::{IptcPayload, decode_payload as decode_iptc_payload};
+use xifty_meta_itunes::{ItunesPayload, decode_payload as decode_itunes_payload};
 use xifty_meta_quicktime::{QuickTimePayload, decode_payload as decode_quicktime_payload};
 use xifty_meta_rtmd::{RtmdPacket, decode_packet as decode_rtmd_packet};
 use xifty_meta_sony::decode_from_tiff as decode_sony_from_tiff;
@@ -68,6 +69,10 @@ fn probe_source(source: &SourceBytes) -> Result<ProbeOutput, XiftyError> {
             ("isobmff".to_string(), parsed.nodes, parsed.issues)
         }
         Format::Mov => {
+            let parsed = parse_isobmff(&source)?;
+            ("isobmff".to_string(), parsed.nodes, parsed.issues)
+        }
+        Format::M4a => {
             let parsed = parse_isobmff(&source)?;
             ("isobmff".to_string(), parsed.nodes, parsed.issues)
         }
@@ -469,6 +474,14 @@ fn extract_source(source: &SourceBytes, view_mode: ViewMode) -> Result<AnalysisO
             let isobmff = parse_isobmff(&source)?;
             let mut issues = isobmff.issues.clone();
             let entries = isobmff_entries(&isobmff, source.bytes(), format.as_str(), &mut issues);
+            ("isobmff".to_string(), isobmff.nodes, entries, issues)
+        }
+        Format::M4a => {
+            let isobmff = parse_isobmff(&source)?;
+            let mut issues = isobmff.issues.clone();
+            let mut entries =
+                isobmff_entries(&isobmff, source.bytes(), format.as_str(), &mut issues);
+            entries.extend(itunes_entries(&isobmff, source.bytes(), format.as_str()));
             ("isobmff".to_string(), isobmff.nodes, entries, issues)
         }
         Format::Flac => {
@@ -905,6 +918,29 @@ fn isobmff_entries(
         ));
     }
 
+    entries
+}
+
+fn itunes_entries(
+    container: &xifty_container_isobmff::IsobmffContainer,
+    bytes: &[u8],
+    format_name: &str,
+) -> Vec<MetadataEntry> {
+    let mut entries = Vec::new();
+    for payload in container.itunes_payloads() {
+        if let (Some(tag), Some(payload_bytes)) = (
+            payload.tag.as_deref(),
+            payload_slice(bytes, payload.data_offset, payload.data_length as usize),
+        ) {
+            entries.extend(decode_itunes_payload(ItunesPayload {
+                key: tag,
+                bytes: payload_bytes,
+                container: format_name,
+                offset_start: payload.offset_start,
+                offset_end: payload.offset_end,
+            }));
+        }
+    }
     entries
 }
 
