@@ -69,6 +69,8 @@ cargo run -p xifty-cli -- extract fixtures/minimal/happy.jpg
 cargo run -p xifty-cli -- extract fixtures/minimal/gps.jpg --view normalized
 cargo run -p xifty-cli -- probe fixtures/minimal/happy.aiff
 cargo run -p xifty-cli -- extract fixtures/minimal/happy.aiff --view normalized
+cargo run -p xifty-cli -- probe fixtures/minimal/happy.m4a
+cargo run -p xifty-cli -- extract fixtures/minimal/happy.m4a --view normalized
 ```
 
 Or install the CLI locally from the workspace:
@@ -92,6 +94,7 @@ Current container coverage:
 - PNG / WebP
 - HEIF / HEIC
 - MP4 / MOV
+- M4A / M4B / M4P
 - FLAC
 - AIFF / AIFC
 
@@ -102,6 +105,7 @@ Current namespace coverage:
 - bounded ICC
 - bounded IPTC
 - bounded QuickTime
+- bounded iTunes (`ilst` atoms: Title, Artist, Album, AlbumArtist, Year, Genre, Comment, Composer, Lyrics, Encoder, TrackNumber, DiskNumber, Compilation, BeatsPerMinute, CoverArt)
 - selected Sony and Apple vendor metadata paths
 - bounded Vorbis comment (FLAC)
 - bounded FLAC stream info (sample rate, channels, bit depth, duration, embedded picture)
