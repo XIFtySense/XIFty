@@ -66,6 +66,26 @@
         "AudioBitDepth",
         "DurationSeconds"
       ]
+    },
+    "itunes": {
+      "status": "bounded",
+      "supported_tags": [
+        "Title",
+        "Artist",
+        "Album",
+        "AlbumArtist",
+        "Year",
+        "Genre",
+        "Comment",
+        "Composer",
+        "Lyrics",
+        "Encoder",
+        "TrackNumber",
+        "DiskNumber",
+        "Compilation",
+        "BeatsPerMinute",
+        "CoverArt"
+      ]
     }
   },
   "containers": {
@@ -119,6 +139,12 @@
     "mov": {
       "namespaces": {
         "quicktime": "bounded"
+      }
+    },
+    "m4a": {
+      "namespaces": {
+        "quicktime": "bounded",
+        "itunes": "bounded"
       }
     },
     "flac": {

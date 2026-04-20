@@ -71,6 +71,12 @@ impl IsobmffContainer {
             .filter(|payload| payload.kind == "quicktime")
     }
 
+    pub fn itunes_payloads(&self) -> impl Iterator<Item = &IsobmffPayload> {
+        self.payloads
+            .iter()
+            .filter(|payload| payload.kind == "itunes")
+    }
+
     pub fn is_heif_still_image(&self) -> bool {
         heif_brand(self.major_brand) || self.compatible_brands.iter().copied().any(heif_brand)
     }
@@ -380,6 +386,15 @@ fn parse_children(
             b"ispe" => parse_ispe(cursor, &parsed, state, issues)?,
             b"\xa9ART" | b"\xa9too" | b"\xa9nam" => {
                 if let Some(payload) = parse_quicktime_item(cursor, &parsed) {
+                    payloads.push(payload);
+                }
+                if let Some(payload) = parse_itunes_item(cursor, &parsed) {
+                    payloads.push(payload);
+                }
+            }
+            b"\xa9alb" | b"\xa9day" | b"\xa9gen" | b"\xa9cmt" | b"\xa9wrt" | b"\xa9lyr"
+            | b"aART" | b"trkn" | b"disk" | b"cpil" | b"tmpo" | b"covr" => {
+                if let Some(payload) = parse_itunes_item(cursor, &parsed) {
                     payloads.push(payload);
                 }
             }
@@ -1102,6 +1117,37 @@ fn derive_track_bitrate(track: &TrackFacts) -> Option<u32> {
     Some(bits_per_second as u32)
 }
 
+fn parse_itunes_item(cursor: &Cursor<'_>, parsed: &ParsedBox) -> Option<IsobmffPayload> {
+    let payload = cursor.bytes().get(parsed.data_offset..parsed.end)?;
+    if payload.len() < 16 || payload.get(4..8)? != b"data" {
+        return None;
+    }
+    let tag = itunes_tag_label(parsed.box_type);
+    Some(IsobmffPayload {
+        kind: "itunes",
+        tag: Some(tag),
+        offset_start: cursor.absolute_offset(parsed.start),
+        offset_end: cursor.absolute_offset(parsed.end),
+        data_offset: cursor.absolute_offset(parsed.data_offset),
+        data_length: (parsed.end - parsed.data_offset) as u64,
+        path: parsed.path.clone(),
+    })
+}
+
+/// Produce a canonical iTunes atom label, mapping the leading 0xA9 "©"
+/// prefix byte (Latin-1 copyright sign) to the UTF-8 copyright code point
+/// so downstream consumers can match on stable strings.
+fn itunes_tag_label(box_type: [u8; 4]) -> String {
+    if box_type[0] == 0xA9 {
+        let mut out = String::with_capacity(6);
+        out.push('\u{a9}');
+        out.push_str(&String::from_utf8_lossy(&box_type[1..]));
+        out
+    } else {
+        fourcc(box_type)
+    }
+}
+
 fn parse_quicktime_item(cursor: &Cursor<'_>, parsed: &ParsedBox) -> Option<IsobmffPayload> {
     let payload = cursor.bytes().get(parsed.data_offset..parsed.end)?;
     if payload.len() < 16 || payload.get(4..8)? != b"data" {
@@ -1471,7 +1517,11 @@ fn heif_brand(brand: [u8; 4]) -> bool {
 }
 
 fn supported_brand(brand: [u8; 4]) -> bool {
-    heif_brand(brand) || matches!(&brand, b"qt  " | b"isom" | b"iso2" | b"mp41" | b"mp42")
+    heif_brand(brand)
+        || matches!(
+            &brand,
+            b"qt  " | b"isom" | b"iso2" | b"mp41" | b"mp42" | b"M4A " | b"M4B " | b"M4P "
+        )
 }
 
 #[cfg(test)]
@@ -1833,6 +1883,59 @@ mod tests {
                 .issues
                 .iter()
                 .any(|issue| issue.code == "isobmff_structure_recognized_uninterpreted")
+        );
+    }
+
+    #[test]
+    fn parses_itunes_ilst_atoms() {
+        // Integer-pair atom body for trkn: 8-byte pair slot
+        let trkn_pair = vec![0u8, 0, 0, 0, 0, 3, 0, 10]; // track 3 of 10
+        let mut trkn_payload = vec![0, 0, 0, 0, 0, 0, 0, 0];
+        trkn_payload.extend_from_slice(&trkn_pair);
+        let trkn_data = boxed(b"data", &trkn_payload);
+
+        // bool cpil body (1 byte = 1)
+        let cpil_body = vec![0, 0, 0, 0x15, 0, 0, 0, 0, 1u8];
+        let cpil_data = boxed(b"data", &cpil_body);
+
+        // covr binary body (tiny PNG-ish bytes, flags=0x0D = PNG)
+        let covr_body = vec![0, 0, 0, 0x0D, 0, 0, 0, 0, 0x89, b'P', b'N', b'G'];
+        let covr_data = boxed(b"data", &covr_body);
+
+        let ilst = boxed(
+            b"ilst",
+            &[
+                boxed(b"\xa9nam", &quicktime_data_box("Title")),
+                boxed(b"\xa9ART", &quicktime_data_box("Artist")),
+                boxed(b"\xa9alb", &quicktime_data_box("Album")),
+                boxed(b"\xa9day", &quicktime_data_box("2024")),
+                boxed(b"\xa9gen", &quicktime_data_box("Ambient")),
+                boxed(b"aART", &quicktime_data_box("Album Artist")),
+                boxed(b"trkn", &trkn_data),
+                boxed(b"cpil", &cpil_data),
+                boxed(b"covr", &covr_data),
+            ]
+            .concat(),
+        );
+        let udta = boxed(b"udta", &full_box(b"meta", [0, 0, 0, 0], &ilst));
+        let bytes = [boxed(b"ftyp", b"M4A \0\0\0\0mp42"), boxed(b"moov", &udta)].concat();
+
+        let parsed = parse_bytes(&bytes, 0).unwrap();
+        let itunes: Vec<_> = parsed.itunes_payloads().collect();
+        assert!(itunes.iter().any(|p| p.tag.as_deref() == Some("\u{a9}nam")));
+        assert!(itunes.iter().any(|p| p.tag.as_deref() == Some("\u{a9}alb")));
+        assert!(itunes.iter().any(|p| p.tag.as_deref() == Some("trkn")));
+        assert!(itunes.iter().any(|p| p.tag.as_deref() == Some("cpil")));
+        assert!(itunes.iter().any(|p| p.tag.as_deref() == Some("covr")));
+        assert!(itunes.iter().any(|p| p.tag.as_deref() == Some("aART")));
+        // back-compat: quicktime payloads still emitted for the legacy three
+        assert_eq!(parsed.quicktime_payloads().count(), 2);
+        // M4A brand is now a supported brand (no unrecognized-brand info issue)
+        assert!(
+            !parsed
+                .issues
+                .iter()
+                .any(|issue| issue.code == "isobmff_unrecognized_brand")
         );
     }
 

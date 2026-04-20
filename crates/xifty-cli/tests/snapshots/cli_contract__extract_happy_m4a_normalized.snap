@@ -1,0 +1,173 @@
+---
+source: crates/xifty-cli/tests/cli_contract.rs
+expression: "extract_json(\"happy.m4a\", ViewMode::Normalized)"
+---
+{
+  "input": {
+    "container": "isobmff",
+    "detected_format": "m4a",
+    "path": "happy.m4a"
+  },
+  "normalized": {
+    "fields": [
+      {
+        "confidence": 0.949999988079071,
+        "field": "captured_at",
+        "sources": [
+          {
+            "container": "m4a",
+            "namespace": "quicktime",
+            "notes": [
+              "derived from movie header creation time"
+            ]
+          }
+        ],
+        "value": {
+          "kind": "timestamp",
+          "value": "2024-04-16T12:34:56"
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
+        "field": "created_at",
+        "sources": [
+          {
+            "container": "m4a",
+            "namespace": "quicktime",
+            "notes": [
+              "derived from movie header creation time"
+            ]
+          }
+        ],
+        "value": {
+          "kind": "timestamp",
+          "value": "2024-04-16T12:34:56"
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
+        "field": "modified_at",
+        "sources": [
+          {
+            "container": "m4a",
+            "namespace": "quicktime",
+            "notes": [
+              "derived from movie header modification time"
+            ]
+          }
+        ],
+        "value": {
+          "kind": "timestamp",
+          "value": "2024-04-16T13:00:00"
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
+        "field": "software",
+        "sources": [
+          {
+            "container": "m4a",
+            "namespace": "quicktime",
+            "offset_end": 606,
+            "offset_start": 571,
+            "path": "quicktime_data"
+          }
+        ],
+        "value": {
+          "kind": "string",
+          "value": "XIFtyM4aGen"
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
+        "field": "author",
+        "sources": [
+          {
+            "container": "m4a",
+            "namespace": "quicktime",
+            "offset_end": 435,
+            "offset_start": 399,
+            "path": "quicktime_data"
+          }
+        ],
+        "value": {
+          "kind": "string",
+          "value": "XIFty Artist"
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
+        "field": "duration",
+        "sources": [
+          {
+            "container": "m4a",
+            "namespace": "quicktime",
+            "notes": [
+              "derived from mvhd or media track timing"
+            ]
+          }
+        ],
+        "value": {
+          "kind": "float",
+          "value": 12.0
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
+        "field": "codec.audio",
+        "sources": [
+          {
+            "container": "m4a",
+            "namespace": "quicktime",
+            "notes": [
+              "derived from audio track sample description"
+            ]
+          }
+        ],
+        "value": {
+          "kind": "string",
+          "value": "mp4a"
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
+        "field": "audio.channels",
+        "sources": [
+          {
+            "container": "m4a",
+            "namespace": "quicktime",
+            "notes": [
+              "derived from audio track sample entry"
+            ]
+          }
+        ],
+        "value": {
+          "kind": "integer",
+          "value": 2
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
+        "field": "audio.sample_rate",
+        "sources": [
+          {
+            "container": "m4a",
+            "namespace": "quicktime",
+            "notes": [
+              "derived from audio track sample entry"
+            ]
+          }
+        ],
+        "value": {
+          "kind": "integer",
+          "value": 44100
+        }
+      }
+    ]
+  },
+  "report": {
+    "conflicts": [],
+    "issues": []
+  },
+  "schema_version": "0.1.0"
+}

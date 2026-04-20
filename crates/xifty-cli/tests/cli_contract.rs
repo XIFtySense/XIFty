@@ -161,6 +161,11 @@ fn probe_snapshot_happy_mov() {
 }
 
 #[test]
+fn probe_snapshot_happy_m4a() {
+    assert_json_snapshot!("probe_happy_m4a", probe_json("happy.m4a"));
+}
+
+#[test]
 fn extract_snapshot_happy_jpeg() {
     assert_json_snapshot!(
         "extract_happy_jpeg",
@@ -277,6 +282,22 @@ fn extract_snapshot_happy_mov_normalized() {
     assert_json_snapshot!(
         "extract_happy_mov_normalized",
         extract_json("happy.mov", ViewMode::Normalized)
+    );
+}
+
+#[test]
+fn extract_snapshot_happy_m4a_normalized() {
+    assert_json_snapshot!(
+        "extract_happy_m4a_normalized",
+        extract_json("happy.m4a", ViewMode::Normalized)
+    );
+}
+
+#[test]
+fn extract_snapshot_happy_m4a_interpreted() {
+    assert_json_snapshot!(
+        "extract_happy_m4a_interpreted",
+        extract_json("happy.m4a", ViewMode::Interpreted)
     );
 }
 

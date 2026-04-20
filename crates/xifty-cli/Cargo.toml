@@ -28,6 +28,7 @@ xifty-meta-apple = { path = "../xifty-meta-apple" }
 xifty-meta-sony = { path = "../xifty-meta-sony" }
 xifty-meta-xmp = { path = "../xifty-meta-xmp" }
 xifty-meta-quicktime = { path = "../xifty-meta-quicktime" }
+xifty-meta-itunes = { path = "../xifty-meta-itunes" }
 xifty-meta-rtmd = { path = "../xifty-meta-rtmd" }
 xifty-meta-vorbis-comment = { path = "../xifty-meta-vorbis-comment" }
 xifty-normalize = { path = "../xifty-normalize" }

@@ -1,0 +1,204 @@
+---
+source: crates/xifty-cli/tests/cli_contract.rs
+expression: "probe_json(\"happy.m4a\")"
+---
+{
+  "containers": [
+    {
+      "kind": "box",
+      "label": "ftyp",
+      "offset_end": 24,
+      "offset_start": 0
+    },
+    {
+      "kind": "box",
+      "label": "moov",
+      "offset_end": 727,
+      "offset_start": 24
+    },
+    {
+      "kind": "box",
+      "label": "moov/mvhd",
+      "offset_end": 68,
+      "offset_start": 32,
+      "parent_label": "moov"
+    },
+    {
+      "kind": "box",
+      "label": "moov/trak",
+      "offset_end": 332,
+      "offset_start": 68,
+      "parent_label": "moov"
+    },
+    {
+      "kind": "box",
+      "label": "moov/trak/tkhd",
+      "offset_end": 168,
+      "offset_start": 76,
+      "parent_label": "moov/trak"
+    },
+    {
+      "kind": "box",
+      "label": "moov/trak/mdia",
+      "offset_end": 332,
+      "offset_start": 168,
+      "parent_label": "moov/trak"
+    },
+    {
+      "kind": "box",
+      "label": "moov/trak/mdia/mdhd",
+      "offset_end": 208,
+      "offset_start": 176,
+      "parent_label": "moov/trak/mdia"
+    },
+    {
+      "kind": "box",
+      "label": "moov/trak/mdia/hdlr",
+      "offset_end": 240,
+      "offset_start": 208,
+      "parent_label": "moov/trak/mdia"
+    },
+    {
+      "kind": "box",
+      "label": "moov/trak/mdia/minf",
+      "offset_end": 332,
+      "offset_start": 240,
+      "parent_label": "moov/trak/mdia"
+    },
+    {
+      "kind": "box",
+      "label": "moov/trak/mdia/minf/stbl",
+      "offset_end": 332,
+      "offset_start": 248,
+      "parent_label": "moov/trak/mdia/minf"
+    },
+    {
+      "kind": "box",
+      "label": "moov/trak/mdia/minf/stbl/stsd",
+      "offset_end": 308,
+      "offset_start": 256,
+      "parent_label": "moov/trak/mdia/minf/stbl"
+    },
+    {
+      "kind": "box",
+      "label": "moov/trak/mdia/minf/stbl/stts",
+      "offset_end": 332,
+      "offset_start": 308,
+      "parent_label": "moov/trak/mdia/minf/stbl"
+    },
+    {
+      "kind": "box",
+      "label": "moov/udta",
+      "offset_end": 727,
+      "offset_start": 332,
+      "parent_label": "moov"
+    },
+    {
+      "kind": "box",
+      "label": "moov/udta/meta",
+      "offset_end": 727,
+      "offset_start": 340,
+      "parent_label": "moov/udta"
+    },
+    {
+      "kind": "box",
+      "label": "moov/udta/meta/ilst",
+      "offset_end": 727,
+      "offset_start": 352,
+      "parent_label": "moov/udta/meta"
+    },
+    {
+      "kind": "box",
+      "label": "moov/udta/meta/ilst/�nam",
+      "offset_end": 399,
+      "offset_start": 360,
+      "parent_label": "moov/udta/meta/ilst"
+    },
+    {
+      "kind": "box",
+      "label": "moov/udta/meta/ilst/�ART",
+      "offset_end": 435,
+      "offset_start": 399,
+      "parent_label": "moov/udta/meta/ilst"
+    },
+    {
+      "kind": "box",
+      "label": "moov/udta/meta/ilst/�alb",
+      "offset_end": 470,
+      "offset_start": 435,
+      "parent_label": "moov/udta/meta/ilst"
+    },
+    {
+      "kind": "box",
+      "label": "moov/udta/meta/ilst/�day",
+      "offset_end": 498,
+      "offset_start": 470,
+      "parent_label": "moov/udta/meta/ilst"
+    },
+    {
+      "kind": "box",
+      "label": "moov/udta/meta/ilst/�gen",
+      "offset_end": 529,
+      "offset_start": 498,
+      "parent_label": "moov/udta/meta/ilst"
+    },
+    {
+      "kind": "box",
+      "label": "moov/udta/meta/ilst/aART",
+      "offset_end": 571,
+      "offset_start": 529,
+      "parent_label": "moov/udta/meta/ilst"
+    },
+    {
+      "kind": "box",
+      "label": "moov/udta/meta/ilst/�too",
+      "offset_end": 606,
+      "offset_start": 571,
+      "parent_label": "moov/udta/meta/ilst"
+    },
+    {
+      "kind": "box",
+      "label": "moov/udta/meta/ilst/trkn",
+      "offset_end": 638,
+      "offset_start": 606,
+      "parent_label": "moov/udta/meta/ilst"
+    },
+    {
+      "kind": "box",
+      "label": "moov/udta/meta/ilst/disk",
+      "offset_end": 670,
+      "offset_start": 638,
+      "parent_label": "moov/udta/meta/ilst"
+    },
+    {
+      "kind": "box",
+      "label": "moov/udta/meta/ilst/cpil",
+      "offset_end": 695,
+      "offset_start": 670,
+      "parent_label": "moov/udta/meta/ilst"
+    },
+    {
+      "kind": "box",
+      "label": "moov/udta/meta/ilst/covr",
+      "offset_end": 727,
+      "offset_start": 695,
+      "parent_label": "moov/udta/meta/ilst"
+    }
+  ],
+  "input": {
+    "container": "isobmff",
+    "detected_format": "m4a",
+    "path": "happy.m4a"
+  },
+  "report": {
+    "conflicts": [],
+    "issues": [
+      {
+        "code": "no_metadata_entries",
+        "message": "no supported metadata entries were decoded",
+        "severity": "info"
+      }
+    ]
+  },
+  "schema_version": "0.1.0"
+}

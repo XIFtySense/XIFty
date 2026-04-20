@@ -520,6 +520,31 @@ def quicktime_data_box(text):
     return iso_box(b"data", payload)
 
 
+def itunes_text_data_box(text):
+    """iTunes text data atom: flags=0x01 (UTF-8), locale=0."""
+    payload = b"\x00\x00\x00\x01" + b"\x00\x00\x00\x00" + text.encode("utf-8")
+    return iso_box(b"data", payload)
+
+
+def itunes_pair_data_box(index, total):
+    """iTunes trkn/disk data atom: flags=0x00, locale=0, body reserved(2)+index(2)+total(2)+reserved(2)."""
+    body = struct.pack(">HHHH", 0, index, total, 0)
+    payload = b"\x00\x00\x00\x00" + b"\x00\x00\x00\x00" + body
+    return iso_box(b"data", payload)
+
+
+def itunes_bool_data_box(value):
+    """iTunes bool atom: flags=0x15 (int), 1-byte payload."""
+    payload = b"\x00\x00\x00\x15" + b"\x00\x00\x00\x00" + bytes([1 if value else 0])
+    return iso_box(b"data", payload)
+
+
+def itunes_covr_data_box(png_bytes):
+    """iTunes covr atom: flags=0x0E (PNG)."""
+    payload = b"\x00\x00\x00\x0E" + b"\x00\x00\x00\x00" + png_bytes
+    return iso_box(b"data", payload)
+
+
 def build_video_sample_entry(codec, *, bitrate):
     sample = bytearray(b"\x00" * 6 + struct.pack(">H", 1))
     sample += b"\x00" * 16
@@ -682,6 +707,50 @@ def build_unsupported_mp4():
 
 def build_no_metadata_mp4():
     return build_media_file(major_brand=b"isom", compatible_brand=b"mp42", include_movie=False)
+
+
+def build_m4a(duration=12.0):
+    """Build a minimal audio-only M4A with a richer iTunes ilst atom tree."""
+    timescale = 1000
+    movie_duration = int(duration * timescale)
+    mvhd_payload = (
+        struct.pack(">I", qt_epoch_seconds(2024, 4, 16, 12, 34, 56))
+        + struct.pack(">I", qt_epoch_seconds(2024, 4, 16, 13, 0, 0))
+        + struct.pack(">I", timescale)
+        + struct.pack(">I", movie_duration)
+        + b"\x00" * 8
+    )
+    mvhd = full_box(b"mvhd", mvhd_payload)
+    audio_timescale = 44100
+    audio_duration = int(duration * audio_timescale)
+    audio_track = build_track(
+        handler=b"soun",
+        codec=b"mp4a",
+        duration=audio_duration,
+        timescale=audio_timescale,
+        channels=2,
+        sample_rate=44100,
+    )
+    # Minimal PNG stub for covr (flags=0x0E = PNG).
+    png_stub = bytes.fromhex("89504E470D0A1A0A")
+    ilst = iso_box(
+        b"ilst",
+        iso_box(b"\xa9nam", itunes_text_data_box("XIFty M4A Track"))
+        + iso_box(b"\xa9ART", itunes_text_data_box("XIFty Artist"))
+        + iso_box(b"\xa9alb", itunes_text_data_box("XIFty Album"))
+        + iso_box(b"\xa9day", itunes_text_data_box("2024"))
+        + iso_box(b"\xa9gen", itunes_text_data_box("Ambient"))
+        + iso_box(b"aART", itunes_text_data_box("XIFty Album Artist"))
+        + iso_box(b"\xa9too", itunes_text_data_box("XIFtyM4aGen"))
+        + iso_box(b"trkn", itunes_pair_data_box(3, 10))
+        + iso_box(b"disk", itunes_pair_data_box(1, 1))
+        + iso_box(b"cpil", itunes_bool_data_box(True))
+        + iso_box(b"covr", itunes_covr_data_box(png_stub)),
+    )
+    udta = iso_box(b"udta", full_box(b"meta", ilst))
+    moov = iso_box(b"moov", mvhd + audio_track + udta)
+    ftyp = iso_box(b"ftyp", b"M4A " + b"\x00\x00\x00\x00" + b"mp42" + b"isom")
+    return ftyp + moov
 
 
 def build_flac(
@@ -934,6 +1003,7 @@ def main():
         "unsupported.mp4": build_unsupported_mp4(),
         "no_metadata.mp4": build_no_metadata_mp4(),
         "malformed.mp4": build_mp4(malformed=True),
+        "happy.m4a": build_m4a(),
         "happy.mov": build_mov(),
         "malformed.mov": build_mov(malformed=True),
         "happy.flac": build_flac(),
