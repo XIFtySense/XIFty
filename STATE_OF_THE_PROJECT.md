@@ -78,8 +78,9 @@ before normalization: cross-namespace semantic-tag disagreement (e.g. EXIF
 `Make` vs XMP `Make` for the same file), timestamp timezone/offset mismatch
 (same wall time, differing UTC offset), and numeric precision mismatch (0.5%
 relative tolerance for ISO, aperture, focal length, shutter speed). Both
-validate- and policy-produced conflicts are accumulated with `.extend` in the
-CLI path, so `Report.conflicts` can contain entries from either source.
+validate- and policy-produced conflicts are accumulated in the CLI path, then
+deduplicated before populating `Report.conflicts`, so each logical disagreement
+appears exactly once regardless of how many emitters surfaced it.
 
 Each conflict entry now carries an optional `sources` array. When present,
 each element identifies one conflict participant: `namespace`, `tag_id`,
