@@ -1,4 +1,4 @@
-use xifty_core::{Conflict, MetadataEntry, NormalizedField, TypedValue};
+use xifty_core::{Conflict, ConflictSide, MetadataEntry, NormalizedField, TypedValue};
 
 #[derive(Debug, Clone, Default)]
 pub struct PolicyResult {
@@ -268,6 +268,7 @@ fn maybe_choose_string(
                 "multiple candidates disagreed; selected {} from {}",
                 winner.tag_name, winner.namespace
             ),
+            sources: build_conflict_sides(&matches, winner),
         });
     }
 
@@ -308,6 +309,7 @@ fn maybe_choose_integer(
                 "multiple candidates disagreed; selected {} from {}",
                 winner.tag_name, winner.namespace
             ),
+            sources: build_conflict_sides(&matches, winner),
         });
     }
 
@@ -344,6 +346,7 @@ fn maybe_choose_float(
                 "multiple candidates disagreed; selected {} from {}",
                 winner.tag_name, winner.namespace
             ),
+            sources: build_conflict_sides(&matches, winner),
         });
     }
 
@@ -389,6 +392,7 @@ fn maybe_choose_rational(
                 "multiple candidates disagreed; selected {} from {}",
                 winner.tag_name, winner.namespace
             ),
+            sources: build_conflict_sides(&matches, winner),
         });
     }
 
@@ -425,6 +429,7 @@ fn maybe_choose_float_like(
                 "multiple candidates disagreed; selected {} from {}",
                 winner.tag_name, winner.namespace
             ),
+            sources: build_conflict_sides(&matches, winner),
         });
     }
 
@@ -515,6 +520,32 @@ fn numeric_value(value: &TypedValue) -> Option<f64> {
         }
         _ => None,
     }
+}
+
+fn build_conflict_sides(matches: &[&MetadataEntry], winner: &MetadataEntry) -> Vec<ConflictSide> {
+    let mut sides = Vec::with_capacity(matches.len());
+    sides.push(ConflictSide {
+        namespace: winner.namespace.clone(),
+        tag_id: winner.tag_id.clone(),
+        tag_name: winner.tag_name.clone(),
+        value: winner.value.clone(),
+        provenance: winner.provenance.clone(),
+    });
+    for m in matches {
+        if std::ptr::eq(*m, winner) {
+            continue;
+        }
+        if !typed_values_equal(&m.value, &winner.value) {
+            sides.push(ConflictSide {
+                namespace: m.namespace.clone(),
+                tag_id: m.tag_id.clone(),
+                tag_name: m.tag_name.clone(),
+                value: m.value.clone(),
+                provenance: m.provenance.clone(),
+            });
+        }
+    }
+    sides
 }
 
 fn conflict_note(matches: &[&MetadataEntry], winner: &MetadataEntry) -> Vec<String> {

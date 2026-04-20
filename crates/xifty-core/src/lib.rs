@@ -54,10 +54,21 @@ pub struct Issue {
     pub context: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, PartialEq)]
 pub struct Conflict {
     pub field: String,
     pub message: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub sources: Vec<ConflictSide>,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq)]
+pub struct ConflictSide {
+    pub namespace: String,
+    pub tag_id: String,
+    pub tag_name: String,
+    pub value: TypedValue,
+    pub provenance: Provenance,
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
