@@ -1,5 +1,6 @@
 ---
 source: crates/xifty-cli/tests/cli_contract.rs
+assertion_line: 507
 expression: "extract_json(\"conflicting.png\", ViewMode::Report)"
 ---
 {
@@ -10,6 +11,14 @@ expression: "extract_json(\"conflicting.png\", ViewMode::Report)"
   },
   "report": {
     "conflicts": [
+      {
+        "field": "captured_at",
+        "message": "xmp:CreateDate=2024-04-17T00:00:00 vs exif:DateTimeOriginal=2024:04:16 12:34:56"
+      },
+      {
+        "field": "device.model",
+        "message": "exif:Model=IterationOne vs xmp:Model=IterationTwoXmp"
+      },
       {
         "field": "captured_at",
         "message": "multiple candidates disagreed; selected DateTimeOriginal from exif"
