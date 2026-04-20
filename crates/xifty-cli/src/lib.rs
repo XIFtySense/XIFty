@@ -177,6 +177,7 @@ fn extract_source(source: &SourceBytes, view_mode: ViewMode) -> Result<AnalysisO
         }
         Format::Tiff => {
             let tiff = parse_tiff(&source)?;
+            let mut issues = tiff.issues.clone();
             let mut entries = decode_from_tiff(source.bytes(), 0, "tiff", &tiff);
             entries.extend(decode_apple_from_tiff(
                 source.bytes(),
@@ -191,7 +192,66 @@ fn extract_source(source: &SourceBytes, view_mode: ViewMode) -> Result<AnalysisO
                 &tiff,
                 &entries,
             ));
-            ("tiff".to_string(), tiff.nodes, entries, tiff.issues)
+            if let Some((offset_start, payload)) =
+                xifty_container_tiff::xmp_payload(source.bytes(), &tiff)
+            {
+                let decoded = decode_packet(XmpPacket {
+                    bytes: payload,
+                    container: "tiff",
+                    offset_start,
+                    offset_end: offset_start + payload.len() as u64,
+                });
+                if decoded.is_empty() {
+                    issues.push(namespace_issue(
+                        "xmp_decode_empty",
+                        "recognized XMP payload but could not decode bounded XMP fields",
+                        offset_start,
+                        "ifd0_xmp",
+                    ));
+                }
+                entries.extend(decoded);
+            }
+            if let Some((offset_start, payload)) =
+                xifty_container_tiff::icc_payload(source.bytes(), &tiff)
+            {
+                let decoded = decode_icc_payload(IccPayload {
+                    bytes: payload,
+                    container: "tiff",
+                    path: "ifd0_icc",
+                    offset_start,
+                    offset_end: offset_start + payload.len() as u64,
+                });
+                if decoded.is_empty() {
+                    issues.push(namespace_issue(
+                        "icc_decode_empty",
+                        "recognized ICC payload but could not decode bounded ICC fields",
+                        offset_start,
+                        "ifd0_icc",
+                    ));
+                }
+                entries.extend(decoded);
+            }
+            if let Some((offset_start, payload)) =
+                xifty_container_tiff::iptc_payload(source.bytes(), &tiff)
+            {
+                let decoded = decode_iptc_payload(IptcPayload {
+                    bytes: payload,
+                    container: "tiff",
+                    path: "ifd0_iptc",
+                    offset_start,
+                    offset_end: offset_start + payload.len() as u64,
+                });
+                if decoded.is_empty() {
+                    issues.push(namespace_issue(
+                        "iptc_decode_empty",
+                        "recognized IPTC payload but could not decode bounded IPTC datasets",
+                        offset_start,
+                        "ifd0_iptc",
+                    ));
+                }
+                entries.extend(decoded);
+            }
+            ("tiff".to_string(), tiff.nodes, entries, issues)
         }
         Format::Png => {
             let png = parse_png(&source)?;
@@ -350,7 +410,7 @@ fn extract_source(source: &SourceBytes, view_mode: ViewMode) -> Result<AnalysisO
 
     let normalization = normalize_with_policy(&entries);
     let mut report = build_report(issues, &entries);
-    report.conflicts = normalization.conflicts;
+    report.conflicts.extend(normalization.conflicts);
     Ok(AnalysisOutput {
         schema_version: SCHEMA_VERSION.into(),
         input: ProbeInput {

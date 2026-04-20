@@ -1,13 +1,12 @@
 ---
 source: crates/xifty-cli/tests/cli_contract.rs
-assertion_line: 245
-expression: "extract_json(\"mixed.webp\", ViewMode::Normalized)"
+expression: "extract_json(\"iptc.tiff\", ViewMode::Normalized)"
 ---
 {
   "input": {
-    "container": "webp",
-    "detected_format": "webp",
-    "path": "mixed.webp"
+    "container": "tiff",
+    "detected_format": "tiff",
+    "path": "iptc.tiff"
   },
   "normalized": {
     "fields": [
@@ -16,10 +15,10 @@ expression: "extract_json(\"mixed.webp\", ViewMode::Normalized)"
         "field": "captured_at",
         "sources": [
           {
-            "container": "webp",
+            "container": "tiff",
             "namespace": "exif",
-            "offset_end": 170,
-            "offset_start": 158,
+            "offset_end": 240,
+            "offset_start": 228,
             "path": "exif_ifd"
           }
         ],
@@ -33,10 +32,10 @@ expression: "extract_json(\"mixed.webp\", ViewMode::Normalized)"
         "field": "created_at",
         "sources": [
           {
-            "container": "webp",
+            "container": "tiff",
             "namespace": "exif",
-            "offset_end": 182,
-            "offset_start": 170,
+            "offset_end": 252,
+            "offset_start": 240,
             "path": "exif_ifd"
           }
         ],
@@ -47,30 +46,13 @@ expression: "extract_json(\"mixed.webp\", ViewMode::Normalized)"
       },
       {
         "confidence": 0.949999988079071,
-        "field": "modified_at",
-        "sources": [
-          {
-            "container": "webp",
-            "namespace": "xmp",
-            "offset_end": 1004,
-            "offset_start": 350,
-            "path": "xmp_packet"
-          }
-        ],
-        "value": {
-          "kind": "timestamp",
-          "value": "2024-04-16T13:00:00"
-        }
-      },
-      {
-        "confidence": 0.949999988079071,
         "field": "device.make",
         "sources": [
           {
-            "container": "webp",
+            "container": "tiff",
             "namespace": "exif",
-            "offset_end": 66,
-            "offset_start": 54,
+            "offset_end": 46,
+            "offset_start": 34,
             "path": "ifd0"
           }
         ],
@@ -82,15 +64,12 @@ expression: "extract_json(\"mixed.webp\", ViewMode::Normalized)"
       {
         "confidence": 0.949999988079071,
         "field": "device.model",
-        "notes": [
-          "selected Model from exif over 1 competing candidate(s)"
-        ],
         "sources": [
           {
-            "container": "webp",
+            "container": "tiff",
             "namespace": "exif",
-            "offset_end": 78,
-            "offset_start": 66,
+            "offset_end": 58,
+            "offset_start": 46,
             "path": "ifd0"
           }
         ],
@@ -102,15 +81,12 @@ expression: "extract_json(\"mixed.webp\", ViewMode::Normalized)"
       {
         "confidence": 0.949999988079071,
         "field": "software",
-        "notes": [
-          "selected Software from exif over 1 competing candidate(s)"
-        ],
         "sources": [
           {
-            "container": "webp",
+            "container": "tiff",
             "namespace": "exif",
-            "offset_end": 102,
-            "offset_start": 90,
+            "offset_end": 82,
+            "offset_start": 70,
             "path": "ifd0"
           }
         ],
@@ -124,16 +100,16 @@ expression: "extract_json(\"mixed.webp\", ViewMode::Normalized)"
         "field": "author",
         "sources": [
           {
-            "container": "webp",
-            "namespace": "xmp",
-            "offset_end": 1004,
-            "offset_start": 350,
-            "path": "xmp_packet"
+            "container": "tiff",
+            "namespace": "iptc",
+            "offset_end": 226,
+            "offset_start": 148,
+            "path": "ifd0_iptc"
           }
         ],
         "value": {
           "kind": "string",
-          "value": "K"
+          "value": "Kai"
         }
       },
       {
@@ -141,11 +117,11 @@ expression: "extract_json(\"mixed.webp\", ViewMode::Normalized)"
         "field": "copyright",
         "sources": [
           {
-            "container": "webp",
-            "namespace": "xmp",
-            "offset_end": 1004,
-            "offset_start": 350,
-            "path": "xmp_packet"
+            "container": "tiff",
+            "namespace": "iptc",
+            "offset_end": 226,
+            "offset_start": 148,
+            "path": "ifd0_iptc"
           }
         ],
         "value": {
@@ -155,13 +131,47 @@ expression: "extract_json(\"mixed.webp\", ViewMode::Normalized)"
       },
       {
         "confidence": 0.949999988079071,
+        "field": "headline",
+        "sources": [
+          {
+            "container": "tiff",
+            "namespace": "iptc",
+            "offset_end": 226,
+            "offset_start": 148,
+            "path": "ifd0_iptc"
+          }
+        ],
+        "value": {
+          "kind": "string",
+          "value": "XIFty Headline"
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
+        "field": "description",
+        "sources": [
+          {
+            "container": "tiff",
+            "namespace": "iptc",
+            "offset_end": 226,
+            "offset_start": 148,
+            "path": "ifd0_iptc"
+          }
+        ],
+        "value": {
+          "kind": "string",
+          "value": "XIFty Caption"
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
         "field": "orientation",
         "sources": [
           {
-            "container": "webp",
+            "container": "tiff",
             "namespace": "exif",
-            "offset_end": 90,
-            "offset_start": 78,
+            "offset_end": 70,
+            "offset_start": 58,
             "path": "ifd0"
           }
         ],
@@ -173,15 +183,12 @@ expression: "extract_json(\"mixed.webp\", ViewMode::Normalized)"
       {
         "confidence": 0.949999988079071,
         "field": "dimensions.width",
-        "notes": [
-          "selected ImageWidth from exif over 1 competing candidate(s)"
-        ],
         "sources": [
           {
-            "container": "webp",
+            "container": "tiff",
             "namespace": "exif",
-            "offset_end": 42,
-            "offset_start": 30,
+            "offset_end": 22,
+            "offset_start": 10,
             "path": "ifd0"
           }
         ],
@@ -193,15 +200,12 @@ expression: "extract_json(\"mixed.webp\", ViewMode::Normalized)"
       {
         "confidence": 0.949999988079071,
         "field": "dimensions.height",
-        "notes": [
-          "selected ImageHeight from exif over 1 competing candidate(s)"
-        ],
         "sources": [
           {
-            "container": "webp",
+            "container": "tiff",
             "namespace": "exif",
-            "offset_end": 54,
-            "offset_start": 42,
+            "offset_end": 34,
+            "offset_start": 22,
             "path": "ifd0"
           }
         ],
@@ -215,10 +219,10 @@ expression: "extract_json(\"mixed.webp\", ViewMode::Normalized)"
         "field": "exposure.iso",
         "sources": [
           {
-            "container": "webp",
+            "container": "tiff",
             "namespace": "exif",
-            "offset_end": 218,
-            "offset_start": 206,
+            "offset_end": 288,
+            "offset_start": 276,
             "path": "exif_ifd"
           }
         ],
@@ -232,10 +236,10 @@ expression: "extract_json(\"mixed.webp\", ViewMode::Normalized)"
         "field": "exposure.aperture",
         "sources": [
           {
-            "container": "webp",
+            "container": "tiff",
             "namespace": "exif",
-            "offset_end": 206,
-            "offset_start": 194,
+            "offset_end": 276,
+            "offset_start": 264,
             "path": "exif_ifd"
           }
         ],
@@ -252,10 +256,10 @@ expression: "extract_json(\"mixed.webp\", ViewMode::Normalized)"
         "field": "exposure.shutter_speed",
         "sources": [
           {
-            "container": "webp",
+            "container": "tiff",
             "namespace": "exif",
-            "offset_end": 194,
-            "offset_start": 182,
+            "offset_end": 264,
+            "offset_start": 252,
             "path": "exif_ifd"
           }
         ],
@@ -272,10 +276,10 @@ expression: "extract_json(\"mixed.webp\", ViewMode::Normalized)"
         "field": "exposure.focal_length_mm",
         "sources": [
           {
-            "container": "webp",
+            "container": "tiff",
             "namespace": "exif",
-            "offset_end": 230,
-            "offset_start": 218,
+            "offset_end": 300,
+            "offset_start": 288,
             "path": "exif_ifd"
           }
         ],
@@ -289,10 +293,10 @@ expression: "extract_json(\"mixed.webp\", ViewMode::Normalized)"
         "field": "lens.model",
         "sources": [
           {
-            "container": "webp",
+            "container": "tiff",
             "namespace": "exif",
-            "offset_end": 254,
-            "offset_start": 242,
+            "offset_end": 324,
+            "offset_start": 312,
             "path": "exif_ifd"
           }
         ],
@@ -306,10 +310,10 @@ expression: "extract_json(\"mixed.webp\", ViewMode::Normalized)"
         "field": "lens.make",
         "sources": [
           {
-            "container": "webp",
+            "container": "tiff",
             "namespace": "exif",
-            "offset_end": 242,
-            "offset_start": 230,
+            "offset_end": 312,
+            "offset_start": 300,
             "path": "exif_ifd"
           }
         ],
@@ -320,60 +324,28 @@ expression: "extract_json(\"mixed.webp\", ViewMode::Normalized)"
       },
       {
         "confidence": 0.8999999761581421,
-        "field": "location",
+        "field": "keywords",
+        "notes": [
+          "derived from repeated Keywords metadata"
+        ],
         "sources": [
           {
-            "container": "webp",
-            "namespace": "xmp",
-            "offset_end": 1004,
-            "offset_start": 350,
-            "path": "xmp_packet"
-          },
-          {
-            "container": "webp",
-            "namespace": "xmp",
-            "offset_end": 1004,
-            "offset_start": 350,
-            "path": "xmp_packet"
+            "container": "tiff",
+            "namespace": "iptc",
+            "offset_end": 226,
+            "offset_start": 148,
+            "path": "ifd0_iptc"
           }
         ],
         "value": {
-          "kind": "coordinates",
-          "value": {
-            "latitude": 40.4462,
-            "longitude": -79.98
-          }
+          "kind": "string",
+          "value": "xifty, metadata"
         }
       }
     ]
   },
   "report": {
-    "conflicts": [
-      {
-        "field": "captured_at",
-        "message": "xmp:CreateDate=2024-04-16T12:34:56 vs exif:DateTimeOriginal=2024:04:16 12:34:56"
-      },
-      {
-        "field": "device.model",
-        "message": "exif:Model=IterationOne vs xmp:Model=IterationTwo"
-      },
-      {
-        "field": "device.model",
-        "message": "multiple candidates disagreed; selected Model from exif"
-      },
-      {
-        "field": "software",
-        "message": "multiple candidates disagreed; selected Software from exif"
-      },
-      {
-        "field": "dimensions.width",
-        "message": "multiple candidates disagreed; selected ImageWidth from exif"
-      },
-      {
-        "field": "dimensions.height",
-        "message": "multiple candidates disagreed; selected ImageHeight from exif"
-      }
-    ],
+    "conflicts": [],
     "issues": []
   },
   "schema_version": "0.1.0"

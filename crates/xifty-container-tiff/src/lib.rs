@@ -184,6 +184,56 @@ fn walk_ifd(
     Ok(())
 }
 
+/// Returns the absolute byte offset and a borrowed slice for the first IFD
+/// entry in `tiff` whose tag id matches `tag_id`. The returned slice is taken
+/// from `bytes`, which must be the same byte buffer that was passed to
+/// [`parse_bytes`] when producing `tiff`.
+///
+/// Only out-of-line (> 4 byte) payloads are supported; inline values return
+/// `None`. In practice XMP / ICC / IPTC payloads are always out-of-line, so
+/// this matches production usage. Returns `None` when the resolved slice
+/// would exceed `bytes.len()` — never panics.
+fn payload_for_tag<'a>(
+    bytes: &'a [u8],
+    tiff: &TiffContainer,
+    tag_id: u16,
+) -> Option<(u64, &'a [u8])> {
+    let base_offset = tiff
+        .nodes
+        .first()
+        .map(|node| node.offset_start)
+        .unwrap_or(0);
+    let entry = tiff.entries.iter().find(|entry| entry.tag_id == tag_id)?;
+    let byte_len = value_size(entry.type_id).saturating_mul(entry.count as usize);
+    if byte_len == 0 || byte_len <= 4 {
+        return None;
+    }
+    let absolute = entry.value_offset_absolute?;
+    let local = absolute.checked_sub(base_offset)?;
+    let local = usize::try_from(local).ok()?;
+    let end = local.checked_add(byte_len)?;
+    let slice = bytes.get(local..end)?;
+    Some((absolute, slice))
+}
+
+/// Returns the absolute offset and raw XMP packet bytes for the first IFD
+/// entry with tag `0x02BC` (XMLPacket). See [`payload_for_tag`] for semantics.
+pub fn xmp_payload<'a>(bytes: &'a [u8], tiff: &TiffContainer) -> Option<(u64, &'a [u8])> {
+    payload_for_tag(bytes, tiff, 0x02BC)
+}
+
+/// Returns the absolute offset and raw ICC profile bytes for the first IFD
+/// entry with tag `0x8773` (InterColorProfile).
+pub fn icc_payload<'a>(bytes: &'a [u8], tiff: &TiffContainer) -> Option<(u64, &'a [u8])> {
+    payload_for_tag(bytes, tiff, 0x8773)
+}
+
+/// Returns the absolute offset and raw IPTC-IIM bytes for the first IFD entry
+/// with tag `0x83BB` (IPTC-NAA).
+pub fn iptc_payload<'a>(bytes: &'a [u8], tiff: &TiffContainer) -> Option<(u64, &'a [u8])> {
+    payload_for_tag(bytes, tiff, 0x83BB)
+}
+
 fn value_size(type_id: u16) -> usize {
     match type_id {
         1 | 2 | 7 => 1,
@@ -204,5 +254,97 @@ mod tests {
         let parsed = parse_bytes(bytes, 0, "tiff").unwrap();
         assert_eq!(parsed.entries.len(), 0);
         assert!(!parsed.nodes.is_empty());
+    }
+
+    /// Build a TIFF file with exactly one IFD0 entry of type 7 (UNDEFINED)
+    /// whose payload lives out-of-line directly after the IFD.
+    fn build_single_entry_tiff(endian: Endian, tag_id: u16, payload: &[u8]) -> Vec<u8> {
+        let (marker, pack16, pack32): ([u8; 2], fn(u16) -> [u8; 2], fn(u32) -> [u8; 4]) =
+            match endian {
+                Endian::Little => ([b'I', b'I'], |v| v.to_le_bytes(), |v| v.to_le_bytes()),
+                Endian::Big => ([b'M', b'M'], |v| v.to_be_bytes(), |v| v.to_be_bytes()),
+            };
+        let magic: u16 = 42;
+        let first_ifd_off: u32 = 8;
+        let ifd_count: u16 = 1;
+        // Header (8) + count (2) + entry (12) + next_ifd (4) = 26
+        let payload_off: u32 = 8 + 2 + 12 + 4;
+
+        let mut out = Vec::new();
+        out.extend_from_slice(&marker);
+        out.extend_from_slice(&pack16(magic));
+        out.extend_from_slice(&pack32(first_ifd_off));
+        out.extend_from_slice(&pack16(ifd_count));
+        // entry: tag, type=7 (UNDEFINED), count=len, value_or_offset
+        out.extend_from_slice(&pack16(tag_id));
+        out.extend_from_slice(&pack16(7));
+        out.extend_from_slice(&pack32(payload.len() as u32));
+        out.extend_from_slice(&pack32(payload_off));
+        // next IFD pointer
+        out.extend_from_slice(&pack32(0));
+        // payload bytes
+        out.extend_from_slice(payload);
+        out
+    }
+
+    #[test]
+    fn xmp_payload_reads_tag_02bc_little_endian() {
+        let payload = b"<x:xmpmeta>hello</x:xmpmeta>";
+        let bytes = build_single_entry_tiff(Endian::Little, 0x02BC, payload);
+        let tiff = parse_bytes(&bytes, 0, "tiff").unwrap();
+        let (offset, slice) = xmp_payload(&bytes, &tiff).expect("xmp payload present");
+        assert_eq!(slice, payload);
+        assert_eq!(offset, 26);
+    }
+
+    #[test]
+    fn xmp_payload_reads_tag_02bc_big_endian() {
+        let payload = b"<x:xmpmeta>big-endian</x:xmpmeta>";
+        let bytes = build_single_entry_tiff(Endian::Big, 0x02BC, payload);
+        let tiff = parse_bytes(&bytes, 0, "tiff").unwrap();
+        let (offset, slice) = xmp_payload(&bytes, &tiff).expect("xmp payload present");
+        assert_eq!(slice, payload);
+        assert_eq!(offset, 26);
+    }
+
+    #[test]
+    fn icc_payload_reads_tag_8773_little_endian() {
+        let payload: Vec<u8> = (0u8..64).collect();
+        let bytes = build_single_entry_tiff(Endian::Little, 0x8773, &payload);
+        let tiff = parse_bytes(&bytes, 0, "tiff").unwrap();
+        let (_offset, slice) = icc_payload(&bytes, &tiff).expect("icc payload present");
+        assert_eq!(slice, payload.as_slice());
+    }
+
+    #[test]
+    fn iptc_payload_reads_tag_83bb_little_endian() {
+        let payload = b"\x1c\x02\x69\x00\x05HELLO";
+        let bytes = build_single_entry_tiff(Endian::Little, 0x83BB, payload);
+        let tiff = parse_bytes(&bytes, 0, "tiff").unwrap();
+        let (_offset, slice) = iptc_payload(&bytes, &tiff).expect("iptc payload present");
+        assert_eq!(slice, payload);
+    }
+
+    #[test]
+    fn payload_returns_none_when_absent() {
+        // Valid TIFF with a single non-matching tag.
+        let payload = b"irrelevant";
+        let bytes = build_single_entry_tiff(Endian::Little, 0x0100, payload);
+        let tiff = parse_bytes(&bytes, 0, "tiff").unwrap();
+        assert!(xmp_payload(&bytes, &tiff).is_none());
+        assert!(icc_payload(&bytes, &tiff).is_none());
+        assert!(iptc_payload(&bytes, &tiff).is_none());
+    }
+
+    #[test]
+    fn payload_returns_none_for_out_of_bounds_offset() {
+        // Build a tiff, then truncate trailing payload bytes. parse_bytes
+        // will flag `tiff_value_out_of_bounds` and set value_offset_absolute
+        // to None, so the helper must return None rather than panic.
+        let payload = b"<x:xmpmeta>hello</x:xmpmeta>";
+        let mut bytes = build_single_entry_tiff(Endian::Little, 0x02BC, payload);
+        bytes.truncate(bytes.len() - 5);
+        let tiff = parse_bytes(&bytes, 0, "tiff").unwrap();
+        assert!(xmp_payload(&bytes, &tiff).is_none());
     }
 }

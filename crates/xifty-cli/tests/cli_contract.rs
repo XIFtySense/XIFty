@@ -297,6 +297,30 @@ fn extract_snapshot_icc_jpeg_normalized() {
 }
 
 #[test]
+fn extract_snapshot_xmp_tiff_normalized() {
+    assert_json_snapshot!(
+        "extract_xmp_tiff_normalized",
+        extract_json("xmp.tiff", ViewMode::Normalized)
+    );
+}
+
+#[test]
+fn extract_snapshot_icc_tiff_normalized() {
+    assert_json_snapshot!(
+        "extract_icc_tiff_normalized",
+        extract_json("icc.tiff", ViewMode::Normalized)
+    );
+}
+
+#[test]
+fn extract_snapshot_iptc_tiff_normalized() {
+    assert_json_snapshot!(
+        "extract_iptc_tiff_normalized",
+        extract_json("iptc.tiff", ViewMode::Normalized)
+    );
+}
+
+#[test]
 fn extract_snapshot_iptc_jpeg_normalized() {
     assert_json_snapshot!(
         "extract_iptc_jpeg_normalized",
