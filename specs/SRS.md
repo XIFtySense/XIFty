@@ -83,7 +83,8 @@ plan-reviewer and reviewer block on failing GitHub Actions runs from
 PR-blocking checks (required status checks on `main`):
 
 - `Rust Core` (`ci.yml`)
-- `Runtime Artifact` (`ci.yml`)
+- `Runtime Artifact (macos-arm64)` (`ci.yml`)
+- `Runtime Artifact (linux-x64)` (`ci.yml`)
 - `Lambda Node Example` (`ci.yml`)
 - `Docs And Contract` (`hygiene.yml`) — runs on every pull request and
   push to `main`; enforces the cbindgen header staleness check and the
