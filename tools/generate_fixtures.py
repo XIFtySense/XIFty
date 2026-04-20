@@ -787,6 +787,79 @@ def build_flac(
     return bytes(out)
 
 
+def encode_ieee_extended(value):
+    """Encode a positive f64 sample rate as a 10-byte IEEE-754 80-bit
+    extended-precision big-endian value (as used by AIFF COMM)."""
+    if value == 0.0:
+        return b"\x00" * 10
+    import math
+    sign = 0x8000 if value < 0 else 0
+    magnitude = abs(value)
+    frac, exp2 = math.frexp(magnitude)
+    # frac in [0.5, 1.0); shift to produce a u64 with the integer bit set.
+    mantissa = int(frac * (1 << 64))
+    if mantissa >> 63 == 0:
+        # Normalize when frexp returned 0.5 exactly.
+        mantissa = mantissa << 1
+        exp2 -= 1
+    exponent = exp2 + 16383 - 1
+    biased = (exponent & 0x7FFF) | sign
+    return struct.pack(">H", biased) + struct.pack(">Q", mantissa & 0xFFFFFFFFFFFFFFFF)
+
+
+def build_aiff(variant="aiff"):
+    """Build a minimal deterministic AIFF or AIFC file.
+
+    Layout: FORM + AIFF/AIFC + COMM + SSND. Audio is 16-bit / 44.1 kHz /
+    stereo PCM with 44100 frames (1 second) of zero samples so that
+    DurationSeconds and bit_depth normalize cleanly.
+    """
+    sample_rate = 44100
+    channels = 2
+    sample_size = 16
+    num_frames = 44100
+    is_aifc = variant == "aifc"
+
+    # COMM body: num_channels u16, num_sample_frames u32, sample_size u16,
+    # sample_rate 80-bit extended. AIFC appends compression_type u32
+    # plus a Pascal-string compression_name (pad to even length).
+    comm_body = bytearray()
+    comm_body += struct.pack(">H", channels)
+    comm_body += struct.pack(">I", num_frames)
+    comm_body += struct.pack(">H", sample_size)
+    comm_body += encode_ieee_extended(float(sample_rate))
+    if is_aifc:
+        comm_body += b"NONE"
+        name = b"not compressed"
+        comm_body += bytes([len(name)]) + name
+        if len(comm_body) % 2 == 1:
+            comm_body += b"\x00"
+
+    def chunk(chunk_id, body):
+        out = bytearray()
+        out += chunk_id
+        out += struct.pack(">I", len(body))
+        out += body
+        if len(body) % 2 == 1:
+            out += b"\x00"
+        return bytes(out)
+
+    # SSND: 8-byte header (offset u32, block_size u32) + audio bytes.
+    audio_bytes = b"\x00" * (num_frames * channels * (sample_size // 8))
+    ssnd_body = struct.pack(">I", 0) + struct.pack(">I", 0) + audio_bytes
+
+    body = bytearray()
+    body += b"AIFC" if is_aifc else b"AIFF"
+    body += chunk(b"COMM", bytes(comm_body))
+    body += chunk(b"SSND", ssnd_body)
+
+    out = bytearray()
+    out += b"FORM"
+    out += struct.pack(">I", len(body))
+    out += body
+    return bytes(out)
+
+
 def main():
     ROOT.mkdir(parents=True, exist_ok=True)
     xmp = build_xmp()
@@ -864,6 +937,8 @@ def main():
         "happy.mov": build_mov(),
         "malformed.mov": build_mov(malformed=True),
         "happy.flac": build_flac(),
+        "happy.aiff": build_aiff("aiff"),
+        "happy.aifc": build_aiff("aifc"),
     }
 
     for name, data in files.items():

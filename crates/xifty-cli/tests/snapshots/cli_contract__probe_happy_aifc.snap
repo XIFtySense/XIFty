@@ -1,0 +1,44 @@
+---
+source: crates/xifty-cli/tests/cli_contract.rs
+expression: "probe_json(\"happy.aifc\")"
+---
+{
+  "containers": [
+    {
+      "kind": "container",
+      "label": "aifc",
+      "offset_end": 176474,
+      "offset_start": 0
+    },
+    {
+      "kind": "chunk",
+      "label": "comm",
+      "offset_end": 58,
+      "offset_start": 12,
+      "parent_label": "aifc"
+    },
+    {
+      "kind": "chunk",
+      "label": "ssnd",
+      "offset_end": 176474,
+      "offset_start": 58,
+      "parent_label": "aifc"
+    }
+  ],
+  "input": {
+    "container": "aiff",
+    "detected_format": "aiff",
+    "path": "happy.aifc"
+  },
+  "report": {
+    "conflicts": [],
+    "issues": [
+      {
+        "code": "no_metadata_entries",
+        "message": "no supported metadata entries were decoded",
+        "severity": "info"
+      }
+    ]
+  },
+  "schema_version": "0.1.0"
+}

@@ -1,5 +1,6 @@
 use flate2::read::ZlibDecoder;
 use std::{io::Read, path::PathBuf};
+use xifty_container_aiff::{AiffContainer, parse as parse_aiff};
 use xifty_container_flac::{FlacContainer, parse as parse_flac};
 use xifty_container_isobmff::parse as parse_isobmff;
 use xifty_container_jpeg::parse as parse_jpeg;
@@ -73,6 +74,10 @@ fn probe_source(source: &SourceBytes) -> Result<ProbeOutput, XiftyError> {
         Format::Flac => {
             let parsed = parse_flac(&source)?;
             ("flac".to_string(), parsed.nodes, parsed.issues)
+        }
+        Format::Aiff => {
+            let parsed = parse_aiff(&source)?;
+            ("aiff".to_string(), parsed.nodes, parsed.issues)
         }
     };
     Ok(ProbeOutput {
@@ -471,6 +476,12 @@ fn extract_source(source: &SourceBytes, view_mode: ViewMode) -> Result<AnalysisO
             let mut issues = flac.issues.clone();
             let entries = flac_entries(&flac, source.bytes(), &mut issues);
             ("flac".to_string(), flac.nodes, entries, issues)
+        }
+        Format::Aiff => {
+            let aiff = parse_aiff(&source)?;
+            let issues = aiff.issues.clone();
+            let entries = aiff_entries(&aiff);
+            ("aiff".to_string(), aiff.nodes, entries, issues)
         }
     };
 
@@ -1055,6 +1066,80 @@ fn flac_entries(flac: &FlacContainer, bytes: &[u8], issues: &mut Vec<Issue>) -> 
     }
 
     entries
+}
+
+fn aiff_entries(aiff: &AiffContainer) -> Vec<MetadataEntry> {
+    let mut entries = Vec::new();
+    let Some(comm) = &aiff.comm else {
+        return entries;
+    };
+
+    let offset_start = Some(comm.offset_start);
+    let offset_end = Some(comm.offset_end);
+    let path = Some("comm");
+
+    if comm.sample_rate.is_finite() && comm.sample_rate > 0.0 {
+        entries.push(aiff_scalar_entry(
+            "AudioSampleRate",
+            TypedValue::Integer(comm.sample_rate.round() as i64),
+            "derived from AIFF COMM chunk",
+            offset_start,
+            offset_end,
+            path,
+        ));
+    }
+    entries.push(aiff_scalar_entry(
+        "AudioChannels",
+        TypedValue::Integer(comm.num_channels as i64),
+        "derived from AIFF COMM chunk",
+        offset_start,
+        offset_end,
+        path,
+    ));
+    entries.push(aiff_scalar_entry(
+        "AudioBitDepth",
+        TypedValue::Integer(comm.sample_size as i64),
+        "derived from AIFF COMM chunk",
+        offset_start,
+        offset_end,
+        path,
+    ));
+    if let Some(duration) = aiff.duration_seconds {
+        entries.push(aiff_scalar_entry(
+            "DurationSeconds",
+            TypedValue::Float(duration),
+            "derived from AIFF COMM num_sample_frames / sample_rate",
+            offset_start,
+            offset_end,
+            path,
+        ));
+    }
+    entries
+}
+
+fn aiff_scalar_entry(
+    tag_name: &str,
+    value: TypedValue,
+    note: &str,
+    offset_start: Option<u64>,
+    offset_end: Option<u64>,
+    path: Option<&str>,
+) -> MetadataEntry {
+    MetadataEntry {
+        namespace: "aiff".into(),
+        tag_id: tag_name.into(),
+        tag_name: tag_name.into(),
+        value,
+        provenance: Provenance {
+            container: "aiff".into(),
+            namespace: "aiff".into(),
+            path: path.map(|p| p.to_string()),
+            offset_start,
+            offset_end,
+            notes: vec![note.into()],
+        },
+        notes: Vec::new(),
+    }
 }
 
 fn flac_scalar_entry(

@@ -20,6 +20,7 @@ xifty-container-png = { path = "../xifty-container-png" }
 xifty-container-riff = { path = "../xifty-container-riff" }
 xifty-container-isobmff = { path = "../xifty-container-isobmff" }
 xifty-container-flac = { path = "../xifty-container-flac" }
+xifty-container-aiff = { path = "../xifty-container-aiff" }
 xifty-meta-exif = { path = "../xifty-meta-exif" }
 xifty-meta-icc = { path = "../xifty-meta-icc" }
 xifty-meta-iptc = { path = "../xifty-meta-iptc" }

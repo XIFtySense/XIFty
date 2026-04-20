@@ -1,0 +1,100 @@
+---
+source: crates/xifty-cli/tests/cli_contract.rs
+expression: "extract_json(\"happy.aiff\", ViewMode::Normalized)"
+---
+{
+  "input": {
+    "container": "aiff",
+    "detected_format": "aiff",
+    "path": "happy.aiff"
+  },
+  "normalized": {
+    "fields": [
+      {
+        "confidence": 0.949999988079071,
+        "field": "duration",
+        "sources": [
+          {
+            "container": "aiff",
+            "namespace": "aiff",
+            "notes": [
+              "derived from AIFF COMM num_sample_frames / sample_rate"
+            ],
+            "offset_end": 38,
+            "offset_start": 20,
+            "path": "comm"
+          }
+        ],
+        "value": {
+          "kind": "float",
+          "value": 1.0
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
+        "field": "audio.channels",
+        "sources": [
+          {
+            "container": "aiff",
+            "namespace": "aiff",
+            "notes": [
+              "derived from AIFF COMM chunk"
+            ],
+            "offset_end": 38,
+            "offset_start": 20,
+            "path": "comm"
+          }
+        ],
+        "value": {
+          "kind": "integer",
+          "value": 2
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
+        "field": "audio.sample_rate",
+        "sources": [
+          {
+            "container": "aiff",
+            "namespace": "aiff",
+            "notes": [
+              "derived from AIFF COMM chunk"
+            ],
+            "offset_end": 38,
+            "offset_start": 20,
+            "path": "comm"
+          }
+        ],
+        "value": {
+          "kind": "integer",
+          "value": 44100
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
+        "field": "audio.bit_depth",
+        "sources": [
+          {
+            "container": "aiff",
+            "namespace": "aiff",
+            "notes": [
+              "derived from AIFF COMM chunk"
+            ],
+            "offset_end": 38,
+            "offset_start": 20,
+            "path": "comm"
+          }
+        ],
+        "value": {
+          "kind": "integer",
+          "value": 16
+        }
+      }
+    ]
+  },
+  "report": {
+    "conflicts": [],
+    "issues": []
+  },
+  "schema_version": "0.1.0"
+}

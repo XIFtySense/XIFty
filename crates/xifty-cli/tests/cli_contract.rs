@@ -2192,6 +2192,52 @@ fn flac_surfaces_picture_block_on_raw_view() {
     assert_eq!(height["value"]["value"].as_i64(), Some(1));
 }
 
+#[test]
+fn probe_snapshot_happy_aiff() {
+    assert_json_snapshot!("probe_happy_aiff", probe_json("happy.aiff"));
+}
+
+#[test]
+fn probe_snapshot_happy_aifc() {
+    assert_json_snapshot!("probe_happy_aifc", probe_json("happy.aifc"));
+}
+
+#[test]
+fn extract_snapshot_happy_aiff_normalized() {
+    assert_json_snapshot!(
+        "extract_happy_aiff_normalized",
+        extract_json("happy.aiff", ViewMode::Normalized)
+    );
+}
+
+#[test]
+fn aiff_normalization_includes_audio_fields() {
+    let output = extract_json("happy.aiff", ViewMode::Normalized);
+    let normalized = normalized_map(&output);
+    assert_eq!(
+        normalized
+            .get("audio.sample_rate")
+            .and_then(|v| v["value"].as_i64()),
+        Some(44100)
+    );
+    assert_eq!(
+        normalized
+            .get("audio.channels")
+            .and_then(|v| v["value"].as_i64()),
+        Some(2)
+    );
+    assert_eq!(
+        normalized
+            .get("audio.bit_depth")
+            .and_then(|v| v["value"].as_i64()),
+        Some(16)
+    );
+    assert_eq!(
+        normalized.get("duration").and_then(|v| v["value"].as_f64()),
+        Some(1.0)
+    );
+}
+
 fn assert_float_close(left: Option<f64>, right: Option<f64>, label: &str) {
     let left = left.expect("missing left float value");
     let right = right.expect("missing right float value");
