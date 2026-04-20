@@ -122,6 +122,9 @@ beginning to become a small ecosystem centered on the same `C ABI`.
 The repository is doing a better job of being honest about what it supports:
 
 - `CAPABILITIES.json` records bounded capability claims explicitly
+- `CAPABILITIES.json` is now validated against observed CLI output by
+  `tools/generate_capabilities.py --check`, wired into the `Hygiene`
+  workflow — under-reporting drift fails CI automatically
 - checked-in JSON Schema artifacts now exist for the probe and analysis
   envelopes
 - a schema policy now defines additive vs breaking JSON changes
@@ -131,7 +134,8 @@ The repository is doing a better job of being honest about what it supports:
   implying completeness
 
 This matters because a metadata engine can easily overclaim. XIFty has been
-moving in the healthier direction.
+moving in the healthier direction, and capability claims are now backed by
+generated evidence rather than hand-editing alone.
 
 ### 10. Release discipline is starting to match repository discipline
 
@@ -305,8 +309,6 @@ The project has strong discipline here, but there is still room to improve:
   design
 - the newest fuzz targets are checked in, but local smoke execution is still
   environment-sensitive on this machine
-- capability reporting is explicit, but not yet obviously generated from the
-  same source of truth as tests and fixtures
 - the browser demo is real and public, but browser-level automated smoke
   coverage is still lighter than the core CLI/FFI surface
 
@@ -357,7 +359,7 @@ That suggests the next roadmap focus should likely be one of these:
 - package/distribution hardening for the public binding repos
 - deeper deployment and runtime adoption stories beyond the first Lambda slice
 - deeper media and QuickTime metadata coverage
-- stronger capability-generation and corpus-discipline tooling
+- broader corpus coverage to strengthen capability-generation signal
 - selected namespace-depth work where the product value is highest
 
 ## Recommended Next-Step Framing
