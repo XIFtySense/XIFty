@@ -282,16 +282,63 @@ fn find_element(xml: &str, name: &str) -> Option<DecodedText> {
     let open = format!("<{name}>");
     if let Some(start) = xml.find(&open) {
         let body = &xml[start + open.len()..];
-        if let Some(li_start) = body.find("<rdf:li>") {
-            let li_body = &body[li_start + 8..];
-            let li_end = li_body.find("</rdf:li>")?;
+        let close = format!("</{name}>");
+        let element_end = body.find(&close);
+        // If the element contains an <rdf:Alt> block, prefer the xml:lang="x-default"
+        // alternative before falling back to the first <rdf:li>. Otherwise fall back
+        // to the first <rdf:li …> (attributed or bare) inside e.g. <rdf:Bag>/<rdf:Seq>.
+        let scan_slice = match element_end {
+            Some(end) => &body[..end],
+            None => body,
+        };
+        if let Some(alt_start) = scan_slice.find("<rdf:Alt") {
+            // Walk all rdf:li children in the Alt block; prefer x-default.
+            let alt_body = &scan_slice[alt_start..];
+            let mut first_li: Option<String> = None;
+            let mut x_default: Option<String> = None;
+            let mut cursor = alt_body;
+            while let Some((open_tag_end, body_start, li_value)) = next_rdf_li(cursor) {
+                // `open_tag_end` is the index of `>` for the opening tag (within `cursor`);
+                // `body_start` is the index just past it; both are relative to `cursor`.
+                let opening_tag = &cursor[..=open_tag_end];
+                let is_default = opening_tag.contains("xml:lang=\"x-default\"");
+                if first_li.is_none() {
+                    first_li = Some(li_value.clone());
+                }
+                if is_default {
+                    x_default = Some(li_value.clone());
+                    break;
+                }
+                // Advance past this <rdf:li>…</rdf:li>.
+                let consumed = match cursor[body_start..].find("</rdf:li>") {
+                    Some(end) => body_start + end + "</rdf:li>".len(),
+                    None => break,
+                };
+                cursor = &cursor[consumed..];
+            }
+            let preferred = x_default
+                .map(|v| (v, true))
+                .or_else(|| first_li.map(|v| (v, false)));
+            if let Some((value, is_default)) = preferred {
+                let note = if is_default {
+                    format!("decoded from xmp rdf:Alt x-default inside {name}")
+                } else {
+                    format!("decoded from xmp rdf:Alt rdf:li inside {name}")
+                };
+                return Some(DecodedText {
+                    value: xml_unescape(&value),
+                    note,
+                });
+            }
+        }
+        if let Some((_, body_start, li_value)) = next_rdf_li(scan_slice) {
+            let _ = body_start;
             return Some(DecodedText {
-                value: xml_unescape(&li_body[..li_end]),
+                value: xml_unescape(&li_value),
                 note: format!("decoded from xmp rdf:li inside {name}"),
             });
         }
-        let close = format!("</{name}>");
-        let end = body.find(&close)?;
+        let end = element_end?;
         return Some(DecodedText {
             value: xml_unescape(&body[..end]),
             note: format!("decoded from xmp element {name}"),
@@ -299,6 +346,25 @@ fn find_element(xml: &str, name: &str) -> Option<DecodedText> {
     }
 
     None
+}
+
+/// Locate the next `<rdf:li …>` element inside `body`, accepting both the bare
+/// `<rdf:li>` form and the attributed `<rdf:li xml:lang="x-default">` form.
+///
+/// Returns `(open_tag_gt_idx, body_start_idx, inner_value)` where the indices
+/// are offsets within `body`. The scan stops at the first `>` after `<rdf:li`;
+/// pathological attribute values containing an unescaped `>` would mis-terminate,
+/// but XMP producers entity-encode such content. A quick-xml migration is the
+/// right long-term answer — this keeps the file dependency-free per the plan.
+fn next_rdf_li(body: &str) -> Option<(usize, usize, String)> {
+    let li_start = body.find("<rdf:li")?;
+    let after_tag = &body[li_start..];
+    let gt_rel = after_tag.find('>')?;
+    let open_tag_gt_idx = li_start + gt_rel;
+    let body_start = open_tag_gt_idx + 1;
+    let inner = &body[body_start..];
+    let end = inner.find("</rdf:li>")?;
+    Some((open_tag_gt_idx, body_start, inner[..end].to_string()))
 }
 
 fn xml_unescape(value: &str) -> String {
@@ -327,5 +393,67 @@ mod tests {
         assert!(entries.iter().any(|entry| entry.tag_name == "Author"));
         assert!(entries.iter().any(|entry| entry.tag_name == "GPSLatitude"));
         assert!(entries.iter().all(|entry| !entry.notes.is_empty()));
+    }
+
+    #[test]
+    fn xmp_decoder_handles_rdf_alt_x_default_copyright() {
+        let entries = decode_packet(XmpPacket {
+            bytes: r#"<x:xmpmeta><rdf:Description><dc:rights><rdf:Alt><rdf:li xml:lang="x-default">© 2025 K</rdf:li></rdf:Alt></dc:rights></rdf:Description></x:xmpmeta>"#.as_bytes(),
+            container: "png",
+            offset_start: 0,
+            offset_end: 180,
+        });
+        let copyright = entries
+            .iter()
+            .find(|entry| entry.tag_name == "Copyright")
+            .expect("copyright entry present");
+        match &copyright.value {
+            TypedValue::String(value) => assert_eq!(value, "© 2025 K"),
+            other => panic!("expected string, got {other:?}"),
+        }
+        assert!(
+            copyright
+                .notes
+                .iter()
+                .any(|note| note.contains("rdf:Alt x-default")),
+            "expected x-default note, got {:?}",
+            copyright.notes
+        );
+    }
+
+    #[test]
+    fn xmp_decoder_handles_rdf_alt_x_default_description() {
+        let entries = decode_packet(XmpPacket {
+            bytes: br#"<x:xmpmeta><rdf:Description><dc:description><rdf:Alt><rdf:li xml:lang="x-default">A photo of a cat.</rdf:li></rdf:Alt></dc:description></rdf:Description></x:xmpmeta>"#,
+            container: "png",
+            offset_start: 0,
+            offset_end: 200,
+        });
+        let description = entries
+            .iter()
+            .find(|entry| entry.tag_name == "Description")
+            .expect("description entry present");
+        match &description.value {
+            TypedValue::String(value) => assert_eq!(value, "A photo of a cat."),
+            other => panic!("expected string, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn xmp_decoder_prefers_x_default_over_other_languages() {
+        let entries = decode_packet(XmpPacket {
+            bytes: r#"<x:xmpmeta><rdf:Description><dc:rights><rdf:Alt><rdf:li xml:lang="fr">© 2025 français</rdf:li><rdf:li xml:lang="x-default">© 2025 default</rdf:li></rdf:Alt></dc:rights></rdf:Description></x:xmpmeta>"#.as_bytes(),
+            container: "png",
+            offset_start: 0,
+            offset_end: 240,
+        });
+        let copyright = entries
+            .iter()
+            .find(|entry| entry.tag_name == "Copyright")
+            .expect("copyright entry present");
+        match &copyright.value {
+            TypedValue::String(value) => assert_eq!(value, "© 2025 default"),
+            other => panic!("expected string, got {other:?}"),
+        }
     }
 }
