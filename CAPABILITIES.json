@@ -67,8 +67,8 @@
       "namespaces": {
         "exif": "supported",
         "xmp": "supported",
-        "icc": "not_yet_supported",
-        "iptc": "not_yet_supported",
+        "icc": "bounded",
+        "iptc": "bounded",
         "heif": "supported"
       }
     },

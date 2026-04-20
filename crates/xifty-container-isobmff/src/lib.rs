@@ -55,6 +55,16 @@ impl IsobmffContainer {
         self.payloads.iter().filter(|payload| payload.kind == "xmp")
     }
 
+    pub fn icc_payloads(&self) -> impl Iterator<Item = &IsobmffPayload> {
+        self.payloads.iter().filter(|payload| payload.kind == "icc")
+    }
+
+    pub fn iptc_payloads(&self) -> impl Iterator<Item = &IsobmffPayload> {
+        self.payloads
+            .iter()
+            .filter(|payload| payload.kind == "iptc")
+    }
+
     pub fn quicktime_payloads(&self) -> impl Iterator<Item = &IsobmffPayload> {
         self.payloads
             .iter()
@@ -423,6 +433,9 @@ fn parse_children(
                     data_length: (parsed.end - parsed.data_offset) as u64,
                     path: parsed.path.clone(),
                 });
+            }
+            b"colr" => {
+                parse_colr(cursor, &parsed, payloads, issues);
             }
             b"iref" => {
                 issues.push(Issue {
@@ -1330,13 +1343,62 @@ fn metadata_item_kind(info: &ItemInfo) -> Option<&'static str> {
     if &info.item_type == b"Exif" {
         return Some("exif");
     }
+    if &info.item_type == b"iptc" {
+        return Some("iptc");
+    }
     if &info.item_type == b"mime" {
         return match info.content_type.as_deref() {
             Some("application/rdf+xml" | "application/xml" | "text/xml") => Some("xmp"),
+            Some("application/x-iptc") => Some("iptc"),
             _ => None,
         };
     }
     None
+}
+
+fn parse_colr(
+    cursor: &Cursor<'_>,
+    parsed: &ParsedBox,
+    payloads: &mut Vec<IsobmffPayload>,
+    issues: &mut Vec<Issue>,
+) {
+    if parsed.data_offset + 4 > parsed.end {
+        issues.push(Issue {
+            severity: Severity::Warning,
+            code: "isobmff_colr_truncated".into(),
+            message: "colr box is missing colour_type header".into(),
+            offset: Some(cursor.absolute_offset(parsed.data_offset)),
+            context: Some(parsed.path.clone()),
+        });
+        return;
+    }
+    let Ok(colour_type_bytes) = cursor.slice(parsed.data_offset, 4) else {
+        return;
+    };
+    let colour_type = [
+        colour_type_bytes[0],
+        colour_type_bytes[1],
+        colour_type_bytes[2],
+        colour_type_bytes[3],
+    ];
+    // Only restricted/unrestricted ICC profile types carry ICC bytes.
+    // nclx/nclc describe coded primaries without ICC data — skip silently.
+    if &colour_type != b"prof" && &colour_type != b"rICC" {
+        return;
+    }
+    let icc_offset = parsed.data_offset + 4;
+    if icc_offset >= parsed.end {
+        return;
+    }
+    payloads.push(IsobmffPayload {
+        kind: "icc",
+        tag: None,
+        offset_start: cursor.absolute_offset(parsed.start),
+        offset_end: cursor.absolute_offset(parsed.end),
+        data_offset: cursor.absolute_offset(icc_offset),
+        data_length: (parsed.end - icc_offset) as u64,
+        path: parsed.path.clone(),
+    });
 }
 
 fn primary_item_dimensions(state: &ParseState) -> Option<IsobmffDimensions> {
@@ -1613,6 +1675,126 @@ mod tests {
         let parsed = parse_bytes(&bytes, 0).unwrap();
         assert_eq!(parsed.xmp_payloads().count(), 1);
         assert!(parsed.nodes.iter().any(|node| node.label == "meta/mime"));
+    }
+
+    #[test]
+    fn parses_colr_prof_as_icc_payload() {
+        let mut colr_data = b"prof".to_vec();
+        colr_data.extend_from_slice(b"ICCBYTES");
+        let ipco = boxed(b"ipco", &boxed(b"colr", &colr_data));
+        let iprp = boxed(b"iprp", &ipco);
+        let mut bytes = Vec::new();
+        bytes.extend_from_slice(&boxed(b"ftyp", b"heic\0\0\0\0mif1"));
+        bytes.extend_from_slice(&full_box(b"meta", [0, 0, 0, 0], &iprp));
+
+        let parsed = parse_bytes(&bytes, 0).unwrap();
+        let payload = parsed.icc_payloads().next().expect("expected icc payload");
+        assert_eq!(payload.data_length, 8);
+        let icc_bytes = &bytes
+            [payload.data_offset as usize..(payload.data_offset + payload.data_length) as usize];
+        assert_eq!(icc_bytes, b"ICCBYTES");
+    }
+
+    #[test]
+    fn ignores_colr_nclx() {
+        let mut colr_data = b"nclx".to_vec();
+        colr_data.extend_from_slice(&[0u8; 7]);
+        let ipco = boxed(b"ipco", &boxed(b"colr", &colr_data));
+        let iprp = boxed(b"iprp", &ipco);
+        let mut bytes = Vec::new();
+        bytes.extend_from_slice(&boxed(b"ftyp", b"heic\0\0\0\0mif1"));
+        bytes.extend_from_slice(&full_box(b"meta", [0, 0, 0, 0], &iprp));
+
+        let parsed = parse_bytes(&bytes, 0).unwrap();
+        assert_eq!(parsed.icc_payloads().count(), 0);
+    }
+
+    #[test]
+    fn routes_iptc_item_payload() {
+        // Build: ftyp + meta { iinf(infe item_id=1 type=iptc) iloc(item_id=1 extent)
+        //                     mdat-like bytes in a later box for extent offset }.
+        // Use construction_method=0 with base_offset pointing at raw IIM bytes
+        // we place inline after the meta (mimicking mdat).
+        let iim = b"\x1c\x02\x69\x00\x05Hello";
+
+        // infe v2: version(1)+flags(3) + item_id(2) + item_protection_index(2) + item_type(4) + item_name(nul)
+        let mut infe_payload = Vec::new();
+        infe_payload.extend_from_slice(&1u16.to_be_bytes()); // item_id
+        infe_payload.extend_from_slice(&0u16.to_be_bytes()); // item_protection_index
+        infe_payload.extend_from_slice(b"iptc"); // item_type
+        infe_payload.push(0); // item_name terminator
+        let infe = full_box(b"infe", [2, 0, 0, 0], &infe_payload);
+
+        // iinf v0: entry_count(2) + infe boxes
+        let mut iinf_payload = Vec::new();
+        iinf_payload.extend_from_slice(&1u16.to_be_bytes());
+        iinf_payload.extend_from_slice(&infe);
+        let iinf = full_box(b"iinf", [0, 0, 0, 0], &iinf_payload);
+
+        // We need to know the absolute offset of the IIM bytes. Lay out file
+        // deterministically: ftyp(16) + meta(...) + iim_bytes.
+        // Compute meta size with a placeholder iloc whose offset we fill after.
+        // Easier path: place IIM bytes before meta via a wrapper box. Use an
+        // "mdat" box placed BEFORE meta, then base_offset targets it.
+        let mdat = boxed(b"mdat", iim);
+        let ftyp = boxed(b"ftyp", b"heic\0\0\0\0mif1");
+        let iim_absolute_offset = (ftyp.len() + 8) as u64; // inside mdat, after 8-byte header
+
+        // iloc v1: version(1) flags(3) offset_size=4<<4|length_size=4 = 0x44
+        //         base_offset_size=0<<4|index_size=0 = 0x00
+        //         item_count(2) = 1
+        //         per-item: item_id(2) construction_method(2)=0 data_ref(2)=0
+        //                   base_offset(0 bytes) extent_count(2)=1
+        //                   extent_offset(4) extent_length(4)
+        let mut iloc_payload = Vec::new();
+        iloc_payload.push(0x44); // offset_size=4, length_size=4
+        iloc_payload.push(0x00); // base_offset_size=0, index_size=0
+        iloc_payload.extend_from_slice(&1u16.to_be_bytes()); // item_count
+        iloc_payload.extend_from_slice(&1u16.to_be_bytes()); // item_id
+        iloc_payload.extend_from_slice(&0u16.to_be_bytes()); // construction_method
+        iloc_payload.extend_from_slice(&0u16.to_be_bytes()); // data_reference_index
+        iloc_payload.extend_from_slice(&(iim_absolute_offset as u32).to_be_bytes()); // extent_offset (absolute)
+        iloc_payload.extend_from_slice(&1u16.to_be_bytes()); // extent_count
+        iloc_payload.extend_from_slice(&(iim_absolute_offset as u32).to_be_bytes()); // extent_offset
+        iloc_payload.extend_from_slice(&(iim.len() as u32).to_be_bytes()); // extent_length
+
+        // iloc v1 layout actually: after version+flags: sizes byte, base_index byte,
+        // item_count, then per-item: item_id, construction_method (only in v1/v2),
+        // data_reference_index, base_offset, extent_count, extents.
+        // We wrote item_id+construction_method+data_ref inline above but that
+        // duplicated the absolute_offset. Rebuild cleanly:
+        let mut iloc_payload = Vec::new();
+        iloc_payload.push(0x44); // offset_size=4, length_size=4
+        iloc_payload.push(0x00); // base_offset_size=0, index_size=0
+        iloc_payload.extend_from_slice(&1u16.to_be_bytes()); // item_count (v<2 -> u16)
+        iloc_payload.extend_from_slice(&1u16.to_be_bytes()); // item_id
+        iloc_payload.extend_from_slice(&0u16.to_be_bytes()); // construction_method (v>=1)
+        iloc_payload.extend_from_slice(&0u16.to_be_bytes()); // data_reference_index
+        // base_offset: 0 bytes
+        iloc_payload.extend_from_slice(&1u16.to_be_bytes()); // extent_count
+        iloc_payload.extend_from_slice(&(iim_absolute_offset as u32).to_be_bytes());
+        iloc_payload.extend_from_slice(&(iim.len() as u32).to_be_bytes());
+        let iloc = full_box(b"iloc", [1, 0, 0, 0], &iloc_payload);
+
+        let meta = full_box(
+            b"meta",
+            [0, 0, 0, 0],
+            &[iinf.clone(), iloc.clone()].concat(),
+        );
+
+        let mut bytes = Vec::new();
+        bytes.extend_from_slice(&ftyp);
+        bytes.extend_from_slice(&mdat);
+        bytes.extend_from_slice(&meta);
+
+        let parsed = parse_bytes(&bytes, 0).unwrap();
+        let payload = parsed
+            .iptc_payloads()
+            .next()
+            .expect("expected iptc payload");
+        let slice = &bytes
+            [payload.data_offset as usize..(payload.data_offset + payload.data_length) as usize];
+        assert_eq!(slice, iim);
     }
 
     #[test]

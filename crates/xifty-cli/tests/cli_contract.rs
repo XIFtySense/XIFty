@@ -345,6 +345,58 @@ fn extract_snapshot_iptc_webp_normalized() {
 }
 
 #[test]
+fn extract_snapshot_icc_heic_normalized() {
+    assert_json_snapshot!(
+        "extract_icc_heic_normalized",
+        extract_json("icc.heic", ViewMode::Normalized)
+    );
+}
+
+#[test]
+fn extract_snapshot_iptc_heic_normalized() {
+    assert_json_snapshot!(
+        "extract_iptc_heic_normalized",
+        extract_json("iptc.heic", ViewMode::Normalized)
+    );
+}
+
+#[test]
+fn icc_heic_interpreted_view_includes_icc_fields() {
+    let output = extract_json("icc.heic", ViewMode::Interpreted);
+    assert_eq!(
+        interpreted_value(&output, "icc", "ProfileClass"),
+        Some(Value::String("display".into()))
+    );
+    assert_eq!(
+        interpreted_value(&output, "icc", "ColorSpace"),
+        Some(Value::String("RGB".into()))
+    );
+    assert_eq!(
+        interpreted_value(&output, "icc", "ProfileDescription"),
+        Some(Value::String("XIFty Display Profile".into()))
+    );
+}
+
+#[test]
+fn iptc_heic_normalization_includes_editorial_fields() {
+    let output = normalized_map(&extract_json("iptc.heic", ViewMode::Normalized));
+    assert_eq!(output["author"]["value"], Value::String("Kai".into()));
+    assert_eq!(
+        output["headline"]["value"],
+        Value::String("XIFty Headline".into())
+    );
+    assert_eq!(
+        output["description"]["value"],
+        Value::String("XIFty Caption".into())
+    );
+    assert_eq!(output["copyright"]["value"], Value::String("XIFty".into()));
+    assert_eq!(
+        output["keywords"]["value"],
+        Value::String("xifty, metadata".into())
+    );
+}
+
+#[test]
 fn icc_jpeg_normalization_includes_color_fields() {
     let output = normalized_map(&extract_json("icc.jpg", ViewMode::Normalized));
     assert_eq!(

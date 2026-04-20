@@ -459,6 +459,51 @@ def build_heif(exif_payload=None, xmp_payload=None, malformed=False, unsupported
     return iso_box(b"ftyp", ftyp_payload) + meta
 
 
+def build_heif_with_icc(icc_payload):
+    """Build a minimal HEIC carrying an ICC profile in meta/iprp/ipco/colr[prof]."""
+    ftyp_payload = b"heic" + b"\x00\x00\x00\x00" + b"mif1" + b"heic"
+    colr = iso_box(b"colr", b"prof" + icc_payload)
+    ipco = iso_box(b"ipco", colr)
+    iprp = iso_box(b"iprp", ipco)
+    meta = full_box(b"meta", iprp)
+    return iso_box(b"ftyp", ftyp_payload) + meta
+
+
+def build_heif_with_iptc(iim_payload):
+    """Build a minimal HEIC carrying IPTC IIM as a metadata item of type 'iptc'.
+
+    Layout: ftyp | mdat(iim bytes) | meta{ iinf(infe item_id=1 type=iptc) iloc(abs offset) }
+    """
+    ftyp_payload = b"heic" + b"\x00\x00\x00\x00" + b"mif1" + b"heic"
+    ftyp = iso_box(b"ftyp", ftyp_payload)
+    mdat = iso_box(b"mdat", iim_payload)
+    iim_absolute_offset = len(ftyp) + 8  # inside mdat, after its 8-byte header
+
+    # infe v2: item_id(2) + item_protection_index(2) + item_type(4) + item_name(nul)
+    infe_payload = struct.pack(">H", 1) + struct.pack(">H", 0) + b"iptc" + b"\x00"
+    infe = full_box(b"infe", infe_payload, version=2)
+
+    iinf_payload = struct.pack(">H", 1) + infe  # entry_count + infe
+    iinf = full_box(b"iinf", iinf_payload)
+
+    # iloc v1: offset_size=4, length_size=4, base_offset_size=0, index_size=0
+    iloc_payload = bytearray()
+    iloc_payload.append(0x44)  # offset_size=4, length_size=4
+    iloc_payload.append(0x00)  # base_offset_size=0, index_size=0
+    iloc_payload += struct.pack(">H", 1)  # item_count
+    iloc_payload += struct.pack(">H", 1)  # item_id
+    iloc_payload += struct.pack(">H", 0)  # construction_method (method=0: absolute file offset)
+    iloc_payload += struct.pack(">H", 0)  # data_reference_index
+    # base_offset: 0 bytes (base_offset_size=0)
+    iloc_payload += struct.pack(">H", 1)  # extent_count
+    iloc_payload += struct.pack(">I", iim_absolute_offset)  # extent_offset (4 bytes)
+    iloc_payload += struct.pack(">I", len(iim_payload))  # extent_length (4 bytes)
+    iloc = full_box(b"iloc", bytes(iloc_payload), version=1)
+
+    meta = full_box(b"meta", iinf + iloc)
+    return ftyp + mdat + meta
+
+
 def qt_epoch_seconds(year, month, day, hour=0, minute=0, second=0):
     unix = datetime(year, month, day, hour, minute, second, tzinfo=timezone.utc).timestamp()
     return int(unix + 2082844800)
@@ -691,6 +736,8 @@ def main():
         "no_exif.webp": build_webp(None),
         "malformed_chunk.webp": build_webp(build_tiff(gps=False), malformed=True),
         "happy.heic": build_heif(build_tiff(gps=False)),
+        "icc.heic": build_heif_with_icc(icc),
+        "iptc.heic": build_heif_with_iptc(build_iptc_iim()),
         "xmp_only.heic": build_heif(None, xmp_with_location),
         "mixed.heic": build_heif(build_tiff(gps=False), xmp_with_location),
         "conflicting.heic": build_heif(build_tiff(gps=False), xmp_conflict),
