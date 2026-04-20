@@ -71,6 +71,8 @@ cargo run -p xifty-cli -- probe fixtures/minimal/happy.aiff
 cargo run -p xifty-cli -- extract fixtures/minimal/happy.aiff --view normalized
 cargo run -p xifty-cli -- probe fixtures/minimal/happy.m4a
 cargo run -p xifty-cli -- extract fixtures/minimal/happy.m4a --view normalized
+cargo run -p xifty-cli -- probe fixtures/minimal/happy.dng
+cargo run -p xifty-cli -- extract fixtures/minimal/happy.dng --view normalized
 ```
 
 Or install the CLI locally from the workspace:
@@ -90,7 +92,7 @@ The two core commands are:
 
 Current container coverage:
 
-- JPEG / TIFF
+- JPEG / TIFF / DNG
 - PNG / WebP
 - HEIF / HEIC
 - MP4 / MOV
