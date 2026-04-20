@@ -50,7 +50,9 @@ npm run invoke:gps
   produces a Lambda layer zip at `layer/xifty-node-layer.zip`
 
 - `npm run validate`
-  runs `sam validate --template-file template.yaml`
+  runs `sam validate --template-file template.yaml --region us-east-1`
+  (the `--region` flag is required; `sam validate` does not read `AWS_REGION`
+  from the environment)
 
 - `npm run invoke:fixture`
   invokes the handler locally against `fixtures/minimal/happy.jpg`
