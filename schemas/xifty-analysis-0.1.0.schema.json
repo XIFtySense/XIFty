@@ -235,7 +235,23 @@
       "required": ["field", "message"],
       "properties": {
         "field": { "type": "string" },
-        "message": { "type": "string" }
+        "message": { "type": "string" },
+        "sources": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/conflict_side" }
+        }
+      }
+    },
+    "conflict_side": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["namespace", "tag_id", "tag_name", "value", "provenance"],
+      "properties": {
+        "namespace": { "type": "string" },
+        "tag_id": { "type": "string" },
+        "tag_name": { "type": "string" },
+        "value": { "$ref": "#/$defs/typed_value" },
+        "provenance": { "$ref": "#/$defs/provenance" }
       }
     },
     "raw_view": {

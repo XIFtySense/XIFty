@@ -1,6 +1,16 @@
 use std::collections::BTreeMap;
 
-use xifty_core::{Conflict, MetadataEntry, TypedValue};
+use xifty_core::{Conflict, ConflictSide, MetadataEntry, TypedValue};
+
+fn entry_side(entry: &MetadataEntry) -> ConflictSide {
+    ConflictSide {
+        namespace: entry.namespace.clone(),
+        tag_id: entry.tag_id.clone(),
+        tag_name: entry.tag_name.clone(),
+        value: entry.value.clone(),
+        provenance: entry.provenance.clone(),
+    }
+}
 
 pub(crate) static SEMANTIC_GROUPS: &[(&str, &[(&str, &str)])] = &[
     (
@@ -120,6 +130,7 @@ fn detect_cross_namespace_disagreement(
                 "{}:{}={} vs {}:{}={}",
                 a.namespace, a.tag_name, a_val, b.namespace, b.tag_name, b_val
             ),
+            sources: vec![entry_side(a), entry_side(b)],
         });
     }
     conflicts
@@ -208,6 +219,7 @@ fn detect_timestamp_offset_mismatch(entries: &[MetadataEntry]) -> Vec<Conflict> 
                         "timezone offset disagreement: {}:{}={} vs {}:{}={}",
                         a.namespace, a.tag_name, a_raw, b.namespace, b.tag_name, b_raw
                     ),
+                    sources: vec![entry_side(a), entry_side(b)],
                 });
                 return conflicts;
             }
@@ -272,6 +284,7 @@ fn detect_numeric_precision_mismatch(
                             "{}:{}={} vs {}:{}={}",
                             a.namespace, a.tag_name, av, b.namespace, b.tag_name, bv
                         ),
+                        sources: vec![entry_side(a), entry_side(b)],
                     });
                     break 'outer;
                 }
