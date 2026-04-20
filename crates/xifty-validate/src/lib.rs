@@ -1,3 +1,5 @@
+mod rules;
+
 use xifty_core::{Issue, MetadataEntry, Report};
 
 pub fn build_report(mut issues: Vec<Issue>, entries: &[MetadataEntry]) -> Report {
@@ -10,8 +12,6 @@ pub fn build_report(mut issues: Vec<Issue>, entries: &[MetadataEntry]) -> Report
             context: None,
         });
     }
-    Report {
-        issues,
-        conflicts: Vec::new(),
-    }
+    let conflicts = rules::detect_conflicts(entries);
+    Report { issues, conflicts }
 }

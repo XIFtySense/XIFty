@@ -350,7 +350,7 @@ fn extract_source(source: &SourceBytes, view_mode: ViewMode) -> Result<AnalysisO
 
     let normalization = normalize_with_policy(&entries);
     let mut report = build_report(issues, &entries);
-    report.conflicts = normalization.conflicts;
+    report.conflicts.extend(normalization.conflicts);
     Ok(AnalysisOutput {
         schema_version: SCHEMA_VERSION.into(),
         input: ProbeInput {
