@@ -1,0 +1,49 @@
+<!-- loswf:plan -->
+# Plan #12: WASM browser demo CI smoke test
+
+## Problem
+The `demo/web` browser demo is deployed to GitHub Pages by `.github/workflows/pages-demo.yml` (L29-53), which builds `xifty-wasm` via `tools/build-web-demo.sh` and uploads `demo/web/` as a Pages artifact — but nothing in CI ever exercises the deployed bundle. If `xifty-wasm`'s JS bindings (`crates/xifty-wasm/src/lib.rs` L43-57) or the `extract_bytes`/`probe_bytes` output shape silently regressed at the wire level between WASM and `app.js` (L99-108), no test in the repo would catch it. Rust-level tests in `crates/xifty-wasm/src/lib.rs` L64-120 exercise the native build only; the `cfg(target_arch = "wasm32")` bindings compile but never run. `STATE_OF_THE_PROJECT.md` explicitly flags this: "browser-level automated smoke coverage is still lighter than the core CLI/FFI surface." The issue (#12) asks for a headless browser smoke test that loads the built demo, feeds a known fixture, and validates the resulting JSON against `schemas/xifty-analysis-0.1.0.schema.json`.
+
+## Approach
+Add a Playwright-based Node smoke test that spins up a local static server over `demo/web/`, launches headless Chromium, loads `index.html`, drives the real `<input type="file">` using Playwright's `setInputFiles()` with `fixtures/minimal/happy.jpg`, and then reads the extraction results back out of the page. Because `app.js` stores views on module-scoped `currentViews` (L30) and never exposes them on `window`, we add a tiny, test-only side channel: after a successful extraction, `app.js` assigns `window.__xiftyDebug = { probe, views }` (gated behind an opt-in query flag like `?smoketest=1` so production Pages traffic is untouched). The Playwright test polls `window.__xiftyDebug`, then validates the `views.normalized` payload against `schemas/xifty-analysis-0.1.0.schema.json` using `ajv`, mirroring the Python pattern in `tools/validate_schema_examples.py` (L22-71). The test lives under `demo/web/smoketest/` with its own `package.json` pinning `@playwright/test` and `ajv` — this keeps the Rust workspace unpolluted and the browser layer boundary clean (the smoke test only exercises the browser surface; it never reaches into `xifty-cli` or other crates). CI wires it in as a new step in `pages-demo.yml` that runs after the existing "Build demo assets" step and before "Upload Pages artifact", so a bad build fails the deploy. A parallel PR trigger is added (paths-filtered on the same dirs) so smoke tests also run on PRs without redeploying.
+
+## Files to touch
+- `.github/workflows/pages-demo.yml` — add a smoketest job (or inline steps) that installs Node + Playwright browsers and runs the smoke test after WASM build; extend triggers so PRs matching the existing `paths` also run the smoke test (without deploying).
+- `demo/web/app.js` — at the successful end of `handleFile()` (around L111-125), expose `window.__xiftyDebug = { probe, views }` only when `new URLSearchParams(location.search).has("smoketest")` is true; no behavioral change otherwise. Add a small `data-state="ready"` assertion surface (already present via `statePanel.dataset.state`, L377) so the test can wait deterministically.
+- `demo/README.md` — document the smoke test and how to run it locally (mirrors existing "Local Build" section at L20-34).
+
+## New files
+- `demo/web/smoketest/package.json` — pins `@playwright/test` (e.g. `^1.49.0`) and `ajv` + `ajv-formats`; declares `scripts.test` → `playwright test` and `scripts.install-browsers` → `playwright install --with-deps chromium`.
+- `demo/web/smoketest/playwright.config.ts` — single-project chromium config, `webServer` block that runs `npx http-server ../ -p 4173 -s` (or Node's built-in `serve`) rooted at `demo/web`, `use.baseURL: http://127.0.0.1:4173`, retries 0, single worker (CI runtime hygiene).
+- `demo/web/smoketest/tests/happy-jpeg.spec.ts` — loads `/?smoketest=1`, waits for `#state-panel[data-state="ready"]` or initial WASM init, calls `page.setInputFiles('#file-input', path.join(fixturesDir, 'happy.jpg'))`, waits for `window.__xiftyDebug` via `page.waitForFunction`, extracts `views` and `probe`, asserts: (1) `probe.input.detected_format === 'jpeg'`; (2) `views.normalized` validates against the checked-in analysis schema loaded with `ajv`; (3) a known field from the fixture is present (e.g. `device.make === 'XIFtyCam'`, matching the existing Rust assertion at `crates/xifty-wasm/src/lib.rs` L100).
+- `demo/web/smoketest/tests/fixtures/` — symlink or small JS helper that resolves `../../fixtures/minimal/happy.jpg` from repo root; no copy of fixtures.
+- `demo/web/smoketest/.gitignore` — `node_modules/`, `test-results/`, `playwright-report/`.
+
+## Step-by-step
+1. Add test-only debug hook to `demo/web/app.js` guarded by `?smoketest=1`, exposing `window.__xiftyDebug = { probe, views }` after `handleFile()` completes. Verify: opening `demo/web/index.html?smoketest=1` locally in a browser, selecting a JPEG, shows `window.__xiftyDebug` in devtools; without the query flag it is `undefined`.
+2. Scaffold `demo/web/smoketest/` with `package.json`, `playwright.config.ts`, and `tests/happy-jpeg.spec.ts`. Verify: `npm ci && npx playwright install --with-deps chromium && npm test` from `demo/web/smoketest/` passes locally after `./tools/build-web-demo.sh` has run.
+3. Wire the smoke test into `.github/workflows/pages-demo.yml` as a new step in the existing `build` job (after "Build demo assets", before "Upload Pages artifact"): `actions/setup-node@v5` with node 24, `npm ci` in `demo/web/smoketest`, `npx playwright install --with-deps chromium`, `npm test`. Cache Playwright browsers via `actions/cache@v4` keyed on `package-lock.json` hash to keep CI runtime low. Verify: the workflow file parses (`actionlint` via hygiene workflow if available) and the job passes in a test branch.
+4. Extend `pages-demo.yml` triggers to also run on `pull_request` with the same `paths` filter, but gate the `deploy` job on `github.event_name == 'push' && github.ref == 'refs/heads/main'` so PRs only exercise build+smoketest, not Pages deploy. Verify: a PR that touches `crates/xifty-wasm/**` triggers build+smoketest but not deploy.
+5. Update `demo/README.md` with a "Smoke test" section describing the local recipe (build WASM, `cd demo/web/smoketest && npm ci && npx playwright install chromium && npm test`). Verify: copy-paste of instructions works from a clean clone.
+
+## Tests
+- `demo/web/smoketest/tests/happy-jpeg.spec.ts` is itself the new test. It covers: WASM init does not throw, file input handler runs, `probe_bytes` JSON round-trip shape, `extract_bytes` normalized view shape + schema conformance, and a known-value assertion (`device.make === "XIFtyCam"`) anchored to the synthetic fixture so shape regressions in normalization are caught end-to-end through the browser.
+- No changes to existing Rust tests. The native-build tests in `crates/xifty-wasm/src/lib.rs` L64-120 remain the unit-level guard; the new Playwright test is the browser-level guard.
+- Optional follow-up (out of scope, call out in Risks): add a `malformed_app1.jpg` case asserting `views.report.issues.length >= 1`, mirroring the Rust test at L106-113.
+
+## Validation
+- `cargo fmt --all -- --check` (from `.loswf/config.yaml` validate[0])
+- `cargo test --workspace --all-features` (from `.loswf/config.yaml` validate[1]) — no Rust code changes, should remain green
+- `cargo test -p xifty-ffi --all-features` (from `.loswf/config.yaml` validate[2]) — unchanged
+- CI-level: the new smoke test step in `pages-demo.yml` must pass on PR and on push to main (ci_check is enabled in `.loswf/config.yaml`)
+
+## Risks
+- **Playwright CI runtime cost.** Chromium install + one test run typically adds 45-90s. Mitigated by caching `~/.cache/ms-playwright` keyed on the Playwright version from `package-lock.json`, using a single chromium project (no firefox/webkit), and a single worker. If runtime still bloats the workflow, the smoketest job can be extracted to a separate workflow that only runs when `demo/**` or `crates/xifty-wasm/**` change.
+- **`?smoketest=1` debug hook leakage.** The hook only runs when the query flag is present, but it still ships to production Pages. Alternative: inject a `window` hook via Playwright's `addInitScript` that wraps `extract_bytes` — rejected because it duplicates app logic and drifts from what the demo actually does. The query-flag approach is preferred and called out in the README.
+- **Fixture path resolution.** Tests need `fixtures/minimal/happy.jpg` from repo root while running from `demo/web/smoketest/`. Resolved via `path.resolve(__dirname, '../../../fixtures/minimal/happy.jpg')` with an existence check at test startup.
+- **wasm-bindgen `--target web` needs a real HTTP origin.** `file://` serving breaks `fetch` of the `.wasm`. Playwright's `webServer` block handles this; confirmed by existing local recipe `python3 -m http.server 4173` in `demo/README.md` L30.
+- **PR fork permissions.** `pages: write` is not needed on PR runs; keeping `deploy` gated on push-to-main avoids permission escalation on forked-PR smoke tests. Document this in the workflow comments.
+- **Schema evolution drift.** The analysis schema is versioned (`xifty-analysis-0.1.0.schema.json`). If a future change bumps the schema filename, the smoke test must be updated in the same PR. Call this out in `docs/SCHEMA_POLICY.md` follow-up (not in scope here).
+
+---
+<!-- archived by docs agent: issue #12 closed via PR #15 -->
