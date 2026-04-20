@@ -42,9 +42,9 @@
     "tiff": {
       "namespaces": {
         "exif": "supported",
-        "xmp": "not_yet_supported",
-        "icc": "not_yet_supported",
-        "iptc": "not_yet_supported"
+        "xmp": "bounded",
+        "icc": "bounded",
+        "iptc": "bounded"
       }
     },
     "png": {

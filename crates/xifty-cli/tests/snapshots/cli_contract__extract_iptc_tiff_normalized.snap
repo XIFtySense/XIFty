@@ -1,0 +1,352 @@
+---
+source: crates/xifty-cli/tests/cli_contract.rs
+expression: "extract_json(\"iptc.tiff\", ViewMode::Normalized)"
+---
+{
+  "input": {
+    "container": "tiff",
+    "detected_format": "tiff",
+    "path": "iptc.tiff"
+  },
+  "normalized": {
+    "fields": [
+      {
+        "confidence": 0.949999988079071,
+        "field": "captured_at",
+        "sources": [
+          {
+            "container": "tiff",
+            "namespace": "exif",
+            "offset_end": 240,
+            "offset_start": 228,
+            "path": "exif_ifd"
+          }
+        ],
+        "value": {
+          "kind": "timestamp",
+          "value": "2024-04-16T12:34:56"
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
+        "field": "created_at",
+        "sources": [
+          {
+            "container": "tiff",
+            "namespace": "exif",
+            "offset_end": 252,
+            "offset_start": 240,
+            "path": "exif_ifd"
+          }
+        ],
+        "value": {
+          "kind": "timestamp",
+          "value": "2024-04-16T12:34:56"
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
+        "field": "device.make",
+        "sources": [
+          {
+            "container": "tiff",
+            "namespace": "exif",
+            "offset_end": 46,
+            "offset_start": 34,
+            "path": "ifd0"
+          }
+        ],
+        "value": {
+          "kind": "string",
+          "value": "XIFtyCam"
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
+        "field": "device.model",
+        "sources": [
+          {
+            "container": "tiff",
+            "namespace": "exif",
+            "offset_end": 58,
+            "offset_start": 46,
+            "path": "ifd0"
+          }
+        ],
+        "value": {
+          "kind": "string",
+          "value": "IterationOne"
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
+        "field": "software",
+        "sources": [
+          {
+            "container": "tiff",
+            "namespace": "exif",
+            "offset_end": 82,
+            "offset_start": 70,
+            "path": "ifd0"
+          }
+        ],
+        "value": {
+          "kind": "string",
+          "value": "XIFtyTestGen"
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
+        "field": "author",
+        "sources": [
+          {
+            "container": "tiff",
+            "namespace": "iptc",
+            "offset_end": 226,
+            "offset_start": 148,
+            "path": "ifd0_iptc"
+          }
+        ],
+        "value": {
+          "kind": "string",
+          "value": "Kai"
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
+        "field": "copyright",
+        "sources": [
+          {
+            "container": "tiff",
+            "namespace": "iptc",
+            "offset_end": 226,
+            "offset_start": 148,
+            "path": "ifd0_iptc"
+          }
+        ],
+        "value": {
+          "kind": "string",
+          "value": "XIFty"
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
+        "field": "headline",
+        "sources": [
+          {
+            "container": "tiff",
+            "namespace": "iptc",
+            "offset_end": 226,
+            "offset_start": 148,
+            "path": "ifd0_iptc"
+          }
+        ],
+        "value": {
+          "kind": "string",
+          "value": "XIFty Headline"
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
+        "field": "description",
+        "sources": [
+          {
+            "container": "tiff",
+            "namespace": "iptc",
+            "offset_end": 226,
+            "offset_start": 148,
+            "path": "ifd0_iptc"
+          }
+        ],
+        "value": {
+          "kind": "string",
+          "value": "XIFty Caption"
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
+        "field": "orientation",
+        "sources": [
+          {
+            "container": "tiff",
+            "namespace": "exif",
+            "offset_end": 70,
+            "offset_start": 58,
+            "path": "ifd0"
+          }
+        ],
+        "value": {
+          "kind": "integer",
+          "value": 1
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
+        "field": "dimensions.width",
+        "sources": [
+          {
+            "container": "tiff",
+            "namespace": "exif",
+            "offset_end": 22,
+            "offset_start": 10,
+            "path": "ifd0"
+          }
+        ],
+        "value": {
+          "kind": "integer",
+          "value": 800
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
+        "field": "dimensions.height",
+        "sources": [
+          {
+            "container": "tiff",
+            "namespace": "exif",
+            "offset_end": 34,
+            "offset_start": 22,
+            "path": "ifd0"
+          }
+        ],
+        "value": {
+          "kind": "integer",
+          "value": 600
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
+        "field": "exposure.iso",
+        "sources": [
+          {
+            "container": "tiff",
+            "namespace": "exif",
+            "offset_end": 288,
+            "offset_start": 276,
+            "path": "exif_ifd"
+          }
+        ],
+        "value": {
+          "kind": "integer",
+          "value": 200
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
+        "field": "exposure.aperture",
+        "sources": [
+          {
+            "container": "tiff",
+            "namespace": "exif",
+            "offset_end": 276,
+            "offset_start": 264,
+            "path": "exif_ifd"
+          }
+        ],
+        "value": {
+          "kind": "rational",
+          "value": {
+            "denominator": 10,
+            "numerator": 56
+          }
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
+        "field": "exposure.shutter_speed",
+        "sources": [
+          {
+            "container": "tiff",
+            "namespace": "exif",
+            "offset_end": 264,
+            "offset_start": 252,
+            "path": "exif_ifd"
+          }
+        ],
+        "value": {
+          "kind": "rational",
+          "value": {
+            "denominator": 250,
+            "numerator": 1
+          }
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
+        "field": "exposure.focal_length_mm",
+        "sources": [
+          {
+            "container": "tiff",
+            "namespace": "exif",
+            "offset_end": 300,
+            "offset_start": 288,
+            "path": "exif_ifd"
+          }
+        ],
+        "value": {
+          "kind": "float",
+          "value": 50.0
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
+        "field": "lens.model",
+        "sources": [
+          {
+            "container": "tiff",
+            "namespace": "exif",
+            "offset_end": 324,
+            "offset_start": 312,
+            "path": "exif_ifd"
+          }
+        ],
+        "value": {
+          "kind": "string",
+          "value": "XIFty 50mm F2"
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
+        "field": "lens.make",
+        "sources": [
+          {
+            "container": "tiff",
+            "namespace": "exif",
+            "offset_end": 312,
+            "offset_start": 300,
+            "path": "exif_ifd"
+          }
+        ],
+        "value": {
+          "kind": "string",
+          "value": "XIFty Optics"
+        }
+      },
+      {
+        "confidence": 0.8999999761581421,
+        "field": "keywords",
+        "notes": [
+          "derived from repeated Keywords metadata"
+        ],
+        "sources": [
+          {
+            "container": "tiff",
+            "namespace": "iptc",
+            "offset_end": 226,
+            "offset_start": 148,
+            "path": "ifd0_iptc"
+          }
+        ],
+        "value": {
+          "kind": "string",
+          "value": "xifty, metadata"
+        }
+      }
+    ]
+  },
+  "report": {
+    "conflicts": [],
+    "issues": []
+  },
+  "schema_version": "0.1.0"
+}
