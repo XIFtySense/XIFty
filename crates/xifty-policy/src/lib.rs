@@ -229,6 +229,13 @@ pub fn reconcile(entries: &[MetadataEntry]) -> PolicyResult {
         &["AudioSampleRate"],
         NamespacePreference::QuickTimeFirst,
     );
+    maybe_choose_integer(
+        entries,
+        &mut result,
+        "audio.bit_depth",
+        &["AudioBitDepth"],
+        NamespacePreference::QuickTimeFirst,
+    );
 
     result
 }

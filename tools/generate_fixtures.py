@@ -684,6 +684,109 @@ def build_no_metadata_mp4():
     return build_media_file(major_brand=b"isom", compatible_brand=b"mp42", include_movie=False)
 
 
+def build_flac(
+    sample_rate=44100,
+    channels=2,
+    bits_per_sample=16,
+    total_samples=44100,
+    title="XIFty Track",
+    artist="XIFty Artist",
+    album="XIFty Album",
+    picture_mime="image/png",
+    picture_width=1,
+    picture_height=1,
+):
+    """Generate a synthetic FLAC stream with STREAMINFO + VORBIS_COMMENT + PICTURE.
+
+    The block chain is spec-compliant; audio frames are not emitted because
+    FLAC metadata blocks are framed independently of the coded payload.
+    """
+    out = bytearray(b"fLaC")
+
+    # --- STREAMINFO body (34 bytes) ---
+    streaminfo = bytearray(34)
+    channels_minus_one = channels - 1
+    bps_minus_one = bits_per_sample - 1
+    # Pack 20 sample_rate + 3 channels-1 + 5 bps-1 + 36 total_samples into bytes [10..18].
+    streaminfo[10] = (sample_rate >> 12) & 0xFF
+    streaminfo[11] = (sample_rate >> 4) & 0xFF
+    streaminfo[12] = (
+        ((sample_rate & 0x0F) << 4)
+        | ((channels_minus_one & 0x07) << 1)
+        | ((bps_minus_one >> 4) & 0x01)
+    ) & 0xFF
+    streaminfo[13] = (
+        ((bps_minus_one & 0x0F) << 4) | ((total_samples >> 32) & 0x0F)
+    ) & 0xFF
+    streaminfo[14] = (total_samples >> 24) & 0xFF
+    streaminfo[15] = (total_samples >> 16) & 0xFF
+    streaminfo[16] = (total_samples >> 8) & 0xFF
+    streaminfo[17] = total_samples & 0xFF
+
+    # --- VORBIS_COMMENT body ---
+    def vc_field(text):
+        data = text.encode("utf-8")
+        return len(data).to_bytes(4, "little") + data
+
+    vendor = b"xifty-test"
+    vc_body = len(vendor).to_bytes(4, "little") + vendor
+    comments = [f"TITLE={title}", f"ARTIST={artist}", f"ALBUM={album}"]
+    vc_body += len(comments).to_bytes(4, "little")
+    for c in comments:
+        vc_body += vc_field(c)
+
+    # --- PICTURE body ---
+    mime_bytes = picture_mime.encode("ascii")
+    desc_bytes = b"cover"
+    # Minimal 1x1 PNG payload for the image data region.
+    png_ihdr = (
+        b"\x89PNG\r\n\x1a\n"
+        + (13).to_bytes(4, "big")
+        + b"IHDR"
+        + (1).to_bytes(4, "big")
+        + (1).to_bytes(4, "big")
+        + b"\x08\x02\x00\x00\x00"
+        + b"\x00\x00\x00\x00"  # fake crc
+        + (0).to_bytes(4, "big")
+        + b"IEND"
+        + b"\x00\x00\x00\x00"
+    )
+    picture_body = b"".join(
+        [
+            (3).to_bytes(4, "big"),  # type = front cover
+            len(mime_bytes).to_bytes(4, "big"),
+            mime_bytes,
+            len(desc_bytes).to_bytes(4, "big"),
+            desc_bytes,
+            picture_width.to_bytes(4, "big"),
+            picture_height.to_bytes(4, "big"),
+            (24).to_bytes(4, "big"),  # color depth
+            (0).to_bytes(4, "big"),  # colors used
+            len(png_ihdr).to_bytes(4, "big"),
+            png_ihdr,
+        ]
+    )
+
+    def block_header(last, block_type, length):
+        return bytes(
+            [
+                (0x80 if last else 0x00) | (block_type & 0x7F),
+                (length >> 16) & 0xFF,
+                (length >> 8) & 0xFF,
+                length & 0xFF,
+            ]
+        )
+
+    # STREAMINFO (type 0), VORBIS_COMMENT (type 4), PICTURE (type 6, last).
+    out += block_header(False, 0, len(streaminfo)) + bytes(streaminfo)
+    out += block_header(False, 4, len(vc_body)) + vc_body
+    out += block_header(True, 6, len(picture_body)) + picture_body
+    # Minimal frame sync byte so readers that peek past the metadata chain
+    # do not encounter EOF immediately.
+    out += b"\xff\xf8"
+    return bytes(out)
+
+
 def main():
     ROOT.mkdir(parents=True, exist_ok=True)
     xmp = build_xmp()
@@ -760,6 +863,7 @@ def main():
         "malformed.mp4": build_mp4(malformed=True),
         "happy.mov": build_mov(),
         "malformed.mov": build_mov(malformed=True),
+        "happy.flac": build_flac(),
     }
 
     for name, data in files.items():

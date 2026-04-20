@@ -1,0 +1,100 @@
+---
+source: crates/xifty-cli/tests/cli_contract.rs
+expression: "extract_json(\"happy.flac\", ViewMode::Normalized)"
+---
+{
+  "input": {
+    "container": "flac",
+    "detected_format": "flac",
+    "path": "happy.flac"
+  },
+  "normalized": {
+    "fields": [
+      {
+        "confidence": 0.949999988079071,
+        "field": "duration",
+        "sources": [
+          {
+            "container": "flac",
+            "namespace": "flac",
+            "notes": [
+              "derived from STREAMINFO total_samples / sample_rate"
+            ],
+            "offset_end": 42,
+            "offset_start": 8,
+            "path": "streaminfo"
+          }
+        ],
+        "value": {
+          "kind": "float",
+          "value": 1.0
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
+        "field": "audio.channels",
+        "sources": [
+          {
+            "container": "flac",
+            "namespace": "flac",
+            "notes": [
+              "derived from STREAMINFO block"
+            ],
+            "offset_end": 42,
+            "offset_start": 8,
+            "path": "streaminfo"
+          }
+        ],
+        "value": {
+          "kind": "integer",
+          "value": 2
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
+        "field": "audio.sample_rate",
+        "sources": [
+          {
+            "container": "flac",
+            "namespace": "flac",
+            "notes": [
+              "derived from STREAMINFO block"
+            ],
+            "offset_end": 42,
+            "offset_start": 8,
+            "path": "streaminfo"
+          }
+        ],
+        "value": {
+          "kind": "integer",
+          "value": 44100
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
+        "field": "audio.bit_depth",
+        "sources": [
+          {
+            "container": "flac",
+            "namespace": "flac",
+            "notes": [
+              "derived from STREAMINFO block"
+            ],
+            "offset_end": 42,
+            "offset_start": 8,
+            "path": "streaminfo"
+          }
+        ],
+        "value": {
+          "kind": "integer",
+          "value": 16
+        }
+      }
+    ]
+  },
+  "report": {
+    "conflicts": [],
+    "issues": []
+  },
+  "schema_version": "0.1.0"
+}

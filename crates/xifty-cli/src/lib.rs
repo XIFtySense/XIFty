@@ -1,5 +1,6 @@
 use flate2::read::ZlibDecoder;
 use std::{io::Read, path::PathBuf};
+use xifty_container_flac::{FlacContainer, parse as parse_flac};
 use xifty_container_isobmff::parse as parse_isobmff;
 use xifty_container_jpeg::parse as parse_jpeg;
 use xifty_container_png::parse as parse_png;
@@ -17,6 +18,9 @@ use xifty_meta_iptc::{IptcPayload, decode_payload as decode_iptc_payload};
 use xifty_meta_quicktime::{QuickTimePayload, decode_payload as decode_quicktime_payload};
 use xifty_meta_rtmd::{RtmdPacket, decode_packet as decode_rtmd_packet};
 use xifty_meta_sony::decode_from_tiff as decode_sony_from_tiff;
+use xifty_meta_vorbis_comment::{
+    VorbisCommentPayload, decode_payload as decode_vorbis_comment_payload,
+};
 use xifty_meta_xmp::{XmpPacket, decode_packet, decode_png_text_chunk, decode_webp_xmp_chunk};
 use xifty_normalize::normalize_with_policy;
 use xifty_source::SourceBytes;
@@ -65,6 +69,10 @@ fn probe_source(source: &SourceBytes) -> Result<ProbeOutput, XiftyError> {
         Format::Mov => {
             let parsed = parse_isobmff(&source)?;
             ("isobmff".to_string(), parsed.nodes, parsed.issues)
+        }
+        Format::Flac => {
+            let parsed = parse_flac(&source)?;
+            ("flac".to_string(), parsed.nodes, parsed.issues)
         }
     };
     Ok(ProbeOutput {
@@ -457,6 +465,12 @@ fn extract_source(source: &SourceBytes, view_mode: ViewMode) -> Result<AnalysisO
             let mut issues = isobmff.issues.clone();
             let entries = isobmff_entries(&isobmff, source.bytes(), format.as_str(), &mut issues);
             ("isobmff".to_string(), isobmff.nodes, entries, issues)
+        }
+        Format::Flac => {
+            let flac = parse_flac(&source)?;
+            let mut issues = flac.issues.clone();
+            let entries = flac_entries(&flac, source.bytes(), &mut issues);
+            ("flac".to_string(), flac.nodes, entries, issues)
         }
     };
 
@@ -933,6 +947,135 @@ fn media_scalar_entry(
             path: None,
             offset_start: None,
             offset_end: None,
+            notes: vec![note.into()],
+        },
+        notes: Vec::new(),
+    }
+}
+
+fn flac_entries(flac: &FlacContainer, bytes: &[u8], issues: &mut Vec<Issue>) -> Vec<MetadataEntry> {
+    let mut entries = Vec::new();
+
+    if let Some(info) = &flac.stream_info {
+        entries.push(flac_scalar_entry(
+            "AudioSampleRate",
+            TypedValue::Integer(info.sample_rate_hz as i64),
+            "derived from STREAMINFO block",
+            Some(info.offset_start),
+            Some(info.offset_end),
+            Some("streaminfo"),
+        ));
+        entries.push(flac_scalar_entry(
+            "AudioChannels",
+            TypedValue::Integer(info.channels as i64),
+            "derived from STREAMINFO block",
+            Some(info.offset_start),
+            Some(info.offset_end),
+            Some("streaminfo"),
+        ));
+        entries.push(flac_scalar_entry(
+            "AudioBitDepth",
+            TypedValue::Integer(info.bits_per_sample as i64),
+            "derived from STREAMINFO block",
+            Some(info.offset_start),
+            Some(info.offset_end),
+            Some("streaminfo"),
+        ));
+        if let Some(duration) = info.duration_seconds {
+            entries.push(flac_scalar_entry(
+                "DurationSeconds",
+                TypedValue::Float(duration),
+                "derived from STREAMINFO total_samples / sample_rate",
+                Some(info.offset_start),
+                Some(info.offset_end),
+                Some("streaminfo"),
+            ));
+        }
+    }
+
+    if let Some(block) = &flac.vorbis_comment {
+        let start = match usize::try_from(block.data_offset) {
+            Ok(value) => value,
+            Err(_) => {
+                issues.push(namespace_issue(
+                    "vorbis_comment_decode_empty",
+                    "vorbis_comment block offset did not fit in usize",
+                    block.offset_start,
+                    "vorbis_comment",
+                ));
+                return entries;
+            }
+        };
+        let end = start + block.data_length as usize;
+        let payload = bytes.get(start..end);
+        if let Some(payload) = payload {
+            let decoded = decode_vorbis_comment_payload(VorbisCommentPayload {
+                bytes: payload,
+                container: "flac",
+                offset_start: block.offset_start,
+                offset_end: block.offset_end,
+            });
+            if decoded.is_empty() {
+                issues.push(namespace_issue(
+                    "vorbis_comment_decode_empty",
+                    "recognized VORBIS_COMMENT block but decoded no entries",
+                    block.offset_start,
+                    "vorbis_comment",
+                ));
+            }
+            entries.extend(decoded);
+        }
+    }
+
+    for picture in &flac.pictures {
+        entries.push(flac_scalar_entry(
+            "PictureMimeType",
+            TypedValue::String(picture.mime_type.clone()),
+            "derived from PICTURE block",
+            Some(picture.offset_start),
+            Some(picture.offset_end),
+            Some("picture"),
+        ));
+        entries.push(flac_scalar_entry(
+            "PictureWidth",
+            TypedValue::Integer(picture.width as i64),
+            "derived from PICTURE block",
+            Some(picture.offset_start),
+            Some(picture.offset_end),
+            Some("picture"),
+        ));
+        entries.push(flac_scalar_entry(
+            "PictureHeight",
+            TypedValue::Integer(picture.height as i64),
+            "derived from PICTURE block",
+            Some(picture.offset_start),
+            Some(picture.offset_end),
+            Some("picture"),
+        ));
+    }
+
+    entries
+}
+
+fn flac_scalar_entry(
+    tag_name: &str,
+    value: TypedValue,
+    note: &str,
+    offset_start: Option<u64>,
+    offset_end: Option<u64>,
+    path: Option<&str>,
+) -> MetadataEntry {
+    MetadataEntry {
+        namespace: "flac".into(),
+        tag_id: tag_name.into(),
+        tag_name: tag_name.into(),
+        value,
+        provenance: Provenance {
+            container: "flac".into(),
+            namespace: "flac".into(),
+            path: path.map(|p| p.to_string()),
+            offset_start,
+            offset_end,
             notes: vec![note.into()],
         },
         notes: Vec::new(),

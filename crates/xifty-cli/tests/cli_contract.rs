@@ -2108,6 +2108,90 @@ fn exiftool_differential_apple_jpeg_makernote_fields() {
     );
 }
 
+#[test]
+fn probe_snapshot_happy_flac() {
+    assert_json_snapshot!("probe_happy_flac", probe_json("happy.flac"));
+}
+
+#[test]
+fn extract_snapshot_happy_flac_normalized() {
+    assert_json_snapshot!(
+        "extract_happy_flac_normalized",
+        extract_json("happy.flac", ViewMode::Normalized)
+    );
+}
+
+#[test]
+fn flac_normalization_includes_audio_fields() {
+    let output = extract_json("happy.flac", ViewMode::Normalized);
+    let normalized = normalized_map(&output);
+    assert_eq!(
+        normalized
+            .get("audio.sample_rate")
+            .and_then(|v| v["value"].as_i64()),
+        Some(44100)
+    );
+    assert_eq!(
+        normalized
+            .get("audio.channels")
+            .and_then(|v| v["value"].as_i64()),
+        Some(2)
+    );
+    assert_eq!(
+        normalized
+            .get("audio.bit_depth")
+            .and_then(|v| v["value"].as_i64()),
+        Some(16)
+    );
+    assert_eq!(
+        normalized.get("duration").and_then(|v| v["value"].as_f64()),
+        Some(1.0)
+    );
+}
+
+#[test]
+fn flac_surfaces_vorbis_comment_tags() {
+    let output = extract_json("happy.flac", ViewMode::Interpreted);
+    assert_eq!(
+        interpreted_value(&output, "vorbis_comment", "Title"),
+        Some(Value::String("XIFty Track".into()))
+    );
+    assert_eq!(
+        interpreted_value(&output, "vorbis_comment", "Artist"),
+        Some(Value::String("XIFty Artist".into()))
+    );
+    assert_eq!(
+        interpreted_value(&output, "vorbis_comment", "Album"),
+        Some(Value::String("XIFty Album".into()))
+    );
+}
+
+#[test]
+fn flac_surfaces_picture_block_on_raw_view() {
+    let output = extract_json("happy.flac", ViewMode::Raw);
+    let mime = output["raw"]["metadata"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|e| e["tag_name"] == "PictureMimeType")
+        .expect("PictureMimeType entry present");
+    assert_eq!(mime["value"]["value"].as_str(), Some("image/png"));
+    let width = output["raw"]["metadata"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|e| e["tag_name"] == "PictureWidth")
+        .expect("PictureWidth entry present");
+    assert_eq!(width["value"]["value"].as_i64(), Some(1));
+    let height = output["raw"]["metadata"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|e| e["tag_name"] == "PictureHeight")
+        .expect("PictureHeight entry present");
+    assert_eq!(height["value"]["value"].as_i64(), Some(1));
+}
+
 fn assert_float_close(left: Option<f64>, right: Option<f64>, label: &str) {
     let left = left.expect("missing left float value");
     let right = right.expect("missing right float value");

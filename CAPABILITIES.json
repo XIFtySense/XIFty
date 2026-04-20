@@ -31,6 +31,32 @@
         "Keywords",
         "Copyright"
       ]
+    },
+    "vorbis_comment": {
+      "status": "bounded",
+      "supported_tags": [
+        "TITLE",
+        "ARTIST",
+        "ALBUM",
+        "DATE",
+        "GENRE",
+        "TRACKNUMBER",
+        "ALBUMARTIST",
+        "COMPOSER",
+        "COMMENT"
+      ]
+    },
+    "flac": {
+      "status": "bounded",
+      "supported_tags": [
+        "AudioSampleRate",
+        "AudioChannels",
+        "AudioBitDepth",
+        "DurationSeconds",
+        "PictureMimeType",
+        "PictureWidth",
+        "PictureHeight"
+      ]
     }
   },
   "containers": {
@@ -85,6 +111,12 @@
       "namespaces": {
         "quicktime": "bounded"
       }
+    },
+    "flac": {
+      "namespaces": {
+        "flac": "bounded",
+        "vorbis_comment": "bounded"
+      }
     }
   },
   "normalized_fields": [
@@ -118,7 +150,8 @@
     "codec.video",
     "codec.audio",
     "audio.channels",
-    "audio.sample_rate"
+    "audio.sample_rate",
+    "audio.bit_depth"
   ],
   "surfaces": {
     "cli": {
