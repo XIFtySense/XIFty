@@ -62,14 +62,37 @@ npm view @xifty/xifty version dist-tags.latest --json
 
 ## Branch Protection
 
-Required status checks on `main` (configure in GitHub repository settings under
-Branches → Branch protection rules):
+`main` enforces the following required status checks before a PR can merge
+(configured under Settings → Branches → Branch protection rules):
 
 - `Rust Core` (from `ci.yml`)
 - `Runtime Artifact` (from `ci.yml`)
 - `Lambda Node Example` (from `ci.yml`)
 - `Docs And Contract` (from `hygiene.yml`) — enforces the cbindgen header
   staleness check and JSON schema artifact validation on every PR
+
+"Require branches to be up to date before merging" is also enabled, so PRs
+must rebase onto the latest `main` before the merge button unlocks.
+
+Verify the rule has not drifted:
+
+```bash
+gh api repos/XIFtySense/XIFty/branches/main/protection \
+  --jq '.required_status_checks.contexts'
+```
+
+Expected output (order may vary):
+
+```json
+["Rust Core","Runtime Artifact","Lambda Node Example","Docs And Contract"]
+```
+
+If the repository migrates to Rulesets, the classic `branches/*/protection`
+endpoint returns empty even when rules are active. Cross-check with:
+
+```bash
+gh api repos/XIFtySense/XIFty/rulesets
+```
 
 `Oracle Differentials` (from `hygiene.yml`) is intentionally not a required
 check: it runs ExifTool on the weekly schedule and on manual dispatch only.
