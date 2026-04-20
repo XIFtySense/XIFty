@@ -80,6 +80,17 @@ plan-reviewer and reviewer block on failing GitHub Actions runs from
 `.github/workflows/` (currently `ci.yml`, `hygiene.yml`,
 `pages-demo.yml`, `runtime-artifacts.yml`).
 
+PR-blocking checks (required status checks on `main`):
+
+- `Rust Core` (`ci.yml`)
+- `Runtime Artifact` (`ci.yml`)
+- `Lambda Node Example` (`ci.yml`)
+- `Docs And Contract` (`hygiene.yml`) — runs on every pull request and
+  push to `main`; enforces the cbindgen header staleness check and the
+  JSON schema artifact validation. The sibling `Oracle Differentials`
+  job in `hygiene.yml` is intentionally gated to `schedule` and
+  `workflow_dispatch` so ExifTool stays off the PR path.
+
 Snapshot-test drift policy: if `cargo test` fails because of insta
 snapshot diffs, the expected resolution is `cargo insta review` —
 diffs are inspected and accepted deliberately, never blanket-accepted.
