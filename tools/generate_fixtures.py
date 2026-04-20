@@ -45,11 +45,12 @@ def build_tiff(
     xmp_payload=None,
     icc_payload=None,
     iptc_payload=None,
+    make="XIFtyCam",
 ):
     b = TiffBuilder(endian)
     p16, p32 = b.pack16, b.pack32
 
-    make = b.ascii_blob("XIFtyCam")
+    make = b.ascii_blob(make)
     model = b.ascii_blob("IterationOne")
     software = b.ascii_blob("XIFtyTestGen")
     dto = b.ascii_blob("2024:04:16 12:34:56")
@@ -683,6 +684,7 @@ def main():
     xmp = build_xmp()
     xmp_with_location = build_xmp(gps_latitude="40.4462", gps_longitude="-79.98")
     xmp_conflict = build_xmp(model="IterationTwoXmp", create_date="2024-04-17T00:00:00")
+    validate_conflicts_xmp = build_xmp(make="Nikon")
     icc = build_icc_profile()
     iptc = build_photoshop_iptc_app13(build_iptc_iim())
     editorial_xmp = build_editorial_xmp(
@@ -725,6 +727,7 @@ def main():
         "xmp_only.png": build_png(None, xmp_with_location),
         "mixed.png": build_png(build_tiff(gps=False), xmp_with_location),
         "conflicting.png": build_png(build_tiff(gps=False), xmp_conflict),
+        "validate_conflicts.png": build_png(build_tiff(gps=False, make="Canon"), validate_conflicts_xmp),
         "no_exif.png": build_png(None),
         "malformed_chunk.png": build_png(build_tiff(gps=False), malformed=True),
         "happy.webp": build_webp(build_tiff(gps=False)),
