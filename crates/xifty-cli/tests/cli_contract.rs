@@ -318,6 +318,19 @@ fn extract_snapshot_icc_jpeg_normalized() {
 }
 
 #[test]
+fn probe_snapshot_happy_dng() {
+    assert_json_snapshot!("probe_happy_dng", probe_json("happy.dng"));
+}
+
+#[test]
+fn extract_snapshot_happy_dng_normalized() {
+    assert_json_snapshot!(
+        "extract_happy_dng_normalized",
+        extract_json("happy.dng", ViewMode::Normalized)
+    );
+}
+
+#[test]
 fn extract_snapshot_xmp_tiff_normalized() {
     assert_json_snapshot!(
         "extract_xmp_tiff_normalized",

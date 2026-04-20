@@ -105,6 +105,14 @@
         "iptc": "bounded"
       }
     },
+    "dng": {
+      "namespaces": {
+        "exif": "bounded",
+        "xmp": "bounded",
+        "icc": "bounded",
+        "iptc": "bounded"
+      }
+    },
     "png": {
       "namespaces": {
         "exif": "supported",

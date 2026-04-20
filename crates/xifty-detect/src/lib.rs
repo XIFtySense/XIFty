@@ -8,6 +8,9 @@ pub fn detect(source: &SourceBytes) -> Result<Format, XiftyError> {
     }
 
     if bytes.len() >= 4 && (&bytes[0..4] == b"II*\0" || &bytes[0..4] == b"MM\0*") {
+        if is_dng_tiff(bytes) {
+            return Ok(Format::Dng);
+        }
         return Ok(Format::Tiff);
     }
 
@@ -46,6 +49,62 @@ pub fn detect(source: &SourceBytes) -> Result<Format, XiftyError> {
     }
 
     Err(XiftyError::UnsupportedFormat)
+}
+
+/// Probe IFD0 of a TIFF-shaped byte stream for the DNGVersion tag (0xC612).
+///
+/// Kept defensive: any read that falls outside the byte slice or an IFD0 offset
+/// that does not fit into the buffer returns `false` so detection degrades to
+/// plain TIFF rather than surfacing a parse error (detection has never
+/// returned `XiftyError::Parse`).
+fn is_dng_tiff(bytes: &[u8]) -> bool {
+    if bytes.len() < 8 {
+        return false;
+    }
+    let little_endian = &bytes[0..2] == b"II";
+    let read_u16 = |slice: &[u8]| -> Option<u16> {
+        let arr: [u8; 2] = slice.try_into().ok()?;
+        Some(if little_endian {
+            u16::from_le_bytes(arr)
+        } else {
+            u16::from_be_bytes(arr)
+        })
+    };
+    let read_u32 = |slice: &[u8]| -> Option<u32> {
+        let arr: [u8; 4] = slice.try_into().ok()?;
+        Some(if little_endian {
+            u32::from_le_bytes(arr)
+        } else {
+            u32::from_be_bytes(arr)
+        })
+    };
+
+    let ifd0_offset = match read_u32(&bytes[4..8]) {
+        Some(offset) => offset as usize,
+        None => return false,
+    };
+    let count_slice = match bytes.get(ifd0_offset..ifd0_offset + 2) {
+        Some(slice) => slice,
+        None => return false,
+    };
+    let count = match read_u16(count_slice) {
+        Some(count) => count as usize,
+        None => return false,
+    };
+    let entries_start = ifd0_offset + 2;
+    let entries_end = entries_start + count * 12;
+    let entries = match bytes.get(entries_start..entries_end) {
+        Some(slice) => slice,
+        None => return false,
+    };
+    for entry in entries.chunks_exact(12) {
+        if let Some(tag) = read_u16(&entry[0..2]) {
+            if tag == 0xC612 {
+                return true;
+            }
+        }
+    }
+    false
 }
 
 fn is_heif_brand(bytes: &[u8]) -> bool {
@@ -208,5 +267,51 @@ mod tests {
         let _ = fs::remove_file(flac);
         let _ = fs::remove_file(aiff);
         let _ = fs::remove_file(aifc);
+    }
+
+    /// Build a minimal little-endian TIFF with a single IFD0 entry carrying `tag`.
+    fn tiff_with_tag(tag: u16) -> Vec<u8> {
+        let mut out = Vec::new();
+        out.extend_from_slice(b"II*\0");
+        out.extend_from_slice(&8u32.to_le_bytes()); // IFD0 at offset 8
+        out.extend_from_slice(&1u16.to_le_bytes()); // one entry
+        out.extend_from_slice(&tag.to_le_bytes());
+        out.extend_from_slice(&1u16.to_le_bytes()); // type = BYTE
+        out.extend_from_slice(&4u32.to_le_bytes()); // count = 4
+        out.extend_from_slice(&[0x01, 0x04, 0x00, 0x00]); // inline value
+        out.extend_from_slice(&0u32.to_le_bytes()); // next IFD = 0
+        out
+    }
+
+    #[test]
+    fn detects_dng_when_dng_version_present() {
+        let dng_bytes = tiff_with_tag(0xC612);
+        let plain_tiff_bytes = tiff_with_tag(0x010F);
+        let dng_path = temp_file("a.dng", &dng_bytes);
+        let tiff_path = temp_file("a.tif", &plain_tiff_bytes);
+        assert_eq!(
+            detect(&SourceBytes::from_path(&dng_path).unwrap()).unwrap(),
+            Format::Dng
+        );
+        assert_eq!(
+            detect(&SourceBytes::from_path(&tiff_path).unwrap()).unwrap(),
+            Format::Tiff
+        );
+        let _ = fs::remove_file(dng_path);
+        let _ = fs::remove_file(tiff_path);
+    }
+
+    #[test]
+    fn malformed_tiff_ifd_offset_falls_back_to_tiff() {
+        // IFD0 offset points past the buffer — detect must not return Dng and must not panic.
+        let mut bytes = Vec::new();
+        bytes.extend_from_slice(b"II*\0");
+        bytes.extend_from_slice(&0xFFFF_FFFFu32.to_le_bytes());
+        let path = temp_file("a.tif", &bytes);
+        assert_eq!(
+            detect(&SourceBytes::from_path(&path).unwrap()).unwrap(),
+            Format::Tiff
+        );
+        let _ = fs::remove_file(path);
     }
 }

@@ -1,0 +1,44 @@
+---
+source: crates/xifty-cli/tests/cli_contract.rs
+expression: "probe_json(\"happy.dng\")"
+---
+{
+  "containers": [
+    {
+      "kind": "container",
+      "label": "tiff",
+      "offset_end": 384,
+      "offset_start": 0
+    },
+    {
+      "kind": "ifd",
+      "label": "ifd0",
+      "offset_end": 130,
+      "offset_start": 8,
+      "parent_label": "tiff"
+    },
+    {
+      "kind": "ifd",
+      "label": "exif_ifd",
+      "offset_end": 288,
+      "offset_start": 190,
+      "parent_label": "tiff"
+    }
+  ],
+  "input": {
+    "container": "dng",
+    "detected_format": "dng",
+    "path": "happy.dng"
+  },
+  "report": {
+    "conflicts": [],
+    "issues": [
+      {
+        "code": "no_metadata_entries",
+        "message": "no supported metadata entries were decoded",
+        "severity": "info"
+      }
+    ]
+  },
+  "schema_version": "0.1.0"
+}
