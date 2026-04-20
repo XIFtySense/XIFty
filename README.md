@@ -90,6 +90,7 @@ Current container coverage:
 - PNG / WebP
 - HEIF / HEIC
 - MP4 / MOV
+- FLAC
 
 Current namespace coverage:
 
@@ -99,6 +100,8 @@ Current namespace coverage:
 - bounded IPTC
 - bounded QuickTime
 - selected Sony and Apple vendor metadata paths
+- bounded Vorbis comment (FLAC)
+- bounded FLAC stream info (sample rate, channels, bit depth, duration, embedded picture)
 
 Current product surfaces:
 
