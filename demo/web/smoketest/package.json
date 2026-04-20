@@ -1,0 +1,15 @@
+{
+  "name": "xifty-web-demo-smoketest",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Headless browser smoke test for the XIFty WASM web demo.",
+  "scripts": {
+    "test": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.49.0",
+    "ajv": "^8.17.1",
+    "ajv-formats": "^3.0.1",
+    "http-server": "^14.1.1"
+  }
+}

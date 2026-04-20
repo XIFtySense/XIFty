@@ -17,6 +17,19 @@ on:
       - "demo/**"
       - "fixtures/minimal/**"
       - "tools/build-web-demo.sh"
+  pull_request:
+    paths:
+      - ".github/workflows/pages-demo.yml"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "crates/xifty-cli/**"
+      - "crates/xifty-core/**"
+      - "crates/xifty-json/**"
+      - "crates/xifty-source/**"
+      - "crates/xifty-wasm/**"
+      - "demo/**"
+      - "fixtures/minimal/**"
+      - "tools/build-web-demo.sh"
 
 permissions:
   contents: read
@@ -47,12 +60,39 @@ jobs:
       - name: Build demo assets
         run: ./tools/build-web-demo.sh
 
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: "24"
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('demo/web/smoketest/package-lock.json') }}
+          restore-keys: |
+            playwright-${{ runner.os }}-
+
+      - name: Install smoke test dependencies
+        run: npm ci --prefix demo/web/smoketest
+
+      - name: Install Playwright browsers
+        run: npx --prefix demo/web/smoketest playwright install --with-deps chromium
+
+      - name: Run browser smoke test
+        run: npm test --prefix demo/web/smoketest
+
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v4
         with:
           path: ./demo/web
 
+  # The deploy job has `pages: write` + `id-token: write`; it must never run
+  # on pull_request events (especially from forks). The `if` gate below keeps
+  # deploy scoped to pushes on main; the build job still runs on PRs so the
+  # smoke test protects the demo bundle before it ever ships.
   deploy:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: build

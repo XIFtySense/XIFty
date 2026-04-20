@@ -33,6 +33,30 @@ python3 -m http.server 4173
 
 Open <http://localhost:4173>.
 
+## Smoke Test
+
+A headless browser smoke test lives in `demo/web/smoketest/`. It drives
+`index.html` with Playwright, feeds `fixtures/minimal/happy.jpg` through the
+real file input, and validates the resulting analysis envelope against
+`schemas/xifty-analysis-0.1.0.schema.json`.
+
+The test opts into an instrumentation hook gated by the `?smoketest=1` query
+flag. When present, the demo assigns `window.__xiftyDebug = { probe, views }`
+after a successful extraction. The flag has no effect for ordinary Pages
+visitors.
+
+Run it locally after building the WASM bundle:
+
+```bash
+./tools/build-web-demo.sh
+cd demo/web/smoketest
+npm ci
+npx playwright install --with-deps chromium
+npm test
+```
+
+CI runs the same test on pull requests via `.github/workflows/pages-demo.yml`.
+
 ## Current Scope
 
 The browser MVP is intentionally narrower than the native/server surface.
