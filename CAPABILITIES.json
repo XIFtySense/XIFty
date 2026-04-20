@@ -6,7 +6,10 @@
       "status": "bounded"
     },
     "xmp": {
-      "status": "bounded"
+      "status": "bounded",
+      "supported_tags": [
+        "Keywords"
+      ]
     },
     "icc": {
       "status": "bounded",
