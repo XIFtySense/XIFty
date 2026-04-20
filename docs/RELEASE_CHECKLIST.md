@@ -66,7 +66,8 @@ npm view @xifty/xifty version dist-tags.latest --json
 (configured under Settings → Branches → Branch protection rules):
 
 - `Rust Core` (from `ci.yml`)
-- `Runtime Artifact` (from `ci.yml`)
+- `Runtime Artifact (macos-arm64)` (from `ci.yml`)
+- `Runtime Artifact (linux-x64)` (from `ci.yml`)
 - `Lambda Node Example` (from `ci.yml`)
 - `Docs And Contract` (from `hygiene.yml`) — enforces the cbindgen header
   staleness check and JSON schema artifact validation on every PR
@@ -84,7 +85,7 @@ gh api repos/XIFtySense/XIFty/branches/main/protection \
 Expected output (order may vary):
 
 ```json
-["Rust Core","Runtime Artifact","Lambda Node Example","Docs And Contract"]
+["Rust Core","Runtime Artifact (macos-arm64)","Runtime Artifact (linux-x64)","Lambda Node Example","Docs And Contract"]
 ```
 
 If the repository migrates to Rulesets, the classic `branches/*/protection`
