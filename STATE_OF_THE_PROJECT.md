@@ -70,6 +70,8 @@ What is now proven:
   `xifty-policy`
 - provenance-preserving normalized derivation
 - bounded editorial precedence such as XMP-over-IPTC where explicitly modeled
+- source provenance carried on every conflict entry: `sources[0]` is the
+  winner; subsequent entries are materially different participants
 
 `xifty-validate` now runs three rule families over the full `entries` slice
 before normalization: cross-namespace semantic-tag disagreement (e.g. EXIF
@@ -78,6 +80,14 @@ before normalization: cross-namespace semantic-tag disagreement (e.g. EXIF
 relative tolerance for ISO, aperture, focal length, shutter speed). Both
 validate- and policy-produced conflicts are accumulated with `.extend` in the
 CLI path, so `Report.conflicts` can contain entries from either source.
+
+Each conflict entry now carries an optional `sources` array. When present,
+each element identifies one conflict participant: `namespace`, `tag_id`,
+`tag_name`, `value`, and `provenance` (container, byte offsets, path). The
+winner is always `sources[0]`. This makes conflicts programmatically
+actionable without parsing the human-readable `message` string. `sources` is
+omitted from serialized output when empty (additive schema change, no
+`SCHEMA_VERSION` bump).
 
 That moves the project beyond "can we decode bytes?" into "can we derive
 explainable, stable application fields from messy real-world metadata?"
