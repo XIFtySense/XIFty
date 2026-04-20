@@ -33,8 +33,8 @@ pub(crate) static SEMANTIC_GROUPS: &[(&str, &[(&str, &str)])] = &[
         "copyright",
         &[
             ("exif", "Copyright"),
-            ("xmp", "rights"),
-            ("iptc", "CopyrightNotice"),
+            ("xmp", "Copyright"),
+            ("iptc", "Copyright"),
         ],
     ),
 ];
