@@ -123,6 +123,9 @@ async function handleFile(file) {
       progress: 100,
     });
     statusText.textContent = "Local extraction complete";
+    if (new URLSearchParams(location.search).has("smoketest")) {
+      window.__xiftyDebug = { probe, views };
+    }
   } catch (error) {
     showError(error);
   } finally {
