@@ -329,6 +329,22 @@ fn extract_snapshot_iptc_jpeg_normalized() {
 }
 
 #[test]
+fn extract_snapshot_iptc_png_normalized() {
+    assert_json_snapshot!(
+        "extract_iptc_png_normalized",
+        extract_json("iptc.png", ViewMode::Normalized)
+    );
+}
+
+#[test]
+fn extract_snapshot_iptc_webp_normalized() {
+    assert_json_snapshot!(
+        "extract_iptc_webp_normalized",
+        extract_json("iptc.webp", ViewMode::Normalized)
+    );
+}
+
+#[test]
 fn icc_jpeg_normalization_includes_color_fields() {
     let output = normalized_map(&extract_json("icc.jpg", ViewMode::Normalized));
     assert_eq!(

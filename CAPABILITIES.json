@@ -52,7 +52,7 @@
         "exif": "supported",
         "xmp": "supported",
         "icc": "supported",
-        "iptc": "not_yet_supported"
+        "iptc": "bounded"
       }
     },
     "webp": {
@@ -60,7 +60,7 @@
         "exif": "supported",
         "xmp": "supported",
         "icc": "supported",
-        "iptc": "not_yet_supported"
+        "iptc": "bounded"
       }
     },
     "heif": {

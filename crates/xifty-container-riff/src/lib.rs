@@ -36,6 +36,12 @@ impl RiffContainer {
             .iter()
             .filter(|chunk| &chunk.chunk_id == b"ICCP")
     }
+
+    pub fn iptc_payloads(&self) -> impl Iterator<Item = &RiffChunk> {
+        self.chunks
+            .iter()
+            .filter(|chunk| &chunk.chunk_id == b"IPTC")
+    }
 }
 
 pub fn parse(source: &SourceBytes) -> Result<RiffContainer, XiftyError> {
@@ -183,5 +189,17 @@ mod tests {
         bytes.extend_from_slice(&0u32.to_le_bytes());
         let parsed = parse_bytes(&bytes, 0).unwrap();
         assert!(parsed.icc_payloads().next().is_some());
+    }
+
+    #[test]
+    fn routes_iptc_chunks() {
+        let mut bytes = Vec::new();
+        bytes.extend_from_slice(b"RIFF");
+        bytes.extend_from_slice(&12u32.to_le_bytes());
+        bytes.extend_from_slice(b"WEBP");
+        bytes.extend_from_slice(b"IPTC");
+        bytes.extend_from_slice(&0u32.to_le_bytes());
+        let parsed = parse_bytes(&bytes, 0).unwrap();
+        assert!(parsed.iptc_payloads().next().is_some());
     }
 }

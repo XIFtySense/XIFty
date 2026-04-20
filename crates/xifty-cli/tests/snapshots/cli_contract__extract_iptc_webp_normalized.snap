@@ -1,0 +1,109 @@
+---
+source: crates/xifty-cli/tests/cli_contract.rs
+assertion_line: 341
+expression: "extract_json(\"iptc.webp\", ViewMode::Normalized)"
+---
+{
+  "input": {
+    "container": "webp",
+    "detected_format": "webp",
+    "path": "iptc.webp"
+  },
+  "normalized": {
+    "fields": [
+      {
+        "confidence": 0.949999988079071,
+        "field": "author",
+        "sources": [
+          {
+            "container": "webp",
+            "namespace": "iptc",
+            "offset_end": 98,
+            "offset_start": 12,
+            "path": "webp_iptc"
+          }
+        ],
+        "value": {
+          "kind": "string",
+          "value": "Kai"
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
+        "field": "copyright",
+        "sources": [
+          {
+            "container": "webp",
+            "namespace": "iptc",
+            "offset_end": 98,
+            "offset_start": 12,
+            "path": "webp_iptc"
+          }
+        ],
+        "value": {
+          "kind": "string",
+          "value": "XIFty"
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
+        "field": "headline",
+        "sources": [
+          {
+            "container": "webp",
+            "namespace": "iptc",
+            "offset_end": 98,
+            "offset_start": 12,
+            "path": "webp_iptc"
+          }
+        ],
+        "value": {
+          "kind": "string",
+          "value": "XIFty Headline"
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
+        "field": "description",
+        "sources": [
+          {
+            "container": "webp",
+            "namespace": "iptc",
+            "offset_end": 98,
+            "offset_start": 12,
+            "path": "webp_iptc"
+          }
+        ],
+        "value": {
+          "kind": "string",
+          "value": "XIFty Caption"
+        }
+      },
+      {
+        "confidence": 0.8999999761581421,
+        "field": "keywords",
+        "notes": [
+          "derived from repeated Keywords metadata"
+        ],
+        "sources": [
+          {
+            "container": "webp",
+            "namespace": "iptc",
+            "offset_end": 98,
+            "offset_start": 12,
+            "path": "webp_iptc"
+          }
+        ],
+        "value": {
+          "kind": "string",
+          "value": "xifty, metadata"
+        }
+      }
+    ]
+  },
+  "report": {
+    "conflicts": [],
+    "issues": []
+  },
+  "schema_version": "0.1.0"
+}
