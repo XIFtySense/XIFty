@@ -791,6 +791,7 @@ dependencies = [
  "flate2",
  "insta",
  "serde_json",
+ "xifty-container-flac",
  "xifty-container-isobmff",
  "xifty-container-jpeg",
  "xifty-container-png",
@@ -806,11 +807,20 @@ dependencies = [
  "xifty-meta-quicktime",
  "xifty-meta-rtmd",
  "xifty-meta-sony",
+ "xifty-meta-vorbis-comment",
  "xifty-meta-xmp",
  "xifty-normalize",
  "xifty-policy",
  "xifty-source",
  "xifty-validate",
+]
+
+[[package]]
+name = "xifty-container-flac"
+version = "0.1.5"
+dependencies = [
+ "xifty-core",
+ "xifty-source",
 ]
 
 [[package]]
@@ -941,6 +951,13 @@ dependencies = [
  "xifty-container-tiff",
  "xifty-core",
  "xifty-source",
+]
+
+[[package]]
+name = "xifty-meta-vorbis-comment"
+version = "0.1.5"
+dependencies = [
+ "xifty-core",
 ]
 
 [[package]]

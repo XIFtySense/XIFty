@@ -19,6 +19,10 @@ pub fn detect(source: &SourceBytes) -> Result<Format, XiftyError> {
         return Ok(Format::Webp);
     }
 
+    if bytes.len() >= 4 && &bytes[0..4] == b"fLaC" {
+        return Ok(Format::Flac);
+    }
+
     if bytes.len() >= 16 && &bytes[4..8] == b"ftyp" {
         if is_heif_brand(bytes) {
             return Ok(Format::Heif);
@@ -125,6 +129,7 @@ mod tests {
         let heif = temp_file("a.heic", b"\x00\x00\x00\x18ftypheic\0\0\0\0mif1");
         let mp4 = temp_file("a.mp4", b"\x00\x00\x00\x18ftypisom\0\0\0\0mp42");
         let mov = temp_file("a.mov", b"\x00\x00\x00\x14ftypqt  \0\0\0\0");
+        let flac = temp_file("a.flac", b"fLaC\x00\x00\x00\x22");
         assert_eq!(
             detect(&SourceBytes::from_path(&jpeg).unwrap()).unwrap(),
             Format::Jpeg
@@ -153,6 +158,10 @@ mod tests {
             detect(&SourceBytes::from_path(&mov).unwrap()).unwrap(),
             Format::Mov
         );
+        assert_eq!(
+            detect(&SourceBytes::from_path(&flac).unwrap()).unwrap(),
+            Format::Flac
+        );
         let _ = fs::remove_file(jpeg);
         let _ = fs::remove_file(tiff);
         let _ = fs::remove_file(png);
@@ -160,5 +169,6 @@ mod tests {
         let _ = fs::remove_file(heif);
         let _ = fs::remove_file(mp4);
         let _ = fs::remove_file(mov);
+        let _ = fs::remove_file(flac);
     }
 }

@@ -1,0 +1,51 @@
+---
+source: crates/xifty-cli/tests/cli_contract.rs
+expression: "probe_json(\"happy.flac\")"
+---
+{
+  "containers": [
+    {
+      "kind": "container",
+      "label": "flac",
+      "offset_end": 226,
+      "offset_start": 0
+    },
+    {
+      "kind": "block",
+      "label": "streaminfo",
+      "offset_end": 42,
+      "offset_start": 4,
+      "parent_label": "flac"
+    },
+    {
+      "kind": "block",
+      "label": "vorbis_comment",
+      "offset_end": 129,
+      "offset_start": 42,
+      "parent_label": "flac"
+    },
+    {
+      "kind": "block",
+      "label": "picture",
+      "offset_end": 224,
+      "offset_start": 129,
+      "parent_label": "flac"
+    }
+  ],
+  "input": {
+    "container": "flac",
+    "detected_format": "flac",
+    "path": "happy.flac"
+  },
+  "report": {
+    "conflicts": [],
+    "issues": [
+      {
+        "code": "no_metadata_entries",
+        "message": "no supported metadata entries were decoded",
+        "severity": "info"
+      }
+    ]
+  },
+  "schema_version": "0.1.0"
+}
