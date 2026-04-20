@@ -1,0 +1,109 @@
+---
+source: crates/xifty-cli/tests/cli_contract.rs
+assertion_line: 333
+expression: "extract_json(\"iptc.png\", ViewMode::Normalized)"
+---
+{
+  "input": {
+    "container": "png",
+    "detected_format": "png",
+    "path": "iptc.png"
+  },
+  "normalized": {
+    "fields": [
+      {
+        "confidence": 0.949999988079071,
+        "field": "author",
+        "sources": [
+          {
+            "container": "png",
+            "namespace": "iptc",
+            "offset_end": 175,
+            "offset_start": 33,
+            "path": "png_iptc"
+          }
+        ],
+        "value": {
+          "kind": "string",
+          "value": "Kai"
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
+        "field": "copyright",
+        "sources": [
+          {
+            "container": "png",
+            "namespace": "iptc",
+            "offset_end": 175,
+            "offset_start": 33,
+            "path": "png_iptc"
+          }
+        ],
+        "value": {
+          "kind": "string",
+          "value": "XIFty"
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
+        "field": "headline",
+        "sources": [
+          {
+            "container": "png",
+            "namespace": "iptc",
+            "offset_end": 175,
+            "offset_start": 33,
+            "path": "png_iptc"
+          }
+        ],
+        "value": {
+          "kind": "string",
+          "value": "XIFty Headline"
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
+        "field": "description",
+        "sources": [
+          {
+            "container": "png",
+            "namespace": "iptc",
+            "offset_end": 175,
+            "offset_start": 33,
+            "path": "png_iptc"
+          }
+        ],
+        "value": {
+          "kind": "string",
+          "value": "XIFty Caption"
+        }
+      },
+      {
+        "confidence": 0.8999999761581421,
+        "field": "keywords",
+        "notes": [
+          "derived from repeated Keywords metadata"
+        ],
+        "sources": [
+          {
+            "container": "png",
+            "namespace": "iptc",
+            "offset_end": 175,
+            "offset_start": 33,
+            "path": "png_iptc"
+          }
+        ],
+        "value": {
+          "kind": "string",
+          "value": "xifty, metadata"
+        }
+      }
+    ]
+  },
+  "report": {
+    "conflicts": [],
+    "issues": []
+  },
+  "schema_version": "0.1.0"
+}

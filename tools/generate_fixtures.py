@@ -368,6 +368,23 @@ def build_png(exif_payload=None, xmp_payload=None, malformed=False):
     return signature + b"".join(chunks)
 
 
+def build_png_with_iptc(iptc_payload):
+    """Build a minimal PNG carrying IPTC metadata in an ImageMagick-style
+    ``Raw profile type iptc`` zTXt chunk (hex-encoded IIM, zlib-compressed)."""
+    signature = b"\x89PNG\r\n\x1a\n"
+    ihdr = png_chunk(b"IHDR", struct.pack(">IIBBBBB", 1, 1, 8, 2, 0, 0, 0))
+    hex_lines = []
+    hex_str = iptc_payload.hex()
+    for i in range(0, len(hex_str), 72):
+        hex_lines.append(hex_str[i : i + 72])
+    framing = ("\niptc\n" + f"{len(iptc_payload):>8}\n" + "\n".join(hex_lines) + "\n").encode("ascii")
+    keyword = b"Raw profile type iptc\x00"
+    compression_method = b"\x00"
+    ztxt_payload = keyword + compression_method + zlib.compress(framing)
+    ztxt = png_chunk(b"zTXt", ztxt_payload)
+    return signature + ihdr + ztxt + png_chunk(b"IEND", b"")
+
+
 def build_png_with_icc(icc_payload):
     signature = b"\x89PNG\r\n\x1a\n"
     ihdr = png_chunk(b"IHDR", struct.pack(">IIBBBBB", 1, 1, 8, 2, 0, 0, 0))
@@ -409,6 +426,11 @@ def build_webp(exif_payload=None, xmp_payload=None, malformed=False):
 
 def build_webp_with_icc(icc_payload):
     body = b"WEBP" + riff_chunk(b"ICCP", icc_payload)
+    return b"RIFF" + struct.pack("<I", len(body)) + body
+
+
+def build_webp_with_iptc(iptc_payload):
+    body = b"WEBP" + riff_chunk(b"IPTC", iptc_payload)
     return b"RIFF" + struct.pack("<I", len(body)) + body
 
 
@@ -652,6 +674,7 @@ def main():
         "no_exif.tiff": build_tiff(no_exif=True),
         "happy.png": build_png(build_tiff(gps=False)),
         "icc.png": build_png_with_icc(icc),
+        "iptc.png": build_png_with_iptc(build_iptc_iim()),
         "malformed_icc.png": build_png_with_malformed_icc(),
         "no_icc.png": build_png(None),
         "xmp_only.png": build_png(None, xmp_with_location),
@@ -661,6 +684,7 @@ def main():
         "malformed_chunk.png": build_png(build_tiff(gps=False), malformed=True),
         "happy.webp": build_webp(build_tiff(gps=False)),
         "icc.webp": build_webp_with_icc(icc),
+        "iptc.webp": build_webp_with_iptc(build_iptc_iim()),
         "xmp_only.webp": build_webp(None, xmp_with_location),
         "mixed.webp": build_webp(build_tiff(gps=False), xmp_with_location),
         "conflicting.webp": build_webp(build_tiff(gps=False), xmp_conflict),

@@ -35,6 +35,14 @@ impl PngContainer {
             .iter()
             .filter(|chunk| &chunk.chunk_type == b"iCCP")
     }
+
+    pub fn iptc_payloads(&self) -> impl Iterator<Item = &PngChunk> {
+        self.chunks.iter().filter(|chunk| {
+            &chunk.chunk_type == b"iTXt"
+                || &chunk.chunk_type == b"tEXt"
+                || &chunk.chunk_type == b"zTXt"
+        })
+    }
 }
 
 pub fn parse(source: &SourceBytes) -> Result<PngContainer, XiftyError> {
@@ -158,5 +166,21 @@ mod tests {
         bytes.extend_from_slice(&0u32.to_be_bytes());
         let parsed = parse_bytes(&bytes, 0).unwrap();
         assert!(parsed.icc_payloads().next().is_some());
+    }
+
+    #[test]
+    fn routes_text_chunks_for_iptc() {
+        let mut bytes = vec![0x89, b'P', b'N', b'G', 0x0D, 0x0A, 0x1A, 0x0A];
+        let keyword = b"Raw profile type iptc\x00";
+        let data: Vec<u8> = keyword.iter().copied().chain([0u8]).collect();
+        bytes.extend_from_slice(&(data.len() as u32).to_be_bytes());
+        bytes.extend_from_slice(b"zTXt");
+        bytes.extend_from_slice(&data);
+        bytes.extend_from_slice(&0u32.to_be_bytes());
+        bytes.extend_from_slice(&0u32.to_be_bytes());
+        bytes.extend_from_slice(b"IEND");
+        bytes.extend_from_slice(&0u32.to_be_bytes());
+        let parsed = parse_bytes(&bytes, 0).unwrap();
+        assert!(parsed.iptc_payloads().next().is_some());
     }
 }

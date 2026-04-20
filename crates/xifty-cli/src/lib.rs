@@ -284,6 +284,43 @@ fn extract_source(source: &SourceBytes, view_mode: ViewMode) -> Result<AnalysisO
                     ));
                 }
             }
+            for chunk in png.iptc_payloads() {
+                let Some(payload) = payload_slice(
+                    source.bytes(),
+                    chunk.data_offset,
+                    chunk.data_length as usize,
+                ) else {
+                    continue;
+                };
+                let Some(iptc_bytes) = decode_png_iptc_payload(&chunk.chunk_type, payload) else {
+                    continue;
+                };
+                if iptc_bytes.is_empty() {
+                    issues.push(namespace_issue(
+                        "png_iptc_payload_invalid",
+                        "PNG IPTC text chunk could not be decoded",
+                        chunk.offset_start,
+                        &String::from_utf8_lossy(&chunk.chunk_type),
+                    ));
+                    continue;
+                }
+                let decoded = decode_iptc_payload(IptcPayload {
+                    bytes: &iptc_bytes,
+                    container: "png",
+                    path: "png_iptc",
+                    offset_start: chunk.offset_start,
+                    offset_end: chunk.offset_end,
+                });
+                if decoded.is_empty() {
+                    issues.push(namespace_issue(
+                        "iptc_decode_empty",
+                        "recognized IPTC payload but could not decode bounded IPTC datasets",
+                        chunk.offset_start,
+                        "png_iptc",
+                    ));
+                }
+                entries.extend(decoded);
+            }
             for chunk in png.icc_payloads() {
                 if let Some(payload) = payload_slice(
                     source.bytes(),
@@ -348,6 +385,30 @@ fn extract_source(source: &SourceBytes, view_mode: ViewMode) -> Result<AnalysisO
                     {
                         entries.extend(decode_from_tiff(payload, chunk.data_offset, "webp", &tiff));
                     }
+                }
+            }
+            for chunk in riff.iptc_payloads() {
+                if let Some(payload) = payload_slice(
+                    source.bytes(),
+                    chunk.data_offset,
+                    chunk.data_length as usize,
+                ) {
+                    let decoded = decode_iptc_payload(IptcPayload {
+                        bytes: payload,
+                        container: "webp",
+                        path: "webp_iptc",
+                        offset_start: chunk.offset_start,
+                        offset_end: chunk.offset_end,
+                    });
+                    if decoded.is_empty() {
+                        issues.push(namespace_issue(
+                            "iptc_decode_empty",
+                            "recognized IPTC payload but could not decode bounded IPTC datasets",
+                            chunk.offset_start,
+                            "webp_iptc",
+                        ));
+                    }
+                    entries.extend(decoded);
                 }
             }
             for chunk in riff.icc_payloads() {
@@ -459,6 +520,109 @@ fn decode_png_iccp_payload(payload: &[u8]) -> Option<Vec<u8>> {
     let mut decoded = Vec::new();
     decoder.read_to_end(&mut decoded).ok()?;
     Some(decoded)
+}
+
+/// Decode a PNG text chunk (tEXt/zTXt/iTXt) into raw IPTC IIM bytes.
+///
+/// Returns `None` when the chunk does not carry IPTC metadata. Returns
+/// `Some(empty)` when the keyword matches but the payload is malformed
+/// (so the caller can emit a targeted issue).
+fn decode_png_iptc_payload(chunk_type: &[u8; 4], payload: &[u8]) -> Option<Vec<u8>> {
+    let nul = payload.iter().position(|byte| *byte == 0)?;
+    let keyword = &payload[..nul];
+    let is_raw_profile_iptc = keyword.eq_ignore_ascii_case(b"Raw profile type iptc")
+        || keyword.eq_ignore_ascii_case(b"Raw profile type 8bim");
+    let is_direct_iptc = keyword == b"IPTC-NAA" || keyword.eq_ignore_ascii_case(b"iptc");
+    if !is_raw_profile_iptc && !is_direct_iptc {
+        return None;
+    }
+
+    // Extract the content bytes after the keyword framing, honoring chunk type.
+    let content: Vec<u8> = match chunk_type {
+        b"tEXt" => payload.get(nul + 1..)?.to_vec(),
+        b"zTXt" => {
+            // after keyword nul: 1-byte compression method, then zlib stream
+            let method = *payload.get(nul + 1)?;
+            if method != 0 {
+                return Some(Vec::new());
+            }
+            let compressed = payload.get(nul + 2..)?;
+            let mut decoder = ZlibDecoder::new(compressed);
+            let mut decoded = Vec::new();
+            if decoder.read_to_end(&mut decoded).is_err() {
+                return Some(Vec::new());
+            }
+            decoded
+        }
+        b"iTXt" => {
+            // after keyword nul: compression flag (1), compression method (1),
+            // language tag (nul-terminated), translated keyword (nul-terminated), text
+            let mut cursor = nul + 1;
+            let compression_flag = *payload.get(cursor)?;
+            cursor += 1;
+            let compression_method = *payload.get(cursor)?;
+            cursor += 1;
+            let lang_end = payload.get(cursor..)?.iter().position(|b| *b == 0)?;
+            cursor += lang_end + 1;
+            let tr_end = payload.get(cursor..)?.iter().position(|b| *b == 0)?;
+            cursor += tr_end + 1;
+            let text = payload.get(cursor..)?;
+            if compression_flag == 0 {
+                text.to_vec()
+            } else {
+                if compression_method != 0 {
+                    return Some(Vec::new());
+                }
+                let mut decoder = ZlibDecoder::new(text);
+                let mut decoded = Vec::new();
+                if decoder.read_to_end(&mut decoded).is_err() {
+                    return Some(Vec::new());
+                }
+                decoded
+            }
+        }
+        _ => return None,
+    };
+
+    if is_direct_iptc {
+        return Some(content);
+    }
+
+    // ImageMagick "Raw profile type iptc" framing:
+    //   "\n<profile-name>\n<spaces><decimal length>\n<hex bytes>\n"
+    Some(decode_imagemagick_raw_profile(&content).unwrap_or_default())
+}
+
+fn decode_imagemagick_raw_profile(content: &[u8]) -> Option<Vec<u8>> {
+    // Skip leading newline, then profile-name line, then length line, then hex.
+    let text = std::str::from_utf8(content).ok()?;
+    let trimmed = text.trim_start_matches('\n');
+    let mut lines = trimmed.splitn(3, '\n');
+    let _name = lines.next()?;
+    let _length = lines.next()?.trim();
+    let rest = lines.next()?;
+    // rest contains hex possibly with whitespace; stop at terminating newline/content.
+    let hex: String = rest.chars().filter(|c| c.is_ascii_hexdigit()).collect();
+    if hex.is_empty() || hex.len() % 2 != 0 {
+        return None;
+    }
+    let mut out = Vec::with_capacity(hex.len() / 2);
+    let bytes = hex.as_bytes();
+    for chunk in bytes.chunks(2) {
+        let high = hex_digit(chunk[0])?;
+        let low = hex_digit(chunk[1])?;
+        out.push((high << 4) | low);
+    }
+    Some(out)
+}
+
+fn hex_digit(byte: u8) -> Option<u8> {
+    match byte {
+        b'0'..=b'9' => Some(byte - b'0'),
+        b'a'..=b'f' => Some(byte - b'a' + 10),
+        b'A'..=b'F' => Some(byte - b'A' + 10),
+        _ => None,
+    }
 }
 
 fn namespace_issue(code: &str, message: &str, offset: u64, context: &str) -> Issue {
@@ -732,5 +896,96 @@ fn media_scalar_entry(
             notes: vec![note.into()],
         },
         notes: Vec::new(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use flate2::{Compression, write::ZlibEncoder};
+    use std::io::Write;
+
+    fn imagemagick_framing(iim: &[u8]) -> Vec<u8> {
+        let mut hex = String::new();
+        for (i, byte) in iim.iter().enumerate() {
+            if i % 36 == 0 {
+                hex.push('\n');
+            }
+            hex.push_str(&format!("{:02x}", byte));
+        }
+        hex.push('\n');
+        let mut out = Vec::new();
+        out.extend_from_slice(b"\niptc\n");
+        out.extend_from_slice(format!("      {}", iim.len()).as_bytes());
+        out.extend_from_slice(hex.as_bytes());
+        out
+    }
+
+    fn iim_sample() -> Vec<u8> {
+        // Record 2, dataset 80 (By-line), value "Kai"
+        let mut out = Vec::new();
+        let text = b"Kai";
+        out.extend_from_slice(&[0x1C, 2, 80]);
+        out.extend_from_slice(&(text.len() as u16).to_be_bytes());
+        out.extend_from_slice(text);
+        out
+    }
+
+    #[test]
+    fn decodes_raw_profile_iptc_ztxt() {
+        let iim = iim_sample();
+        let framing = imagemagick_framing(&iim);
+        let mut encoder = ZlibEncoder::new(Vec::new(), Compression::default());
+        encoder.write_all(&framing).unwrap();
+        let compressed = encoder.finish().unwrap();
+        let mut payload = Vec::new();
+        payload.extend_from_slice(b"Raw profile type iptc\x00");
+        payload.push(0u8); // compression method
+        payload.extend_from_slice(&compressed);
+        let decoded = decode_png_iptc_payload(b"zTXt", &payload).expect("keyword matches");
+        assert_eq!(decoded, iim);
+    }
+
+    #[test]
+    fn decodes_raw_profile_iptc_text() {
+        let iim = iim_sample();
+        let framing = imagemagick_framing(&iim);
+        let mut payload = Vec::new();
+        payload.extend_from_slice(b"Raw profile type iptc\x00");
+        payload.extend_from_slice(&framing);
+        let decoded = decode_png_iptc_payload(b"tEXt", &payload).expect("keyword matches");
+        assert_eq!(decoded, iim);
+    }
+
+    #[test]
+    fn decodes_direct_iptc_naa_text() {
+        let iim = iim_sample();
+        let mut payload = Vec::new();
+        payload.extend_from_slice(b"IPTC-NAA\x00");
+        payload.extend_from_slice(&iim);
+        let decoded = decode_png_iptc_payload(b"tEXt", &payload).expect("keyword matches");
+        assert_eq!(decoded, iim);
+    }
+
+    #[test]
+    fn decodes_direct_iptc_naa_ztxt() {
+        let iim = iim_sample();
+        let mut encoder = ZlibEncoder::new(Vec::new(), Compression::default());
+        encoder.write_all(&iim).unwrap();
+        let compressed = encoder.finish().unwrap();
+        let mut payload = Vec::new();
+        payload.extend_from_slice(b"IPTC-NAA\x00");
+        payload.push(0u8);
+        payload.extend_from_slice(&compressed);
+        let decoded = decode_png_iptc_payload(b"zTXt", &payload).expect("keyword matches");
+        assert_eq!(decoded, iim);
+    }
+
+    #[test]
+    fn ignores_non_iptc_keywords() {
+        let mut payload = Vec::new();
+        payload.extend_from_slice(b"XML:com.adobe.xmp\x00");
+        payload.extend_from_slice(b"irrelevant");
+        assert!(decode_png_iptc_payload(b"tEXt", &payload).is_none());
     }
 }
