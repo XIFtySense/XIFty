@@ -1,6 +1,6 @@
 ---
 source: crates/xifty-cli/tests/cli_contract.rs
-assertion_line: 507
+assertion_line: 606
 expression: "extract_json(\"conflicting.png\", ViewMode::Report)"
 ---
 {
@@ -13,35 +13,307 @@ expression: "extract_json(\"conflicting.png\", ViewMode::Report)"
     "conflicts": [
       {
         "field": "captured_at",
-        "message": "xmp:CreateDate=2024-04-17T00:00:00 vs exif:DateTimeOriginal=2024:04:16 12:34:56"
+        "message": "xmp:CreateDate=2024-04-17T00:00:00 vs exif:DateTimeOriginal=2024:04:16 12:34:56",
+        "sources": [
+          {
+            "namespace": "xmp",
+            "provenance": {
+              "container": "png",
+              "namespace": "xmp",
+              "offset_end": 999,
+              "offset_start": 375,
+              "path": "xmp_packet"
+            },
+            "tag_id": "CreateDate",
+            "tag_name": "CreateDate",
+            "value": {
+              "kind": "string",
+              "value": "2024-04-17T00:00:00"
+            }
+          },
+          {
+            "namespace": "exif",
+            "provenance": {
+              "container": "png",
+              "namespace": "exif",
+              "offset_end": 191,
+              "offset_start": 179,
+              "path": "exif_ifd"
+            },
+            "tag_id": "0x9003",
+            "tag_name": "DateTimeOriginal",
+            "value": {
+              "kind": "timestamp",
+              "value": "2024:04:16 12:34:56"
+            }
+          }
+        ]
       },
       {
         "field": "device.model",
-        "message": "exif:Model=IterationOne vs xmp:Model=IterationTwoXmp"
+        "message": "exif:Model=IterationOne vs xmp:Model=IterationTwoXmp",
+        "sources": [
+          {
+            "namespace": "exif",
+            "provenance": {
+              "container": "png",
+              "namespace": "exif",
+              "offset_end": 99,
+              "offset_start": 87,
+              "path": "ifd0"
+            },
+            "tag_id": "0x0110",
+            "tag_name": "Model",
+            "value": {
+              "kind": "string",
+              "value": "IterationOne"
+            }
+          },
+          {
+            "namespace": "xmp",
+            "provenance": {
+              "container": "png",
+              "namespace": "xmp",
+              "offset_end": 999,
+              "offset_start": 375,
+              "path": "xmp_packet"
+            },
+            "tag_id": "Model",
+            "tag_name": "Model",
+            "value": {
+              "kind": "string",
+              "value": "IterationTwoXmp"
+            }
+          }
+        ]
       },
       {
         "field": "captured_at",
-        "message": "multiple candidates disagreed; selected DateTimeOriginal from exif"
+        "message": "multiple candidates disagreed; selected DateTimeOriginal from exif",
+        "sources": [
+          {
+            "namespace": "exif",
+            "provenance": {
+              "container": "png",
+              "namespace": "exif",
+              "offset_end": 191,
+              "offset_start": 179,
+              "path": "exif_ifd"
+            },
+            "tag_id": "0x9003",
+            "tag_name": "DateTimeOriginal",
+            "value": {
+              "kind": "timestamp",
+              "value": "2024:04:16 12:34:56"
+            }
+          },
+          {
+            "namespace": "xmp",
+            "provenance": {
+              "container": "png",
+              "namespace": "xmp",
+              "offset_end": 999,
+              "offset_start": 375,
+              "path": "xmp_packet"
+            },
+            "tag_id": "CreateDate",
+            "tag_name": "CreateDate",
+            "value": {
+              "kind": "string",
+              "value": "2024-04-17T00:00:00"
+            }
+          }
+        ]
       },
       {
         "field": "created_at",
-        "message": "multiple candidates disagreed; selected CreateDate from exif"
+        "message": "multiple candidates disagreed; selected CreateDate from exif",
+        "sources": [
+          {
+            "namespace": "exif",
+            "provenance": {
+              "container": "png",
+              "namespace": "exif",
+              "offset_end": 203,
+              "offset_start": 191,
+              "path": "exif_ifd"
+            },
+            "tag_id": "0x9004",
+            "tag_name": "CreateDate",
+            "value": {
+              "kind": "timestamp",
+              "value": "2024:04:16 12:34:56"
+            }
+          },
+          {
+            "namespace": "xmp",
+            "provenance": {
+              "container": "png",
+              "namespace": "xmp",
+              "offset_end": 999,
+              "offset_start": 375,
+              "path": "xmp_packet"
+            },
+            "tag_id": "CreateDate",
+            "tag_name": "CreateDate",
+            "value": {
+              "kind": "string",
+              "value": "2024-04-17T00:00:00"
+            }
+          }
+        ]
       },
       {
         "field": "device.model",
-        "message": "multiple candidates disagreed; selected Model from exif"
+        "message": "multiple candidates disagreed; selected Model from exif",
+        "sources": [
+          {
+            "namespace": "exif",
+            "provenance": {
+              "container": "png",
+              "namespace": "exif",
+              "offset_end": 99,
+              "offset_start": 87,
+              "path": "ifd0"
+            },
+            "tag_id": "0x0110",
+            "tag_name": "Model",
+            "value": {
+              "kind": "string",
+              "value": "IterationOne"
+            }
+          },
+          {
+            "namespace": "xmp",
+            "provenance": {
+              "container": "png",
+              "namespace": "xmp",
+              "offset_end": 999,
+              "offset_start": 375,
+              "path": "xmp_packet"
+            },
+            "tag_id": "Model",
+            "tag_name": "Model",
+            "value": {
+              "kind": "string",
+              "value": "IterationTwoXmp"
+            }
+          }
+        ]
       },
       {
         "field": "software",
-        "message": "multiple candidates disagreed; selected Software from exif"
+        "message": "multiple candidates disagreed; selected Software from exif",
+        "sources": [
+          {
+            "namespace": "exif",
+            "provenance": {
+              "container": "png",
+              "namespace": "exif",
+              "offset_end": 123,
+              "offset_start": 111,
+              "path": "ifd0"
+            },
+            "tag_id": "0x0131",
+            "tag_name": "Software",
+            "value": {
+              "kind": "string",
+              "value": "XIFtyTestGen"
+            }
+          },
+          {
+            "namespace": "xmp",
+            "provenance": {
+              "container": "png",
+              "namespace": "xmp",
+              "offset_end": 999,
+              "offset_start": 375,
+              "path": "xmp_packet"
+            },
+            "tag_id": "Software",
+            "tag_name": "Software",
+            "value": {
+              "kind": "string",
+              "value": "XIFtyXmpGen"
+            }
+          }
+        ]
       },
       {
         "field": "dimensions.width",
-        "message": "multiple candidates disagreed; selected ImageWidth from exif"
+        "message": "multiple candidates disagreed; selected ImageWidth from exif",
+        "sources": [
+          {
+            "namespace": "exif",
+            "provenance": {
+              "container": "png",
+              "namespace": "exif",
+              "offset_end": 63,
+              "offset_start": 51,
+              "path": "ifd0"
+            },
+            "tag_id": "0x0100",
+            "tag_name": "ImageWidth",
+            "value": {
+              "kind": "integer",
+              "value": 800
+            }
+          },
+          {
+            "namespace": "xmp",
+            "provenance": {
+              "container": "png",
+              "namespace": "xmp",
+              "offset_end": 999,
+              "offset_start": 375,
+              "path": "xmp_packet"
+            },
+            "tag_id": "ImageWidth",
+            "tag_name": "ImageWidth",
+            "value": {
+              "kind": "integer",
+              "value": 640
+            }
+          }
+        ]
       },
       {
         "field": "dimensions.height",
-        "message": "multiple candidates disagreed; selected ImageHeight from exif"
+        "message": "multiple candidates disagreed; selected ImageHeight from exif",
+        "sources": [
+          {
+            "namespace": "exif",
+            "provenance": {
+              "container": "png",
+              "namespace": "exif",
+              "offset_end": 75,
+              "offset_start": 63,
+              "path": "ifd0"
+            },
+            "tag_id": "0x0101",
+            "tag_name": "ImageHeight",
+            "value": {
+              "kind": "integer",
+              "value": 600
+            }
+          },
+          {
+            "namespace": "xmp",
+            "provenance": {
+              "container": "png",
+              "namespace": "xmp",
+              "offset_end": 999,
+              "offset_start": 375,
+              "path": "xmp_packet"
+            },
+            "tag_id": "ImageHeight",
+            "tag_name": "ImageHeight",
+            "value": {
+              "kind": "integer",
+              "value": 480
+            }
+          }
+        ]
       }
     ],
     "issues": []

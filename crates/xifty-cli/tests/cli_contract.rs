@@ -436,6 +436,81 @@ fn overlap_editorial_jpeg_prefers_xmp_for_editorial_fields() {
             .iter()
             .any(|conflict| conflict["field"] == "description")
     );
+
+    let author_conflict = conflicts
+        .iter()
+        .find(|conflict| conflict["field"] == "author")
+        .expect("missing author conflict");
+    let sources = author_conflict["sources"]
+        .as_array()
+        .expect("author conflict missing sources");
+    assert!(
+        sources.len() >= 2,
+        "expected at least two conflicting sources for author, got {}",
+        sources.len()
+    );
+    let namespaces: std::collections::BTreeSet<&str> = sources
+        .iter()
+        .filter_map(|side| side["provenance"]["namespace"].as_str())
+        .collect();
+    assert!(
+        namespaces.contains("xmp"),
+        "expected xmp namespace in author sources, got {:?}",
+        namespaces
+    );
+    assert!(
+        namespaces.contains("exif") || namespaces.contains("iptc"),
+        "expected exif or iptc namespace in author sources, got {:?}",
+        namespaces
+    );
+    assert_eq!(
+        sources[0]["provenance"]["namespace"].as_str(),
+        Some("xmp"),
+        "winner should appear first in sources"
+    );
+}
+
+#[test]
+fn conflicting_png_report_exposes_source_namespaces() {
+    let output = extract_json("conflicting.png", ViewMode::Report);
+    let conflicts = output["report"]["conflicts"].as_array().unwrap();
+
+    let captured_at = conflicts
+        .iter()
+        .find(|conflict| {
+            conflict["field"] == "captured_at"
+                && conflict["message"]
+                    .as_str()
+                    .is_some_and(|msg| msg.contains("selected"))
+        })
+        .expect("missing captured_at conflict with winner");
+    let sources = captured_at["sources"]
+        .as_array()
+        .expect("captured_at conflict missing sources");
+    assert!(
+        sources.len() >= 2,
+        "expected at least two sides for captured_at conflict, got {}",
+        sources.len()
+    );
+    let namespaces: std::collections::BTreeSet<&str> = sources
+        .iter()
+        .filter_map(|side| side["provenance"]["namespace"].as_str())
+        .collect();
+    assert!(
+        namespaces.contains("exif") && namespaces.contains("xmp"),
+        "expected both exif and xmp namespaces in captured_at sources, got {:?}",
+        namespaces
+    );
+    assert_eq!(
+        sources[0]["provenance"]["namespace"].as_str(),
+        Some("exif"),
+        "winner should appear first in sources"
+    );
+    for side in sources {
+        assert!(side.get("tag_id").and_then(Value::as_str).is_some());
+        assert!(side.get("tag_name").and_then(Value::as_str).is_some());
+        assert!(side.get("value").is_some());
+    }
 }
 
 #[test]
