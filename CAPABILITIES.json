@@ -141,7 +141,8 @@
     "mp4": {
       "namespaces": {
         "quicktime": "bounded",
-        "rtmd": "bounded"
+        "rtmd": "bounded",
+        "dji": "supported"
       }
     },
     "mov": {
