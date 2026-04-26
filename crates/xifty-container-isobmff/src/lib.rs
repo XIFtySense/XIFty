@@ -71,6 +71,12 @@ impl IsobmffContainer {
             .filter(|payload| payload.kind == "quicktime")
     }
 
+    pub fn quicktime_udta_payloads(&self) -> impl Iterator<Item = &IsobmffPayload> {
+        self.payloads
+            .iter()
+            .filter(|payload| payload.kind == "quicktime-udta")
+    }
+
     pub fn itunes_payloads(&self) -> impl Iterator<Item = &IsobmffPayload> {
         self.payloads
             .iter()
@@ -395,6 +401,18 @@ fn parse_children(
             b"\xa9alb" | b"\xa9day" | b"\xa9gen" | b"\xa9cmt" | b"\xa9wrt" | b"\xa9lyr"
             | b"aART" | b"trkn" | b"disk" | b"cpil" | b"tmpo" | b"covr" => {
                 if let Some(payload) = parse_itunes_item(cursor, &parsed) {
+                    payloads.push(payload);
+                }
+            }
+            // DJI drone telemetry + classic QuickTime location, stored as
+            // direct-`udta` 4cc atoms in classic user-data text format
+            // ({u16 length}{u16 lang}{ascii}). Only fires outside `ilst` so
+            // iTunes routing is untouched.
+            b"\xa9xyz" | b"\xa9xsp" | b"\xa9ysp" | b"\xa9zsp" | b"\xa9fpt" | b"\xa9fyw"
+            | b"\xa9frl" | b"\xa9gpt" | b"\xa9gyw" | b"\xa9grl" | b"\xa9mdl" | b"\xa9csn"
+                if !parsed.path.contains("ilst") =>
+            {
+                if let Some(payload) = parse_quicktime_udta_text(cursor, &parsed) {
                     payloads.push(payload);
                 }
             }
@@ -1148,6 +1166,33 @@ fn itunes_tag_label(box_type: [u8; 4]) -> String {
     }
 }
 
+/// Surface a direct-`udta` ©-prefixed atom as a `quicktime-udta` payload.
+///
+/// We do **not** validate the body shape here — DJI firmware ships at least
+/// two flavours: classic `{u16 length}{u16 language}{ascii}` (©fpt/©xyz/…)
+/// and raw null-padded ASCII (©mdl/©csn on FC3682). Decoding lives in
+/// `xifty-meta-quicktime` which tries both shapes. We only reject the
+/// iTunes `data`-sub-box shape so `udta/meta/ilst/©foo` keeps routing to
+/// `parse_itunes_item` without double-emit.
+fn parse_quicktime_udta_text(cursor: &Cursor<'_>, parsed: &ParsedBox) -> Option<IsobmffPayload> {
+    let payload = cursor.bytes().get(parsed.data_offset..parsed.end)?;
+    if payload.is_empty() {
+        return None;
+    }
+    if payload.len() >= 8 && payload.get(4..8) == Some(b"data") {
+        return None;
+    }
+    Some(IsobmffPayload {
+        kind: "quicktime-udta",
+        tag: Some(itunes_tag_label(parsed.box_type)),
+        offset_start: cursor.absolute_offset(parsed.start),
+        offset_end: cursor.absolute_offset(parsed.end),
+        data_offset: cursor.absolute_offset(parsed.data_offset),
+        data_length: (parsed.end - parsed.data_offset) as u64,
+        path: parsed.path.clone(),
+    })
+}
+
 fn parse_quicktime_item(cursor: &Cursor<'_>, parsed: &ParsedBox) -> Option<IsobmffPayload> {
     let payload = cursor.bytes().get(parsed.data_offset..parsed.end)?;
     if payload.len() < 16 || payload.get(4..8)? != b"data" {
@@ -1872,6 +1917,28 @@ mod tests {
         assert_eq!(parsed.audio_codec.as_deref(), Some("mp4a"));
         let dimensions = parsed.primary_visual_dimensions.unwrap();
         assert_eq!((dimensions.width, dimensions.height), (1920, 1080));
+    }
+
+    #[test]
+    fn surfaces_dji_direct_udta_text_atoms_as_quicktime_udta_payloads() {
+        let bytes = include_bytes!("../../../fixtures/minimal/dji_mavic3.mp4");
+        let parsed = parse_bytes(bytes, 0).unwrap();
+        // 12 documented DJI keys: ©xyz, ©xsp/©ysp/©zsp, ©fpt/©fyw/©frl,
+        // ©gpt/©gyw/©grl, ©mdl, ©csn — all direct children of `udta`,
+        // none under `ilst`.
+        assert_eq!(parsed.quicktime_udta_payloads().count(), 12);
+        let tags: Vec<&str> = parsed
+            .quicktime_udta_payloads()
+            .filter_map(|p| p.tag.as_deref())
+            .collect();
+        assert!(tags.contains(&"\u{a9}fpt"));
+        assert!(tags.contains(&"\u{a9}xyz"));
+        assert!(tags.contains(&"\u{a9}mdl"));
+        assert!(tags.contains(&"\u{a9}csn"));
+        // iTunes routing untouched (no `ilst` in this fixture).
+        assert_eq!(parsed.itunes_payloads().count(), 0);
+        // The classic-quicktime `data`-box path also untouched.
+        assert_eq!(parsed.quicktime_payloads().count(), 0);
     }
 
     #[test]

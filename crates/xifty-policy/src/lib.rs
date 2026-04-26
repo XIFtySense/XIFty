@@ -237,6 +237,86 @@ pub fn reconcile(entries: &[MetadataEntry]) -> PolicyResult {
         NamespacePreference::QuickTimeFirst,
     );
 
+    // Camera serial number — currently only emitted by the DJI udta path
+    // (©csn). EXIF stores it under `BodySerialNumber`, not `SerialNumber`,
+    // so no overlap with EXIF today; if a future source emits it, EXIF
+    // takes precedence.
+    maybe_choose_string(
+        entries,
+        &mut result,
+        "device.serial_number",
+        &["SerialNumber"],
+        NamespacePreference::ExifFirst,
+        false,
+    );
+
+    // Drone telemetry — emitted only by the `dji` namespace (direct-udta
+    // ©fpt/©fyw/©frl/©gpt/©gyw/©grl/©xsp/©ysp/©zsp). DjiFirst preference is
+    // a no-op today (no other source emits these tags) but documents intent.
+    maybe_choose_float(
+        entries,
+        &mut result,
+        "drone.flight.pitch_deg",
+        &["FlightPitchDegree"],
+        NamespacePreference::DjiFirst,
+    );
+    maybe_choose_float(
+        entries,
+        &mut result,
+        "drone.flight.yaw_deg",
+        &["FlightYawDegree"],
+        NamespacePreference::DjiFirst,
+    );
+    maybe_choose_float(
+        entries,
+        &mut result,
+        "drone.flight.roll_deg",
+        &["FlightRollDegree"],
+        NamespacePreference::DjiFirst,
+    );
+    maybe_choose_float(
+        entries,
+        &mut result,
+        "drone.gimbal.pitch_deg",
+        &["GimbalPitchDegree"],
+        NamespacePreference::DjiFirst,
+    );
+    maybe_choose_float(
+        entries,
+        &mut result,
+        "drone.gimbal.yaw_deg",
+        &["GimbalYawDegree"],
+        NamespacePreference::DjiFirst,
+    );
+    maybe_choose_float(
+        entries,
+        &mut result,
+        "drone.gimbal.roll_deg",
+        &["GimbalRollDegree"],
+        NamespacePreference::DjiFirst,
+    );
+    maybe_choose_float(
+        entries,
+        &mut result,
+        "drone.speed.x_mps",
+        &["SpeedX"],
+        NamespacePreference::DjiFirst,
+    );
+    maybe_choose_float(
+        entries,
+        &mut result,
+        "drone.speed.y_mps",
+        &["SpeedY"],
+        NamespacePreference::DjiFirst,
+    );
+    maybe_choose_float(
+        entries,
+        &mut result,
+        "drone.speed.z_mps",
+        &["SpeedZ"],
+        NamespacePreference::DjiFirst,
+    );
+
     result
 }
 
@@ -247,6 +327,7 @@ enum NamespacePreference {
     XmpThenQuickTime,
     QuickTimeFirst,
     IccFirst,
+    DjiFirst,
 }
 
 fn maybe_choose_string(
@@ -466,6 +547,7 @@ fn choose_match<'a>(
         NamespacePreference::XmpThenQuickTime => &["xmp", "quicktime"],
         NamespacePreference::QuickTimeFirst => &["quicktime"],
         NamespacePreference::IccFirst => &["icc"],
+        NamespacePreference::DjiFirst => &["dji"],
     };
 
     for namespace in preferred_namespaces {

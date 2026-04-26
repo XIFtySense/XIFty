@@ -1,0 +1,198 @@
+---
+source: crates/xifty-cli/tests/cli_contract.rs
+assertion_line: 170
+expression: "probe_json(\"dji_mavic3.mp4\")"
+---
+{
+  "containers": [
+    {
+      "kind": "box",
+      "label": "ftyp",
+      "offset_end": 24,
+      "offset_start": 0
+    },
+    {
+      "kind": "box",
+      "label": "moov",
+      "offset_end": 684,
+      "offset_start": 24
+    },
+    {
+      "kind": "box",
+      "label": "moov/mvhd",
+      "offset_end": 68,
+      "offset_start": 32,
+      "parent_label": "moov"
+    },
+    {
+      "kind": "box",
+      "label": "moov/trak",
+      "offset_end": 402,
+      "offset_start": 68,
+      "parent_label": "moov"
+    },
+    {
+      "kind": "box",
+      "label": "moov/trak/tkhd",
+      "offset_end": 168,
+      "offset_start": 76,
+      "parent_label": "moov/trak"
+    },
+    {
+      "kind": "box",
+      "label": "moov/trak/mdia",
+      "offset_end": 402,
+      "offset_start": 168,
+      "parent_label": "moov/trak"
+    },
+    {
+      "kind": "box",
+      "label": "moov/trak/mdia/mdhd",
+      "offset_end": 208,
+      "offset_start": 176,
+      "parent_label": "moov/trak/mdia"
+    },
+    {
+      "kind": "box",
+      "label": "moov/trak/mdia/hdlr",
+      "offset_end": 240,
+      "offset_start": 208,
+      "parent_label": "moov/trak/mdia"
+    },
+    {
+      "kind": "box",
+      "label": "moov/trak/mdia/minf",
+      "offset_end": 402,
+      "offset_start": 240,
+      "parent_label": "moov/trak/mdia"
+    },
+    {
+      "kind": "box",
+      "label": "moov/trak/mdia/minf/stbl",
+      "offset_end": 402,
+      "offset_start": 248,
+      "parent_label": "moov/trak/mdia/minf"
+    },
+    {
+      "kind": "box",
+      "label": "moov/trak/mdia/minf/stbl/stsd",
+      "offset_end": 378,
+      "offset_start": 256,
+      "parent_label": "moov/trak/mdia/minf/stbl"
+    },
+    {
+      "kind": "box",
+      "label": "moov/trak/mdia/minf/stbl/stts",
+      "offset_end": 402,
+      "offset_start": 378,
+      "parent_label": "moov/trak/mdia/minf/stbl"
+    },
+    {
+      "kind": "box",
+      "label": "moov/udta",
+      "offset_end": 684,
+      "offset_start": 402,
+      "parent_label": "moov"
+    },
+    {
+      "kind": "box",
+      "label": "moov/udta/�xyz",
+      "offset_end": 439,
+      "offset_start": 410,
+      "parent_label": "moov/udta"
+    },
+    {
+      "kind": "box",
+      "label": "moov/udta/�xsp",
+      "offset_end": 457,
+      "offset_start": 439,
+      "parent_label": "moov/udta"
+    },
+    {
+      "kind": "box",
+      "label": "moov/udta/�ysp",
+      "offset_end": 475,
+      "offset_start": 457,
+      "parent_label": "moov/udta"
+    },
+    {
+      "kind": "box",
+      "label": "moov/udta/�zsp",
+      "offset_end": 493,
+      "offset_start": 475,
+      "parent_label": "moov/udta"
+    },
+    {
+      "kind": "box",
+      "label": "moov/udta/�fpt",
+      "offset_end": 511,
+      "offset_start": 493,
+      "parent_label": "moov/udta"
+    },
+    {
+      "kind": "box",
+      "label": "moov/udta/�fyw",
+      "offset_end": 531,
+      "offset_start": 511,
+      "parent_label": "moov/udta"
+    },
+    {
+      "kind": "box",
+      "label": "moov/udta/�frl",
+      "offset_end": 549,
+      "offset_start": 531,
+      "parent_label": "moov/udta"
+    },
+    {
+      "kind": "box",
+      "label": "moov/udta/�gpt",
+      "offset_end": 568,
+      "offset_start": 549,
+      "parent_label": "moov/udta"
+    },
+    {
+      "kind": "box",
+      "label": "moov/udta/�gyw",
+      "offset_end": 586,
+      "offset_start": 568,
+      "parent_label": "moov/udta"
+    },
+    {
+      "kind": "box",
+      "label": "moov/udta/�grl",
+      "offset_end": 604,
+      "offset_start": 586,
+      "parent_label": "moov/udta"
+    },
+    {
+      "kind": "box",
+      "label": "moov/udta/�mdl",
+      "offset_end": 636,
+      "offset_start": 604,
+      "parent_label": "moov/udta"
+    },
+    {
+      "kind": "box",
+      "label": "moov/udta/�csn",
+      "offset_end": 684,
+      "offset_start": 636,
+      "parent_label": "moov/udta"
+    }
+  ],
+  "input": {
+    "container": "isobmff",
+    "detected_format": "mp4",
+    "path": "dji_mavic3.mp4"
+  },
+  "report": {
+    "conflicts": [],
+    "issues": [
+      {
+        "code": "no_metadata_entries",
+        "message": "no supported metadata entries were decoded",
+        "severity": "info"
+      }
+    ]
+  },
+  "schema_version": "0.1.0"
+}

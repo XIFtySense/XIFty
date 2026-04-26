@@ -723,6 +723,84 @@ def build_no_metadata_mp4():
     return build_media_file(major_brand=b"isom", compatible_brand=b"mp42", include_movie=False)
 
 
+def quicktime_udta_text(text):
+    """Classic QuickTime user-data text payload: {u16 BE length}{u16 BE language}{ascii}.
+
+    DJI uses language=0xff7f (the QuickTime "no language" sentinel) for direct-udta
+    ©-prefixed atoms. Text is ASCII with a trailing NUL byte in observed captures.
+    """
+    body = text.encode("ascii") + b"\x00"
+    return struct.pack(">HH", len(body), 0xFF7F) + body
+
+
+def quicktime_udta_padded_ascii(text, fixed_size):
+    """Raw null-padded ASCII payload (no length/language header).
+
+    Some DJI firmware (FC3682 / Mavic 3 confirmed) stores ©mdl and ©csn this
+    way: a fixed-size atom whose body is the ASCII string followed by NUL
+    padding. Matches the byte layout observed in real captures.
+    """
+    body = text.encode("ascii")
+    if len(body) > fixed_size:
+        raise ValueError(f"text {text!r} too long for {fixed_size}-byte atom")
+    return body + b"\x00" * (fixed_size - len(body))
+
+
+def build_dji_mavic3_mp4(duration=6.5):
+    """Synthetic minimal MP4 mirroring the udta layout of a DJI FC3682 (Mavic 3 Classic).
+
+    Carries DJI's documented direct-udta ©-prefix telemetry atoms in classic
+    QuickTime user-data text format (NOT iTunes ilst/data). Patterned after
+    /Volumes/KHAOS2/DCIM/100MEDIA/DJI_0003.MP4 (29MB original; this fixture is
+    bytes-only, no real video samples).
+    """
+    timescale = 30000
+    movie_duration = int(duration * timescale)
+    mvhd_payload = (
+        struct.pack(">I", qt_epoch_seconds(2024, 4, 16, 12, 34, 56))
+        + struct.pack(">I", qt_epoch_seconds(2024, 4, 16, 13, 0, 0))
+        + struct.pack(">I", timescale)
+        + struct.pack(">I", movie_duration)
+        + b"\x00" * 8
+    )
+    mvhd = full_box(b"mvhd", mvhd_payload)
+    video_track = build_track(
+        handler=b"vide",
+        codec=b"avc1",
+        duration=movie_duration,
+        timescale=timescale,
+        width=1920,
+        height=1080,
+        frame_rate=29.97,
+        bitrate=34_969_786,
+    )
+    udta_children = (
+        # Location (ISO 6709 lat+lon, no altitude)
+        iso_box(b"\xa9xyz", quicktime_udta_text("+40.7922-73.9584"))
+        # Speed XYZ (m/s)
+        + iso_box(b"\xa9xsp", quicktime_udta_text("+0.00"))
+        + iso_box(b"\xa9ysp", quicktime_udta_text("+0.00"))
+        + iso_box(b"\xa9zsp", quicktime_udta_text("+0.00"))
+        # Flight pitch/yaw/roll (degrees)
+        + iso_box(b"\xa9fpt", quicktime_udta_text("+0.90"))
+        + iso_box(b"\xa9fyw", quicktime_udta_text("+175.50"))
+        + iso_box(b"\xa9frl", quicktime_udta_text("-3.90"))
+        # Gimbal pitch/yaw/roll (degrees)
+        + iso_box(b"\xa9gpt", quicktime_udta_text("-31.20"))
+        + iso_box(b"\xa9gyw", quicktime_udta_text("-2.30"))
+        + iso_box(b"\xa9grl", quicktime_udta_text("+0.00"))
+        # Model + serial number — real DJI firmware writes these as raw
+        # null-padded ASCII without the {len,lang} header (24-byte ©mdl,
+        # 40-byte ©csn observed on FC3682 captures).
+        + iso_box(b"\xa9mdl", quicktime_udta_padded_ascii("FC3682", 24))
+        + iso_box(b"\xa9csn", quicktime_udta_padded_ascii("53HQN4T0M5B7JW", 40))
+    )
+    udta = iso_box(b"udta", udta_children)
+    moov = iso_box(b"moov", mvhd + video_track + udta)
+    ftyp = iso_box(b"ftyp", b"mp42" + b"\x00\x00\x00\x00" + b"avc1" + b"isom")
+    return ftyp + moov
+
+
 def build_m4a(duration=12.0):
     """Build a minimal audio-only M4A with a richer iTunes ilst atom tree."""
     timescale = 1000
@@ -1019,6 +1097,7 @@ def main():
         "no_metadata.mp4": build_no_metadata_mp4(),
         "malformed.mp4": build_mp4(malformed=True),
         "happy.m4a": build_m4a(),
+        "dji_mavic3.mp4": build_dji_mavic3_mp4(),
         "happy.mov": build_mov(),
         "malformed.mov": build_mov(malformed=True),
         "happy.flac": build_flac(),

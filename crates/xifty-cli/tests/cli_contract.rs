@@ -166,6 +166,11 @@ fn probe_snapshot_happy_m4a() {
 }
 
 #[test]
+fn probe_snapshot_dji_mavic3() {
+    assert_json_snapshot!("probe_dji_mavic3", probe_json("dji_mavic3.mp4"));
+}
+
+#[test]
 fn extract_snapshot_happy_jpeg() {
     assert_json_snapshot!(
         "extract_happy_jpeg",
@@ -298,6 +303,22 @@ fn extract_snapshot_happy_m4a_interpreted() {
     assert_json_snapshot!(
         "extract_happy_m4a_interpreted",
         extract_json("happy.m4a", ViewMode::Interpreted)
+    );
+}
+
+#[test]
+fn extract_snapshot_dji_mavic3_normalized() {
+    assert_json_snapshot!(
+        "extract_dji_mavic3_normalized",
+        extract_json("dji_mavic3.mp4", ViewMode::Normalized)
+    );
+}
+
+#[test]
+fn extract_snapshot_dji_mavic3_interpreted() {
+    assert_json_snapshot!(
+        "extract_dji_mavic3_interpreted",
+        extract_json("dji_mavic3.mp4", ViewMode::Interpreted)
     );
 }
 
