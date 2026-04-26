@@ -1,0 +1,402 @@
+---
+source: crates/xifty-cli/tests/cli_contract.rs
+assertion_line: 319
+expression: "extract_json(\"dji_mavic3.mp4\", ViewMode::Interpreted)"
+---
+{
+  "input": {
+    "container": "isobmff",
+    "detected_format": "mp4",
+    "path": "dji_mavic3.mp4"
+  },
+  "interpreted": {
+    "metadata": [
+      {
+        "namespace": "quicktime",
+        "notes": [
+          "decoded from quicktime ©xyz ISO 6709 location"
+        ],
+        "provenance": {
+          "container": "mp4",
+          "namespace": "quicktime-udta",
+          "offset_end": 439,
+          "offset_start": 410,
+          "path": "udta/©xyz"
+        },
+        "tag_id": "GPSLatitude",
+        "tag_name": "GPSLatitude",
+        "value": {
+          "kind": "float",
+          "value": 40.7922
+        }
+      },
+      {
+        "namespace": "quicktime",
+        "notes": [
+          "decoded from quicktime ©xyz ISO 6709 location"
+        ],
+        "provenance": {
+          "container": "mp4",
+          "namespace": "quicktime-udta",
+          "offset_end": 439,
+          "offset_start": 410,
+          "path": "udta/©xyz"
+        },
+        "tag_id": "GPSLongitude",
+        "tag_name": "GPSLongitude",
+        "value": {
+          "kind": "float",
+          "value": -73.9584
+        }
+      },
+      {
+        "namespace": "dji",
+        "notes": [
+          "decoded from classic udta text atom ©xsp"
+        ],
+        "provenance": {
+          "container": "mp4",
+          "namespace": "quicktime-udta",
+          "offset_end": 457,
+          "offset_start": 439,
+          "path": "udta/©xsp"
+        },
+        "tag_id": "SpeedX",
+        "tag_name": "SpeedX",
+        "value": {
+          "kind": "float",
+          "value": 0.0
+        }
+      },
+      {
+        "namespace": "dji",
+        "notes": [
+          "decoded from classic udta text atom ©ysp"
+        ],
+        "provenance": {
+          "container": "mp4",
+          "namespace": "quicktime-udta",
+          "offset_end": 475,
+          "offset_start": 457,
+          "path": "udta/©ysp"
+        },
+        "tag_id": "SpeedY",
+        "tag_name": "SpeedY",
+        "value": {
+          "kind": "float",
+          "value": 0.0
+        }
+      },
+      {
+        "namespace": "dji",
+        "notes": [
+          "decoded from classic udta text atom ©zsp"
+        ],
+        "provenance": {
+          "container": "mp4",
+          "namespace": "quicktime-udta",
+          "offset_end": 493,
+          "offset_start": 475,
+          "path": "udta/©zsp"
+        },
+        "tag_id": "SpeedZ",
+        "tag_name": "SpeedZ",
+        "value": {
+          "kind": "float",
+          "value": 0.0
+        }
+      },
+      {
+        "namespace": "dji",
+        "notes": [
+          "decoded from classic udta text atom ©fpt"
+        ],
+        "provenance": {
+          "container": "mp4",
+          "namespace": "quicktime-udta",
+          "offset_end": 511,
+          "offset_start": 493,
+          "path": "udta/©fpt"
+        },
+        "tag_id": "FlightPitchDegree",
+        "tag_name": "FlightPitchDegree",
+        "value": {
+          "kind": "float",
+          "value": 0.9
+        }
+      },
+      {
+        "namespace": "dji",
+        "notes": [
+          "decoded from classic udta text atom ©fyw"
+        ],
+        "provenance": {
+          "container": "mp4",
+          "namespace": "quicktime-udta",
+          "offset_end": 531,
+          "offset_start": 511,
+          "path": "udta/©fyw"
+        },
+        "tag_id": "FlightYawDegree",
+        "tag_name": "FlightYawDegree",
+        "value": {
+          "kind": "float",
+          "value": 175.5
+        }
+      },
+      {
+        "namespace": "dji",
+        "notes": [
+          "decoded from classic udta text atom ©frl"
+        ],
+        "provenance": {
+          "container": "mp4",
+          "namespace": "quicktime-udta",
+          "offset_end": 549,
+          "offset_start": 531,
+          "path": "udta/©frl"
+        },
+        "tag_id": "FlightRollDegree",
+        "tag_name": "FlightRollDegree",
+        "value": {
+          "kind": "float",
+          "value": -3.9
+        }
+      },
+      {
+        "namespace": "dji",
+        "notes": [
+          "decoded from classic udta text atom ©gpt"
+        ],
+        "provenance": {
+          "container": "mp4",
+          "namespace": "quicktime-udta",
+          "offset_end": 568,
+          "offset_start": 549,
+          "path": "udta/©gpt"
+        },
+        "tag_id": "GimbalPitchDegree",
+        "tag_name": "GimbalPitchDegree",
+        "value": {
+          "kind": "float",
+          "value": -31.2
+        }
+      },
+      {
+        "namespace": "dji",
+        "notes": [
+          "decoded from classic udta text atom ©gyw"
+        ],
+        "provenance": {
+          "container": "mp4",
+          "namespace": "quicktime-udta",
+          "offset_end": 586,
+          "offset_start": 568,
+          "path": "udta/©gyw"
+        },
+        "tag_id": "GimbalYawDegree",
+        "tag_name": "GimbalYawDegree",
+        "value": {
+          "kind": "float",
+          "value": -2.3
+        }
+      },
+      {
+        "namespace": "dji",
+        "notes": [
+          "decoded from classic udta text atom ©grl"
+        ],
+        "provenance": {
+          "container": "mp4",
+          "namespace": "quicktime-udta",
+          "offset_end": 604,
+          "offset_start": 586,
+          "path": "udta/©grl"
+        },
+        "tag_id": "GimbalRollDegree",
+        "tag_name": "GimbalRollDegree",
+        "value": {
+          "kind": "float",
+          "value": 0.0
+        }
+      },
+      {
+        "namespace": "dji",
+        "notes": [
+          "decoded from classic udta text atom ©mdl"
+        ],
+        "provenance": {
+          "container": "mp4",
+          "namespace": "quicktime-udta",
+          "offset_end": 636,
+          "offset_start": 604,
+          "path": "udta/©mdl"
+        },
+        "tag_id": "Model",
+        "tag_name": "Model",
+        "value": {
+          "kind": "string",
+          "value": "FC3682"
+        }
+      },
+      {
+        "namespace": "dji",
+        "notes": [
+          "decoded from classic udta text atom ©csn"
+        ],
+        "provenance": {
+          "container": "mp4",
+          "namespace": "quicktime-udta",
+          "offset_end": 684,
+          "offset_start": 636,
+          "path": "udta/©csn"
+        },
+        "tag_id": "SerialNumber",
+        "tag_name": "SerialNumber",
+        "value": {
+          "kind": "string",
+          "value": "53HQN4T0M5B7JW"
+        }
+      },
+      {
+        "namespace": "quicktime",
+        "provenance": {
+          "container": "mp4",
+          "namespace": "quicktime",
+          "notes": [
+            "derived from visual track header"
+          ],
+          "offset_end": 0,
+          "offset_start": 0,
+          "path": "moov/trak@68/tkhd"
+        },
+        "tag_id": "ImageWidth",
+        "tag_name": "ImageWidth",
+        "value": {
+          "kind": "integer",
+          "value": 1920
+        }
+      },
+      {
+        "namespace": "quicktime",
+        "provenance": {
+          "container": "mp4",
+          "namespace": "quicktime",
+          "notes": [
+            "derived from visual track header"
+          ],
+          "offset_end": 0,
+          "offset_start": 0,
+          "path": "moov/trak@68/tkhd"
+        },
+        "tag_id": "ImageHeight",
+        "tag_name": "ImageHeight",
+        "value": {
+          "kind": "integer",
+          "value": 1080
+        }
+      },
+      {
+        "namespace": "quicktime",
+        "provenance": {
+          "container": "mp4",
+          "namespace": "quicktime",
+          "notes": [
+            "derived from mvhd or media track timing"
+          ]
+        },
+        "tag_id": "DurationSeconds",
+        "tag_name": "DurationSeconds",
+        "value": {
+          "kind": "float",
+          "value": 6.5
+        }
+      },
+      {
+        "namespace": "quicktime",
+        "provenance": {
+          "container": "mp4",
+          "namespace": "quicktime",
+          "notes": [
+            "derived from video track sample description"
+          ]
+        },
+        "tag_id": "VideoCodec",
+        "tag_name": "VideoCodec",
+        "value": {
+          "kind": "string",
+          "value": "avc1"
+        }
+      },
+      {
+        "namespace": "quicktime",
+        "provenance": {
+          "container": "mp4",
+          "namespace": "quicktime",
+          "notes": [
+            "derived from video track timing"
+          ]
+        },
+        "tag_id": "VideoFrameRate",
+        "tag_name": "VideoFrameRate",
+        "value": {
+          "kind": "float",
+          "value": 29.97002997002997
+        }
+      },
+      {
+        "namespace": "quicktime",
+        "provenance": {
+          "container": "mp4",
+          "namespace": "quicktime",
+          "notes": [
+            "derived from video sample description bitrate box"
+          ]
+        },
+        "tag_id": "VideoBitrate",
+        "tag_name": "VideoBitrate",
+        "value": {
+          "kind": "integer",
+          "value": 34969786
+        }
+      },
+      {
+        "namespace": "quicktime",
+        "provenance": {
+          "container": "mp4",
+          "namespace": "quicktime",
+          "notes": [
+            "derived from movie header creation time"
+          ]
+        },
+        "tag_id": "CreateDate",
+        "tag_name": "CreateDate",
+        "value": {
+          "kind": "timestamp",
+          "value": "2024-04-16T12:34:56"
+        }
+      },
+      {
+        "namespace": "quicktime",
+        "provenance": {
+          "container": "mp4",
+          "namespace": "quicktime",
+          "notes": [
+            "derived from movie header modification time"
+          ]
+        },
+        "tag_id": "ModifyDate",
+        "tag_name": "ModifyDate",
+        "value": {
+          "kind": "timestamp",
+          "value": "2024-04-16T13:00:00"
+        }
+      }
+    ]
+  },
+  "report": {
+    "conflicts": [],
+    "issues": []
+  },
+  "schema_version": "0.1.0"
+}

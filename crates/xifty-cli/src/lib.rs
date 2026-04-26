@@ -17,7 +17,10 @@ use xifty_meta_exif::{decode_from_tiff, exif_payload_from_jpeg};
 use xifty_meta_icc::{IccPayload, decode_payload as decode_icc_payload};
 use xifty_meta_iptc::{IptcPayload, decode_payload as decode_iptc_payload};
 use xifty_meta_itunes::{ItunesPayload, decode_payload as decode_itunes_payload};
-use xifty_meta_quicktime::{QuickTimePayload, decode_payload as decode_quicktime_payload};
+use xifty_meta_quicktime::{
+    QuickTimePayload, QuickTimeUdtaPayload, decode_payload as decode_quicktime_payload,
+    decode_udta_payload,
+};
 use xifty_meta_rtmd::{RtmdPacket, decode_packet as decode_rtmd_packet};
 use xifty_meta_sony::decode_from_tiff as decode_sony_from_tiff;
 use xifty_meta_vorbis_comment::{
@@ -846,6 +849,21 @@ fn isobmff_entries(
             payload_slice(bytes, payload.data_offset, payload.data_length as usize),
         ) {
             entries.extend(decode_quicktime_payload(QuickTimePayload {
+                key: tag,
+                bytes: payload_bytes,
+                container: format_name,
+                offset_start: payload.offset_start,
+                offset_end: payload.offset_end,
+            }));
+        }
+    }
+
+    for payload in container.quicktime_udta_payloads() {
+        if let (Some(tag), Some(payload_bytes)) = (
+            payload.tag.as_deref(),
+            payload_slice(bytes, payload.data_offset, payload.data_length as usize),
+        ) {
+            entries.extend(decode_udta_payload(QuickTimeUdtaPayload {
                 key: tag,
                 bytes: payload_bytes,
                 container: format_name,

@@ -33,6 +33,9 @@ pub fn normalize_with_policy(entries: &[MetadataEntry]) -> PolicyResult {
         .or_else(|| {
             string_coordinate(entries, "GPSLatitude")
                 .zip(string_coordinate(entries, "GPSLongitude"))
+        })
+        .or_else(|| {
+            float_coordinate(entries, "GPSLatitude").zip(float_coordinate(entries, "GPSLongitude"))
         });
     if let Some(((lat_src, latitude), (lon_src, longitude))) = coordinates {
         result.fields.push(NormalizedField {
@@ -126,6 +129,14 @@ fn enrich_timestamp_field(
             }
         ));
     }
+}
+
+fn float_coordinate(entries: &[MetadataEntry], tag_name: &str) -> Option<(Provenance, f64)> {
+    let entry = entries.iter().find(|entry| entry.tag_name == tag_name)?;
+    let TypedValue::Float(value) = &entry.value else {
+        return None;
+    };
+    Some((entry.provenance.clone(), *value))
 }
 
 fn string_coordinate(entries: &[MetadataEntry], tag_name: &str) -> Option<(Provenance, f64)> {
