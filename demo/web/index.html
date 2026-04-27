@@ -24,7 +24,8 @@
         </p>
         <div class="hero-notes">
           <span class="pill">Local processing only</span>
-          <span class="pill">Still-image MVP</span>
+          <span class="pill">Images + video containers</span>
+          <span class="pill">DJI drone telemetry</span>
           <span class="pill">raw / interpreted / normalized / report</span>
         </div>
       </section>
@@ -33,8 +34,10 @@
         <div class="upload-copy">
           <h2>Choose a file</h2>
           <p>
-            Current browser-first support is aimed at JPEG, TIFF, PNG, and
-            WebP.
+            Browser-first support covers JPEG, TIFF, DNG, PNG, WebP, HEIF/HEIC,
+            and MP4/MOV (including DJI drone telemetry — flight + gimbal angles,
+            speed, GPS, model, serial — surfaced under <code>drone.*</code>,
+            <code>device.*</code>, and <code>location</code>).
           </p>
         </div>
         <label class="upload-zone" for="file-input" id="drop-zone">

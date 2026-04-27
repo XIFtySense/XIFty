@@ -108,6 +108,7 @@ Current namespace coverage:
 - bounded IPTC
 - bounded QuickTime
 - bounded iTunes (`ilst` atoms: Title, Artist, Album, AlbumArtist, Year, Genre, Comment, Composer, Lyrics, Encoder, TrackNumber, DiskNumber, Compilation, BeatsPerMinute, CoverArt)
+- bounded DJI drone telemetry from MP4 `udta` (flight pitch/yaw/roll, gimbal pitch/yaw/roll, speed XYZ, GPS location, camera model, serial number — surfaced under `drone.*`, `device.*`, and `location` in the normalized view)
 - selected Sony and Apple vendor metadata paths
 - bounded Vorbis comment (FLAC)
 - bounded FLAC stream info (sample rate, channels, bit depth, duration, embedded picture)
