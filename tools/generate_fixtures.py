@@ -1021,6 +1021,169 @@ def build_aiff(variant="aiff"):
     return bytes(out)
 
 
+_OGG_CRC_TABLE = None
+
+
+def _ogg_crc_table():
+    global _OGG_CRC_TABLE
+    if _OGG_CRC_TABLE is None:
+        table = []
+        for n in range(256):
+            r = n << 24
+            for _ in range(8):
+                r = ((r << 1) ^ 0x04C11DB7) & 0xFFFFFFFF if (r & 0x80000000) else (r << 1) & 0xFFFFFFFF
+            table.append(r & 0xFFFFFFFF)
+        _OGG_CRC_TABLE = table
+    return _OGG_CRC_TABLE
+
+
+def _ogg_crc(data):
+    table = _ogg_crc_table()
+    crc = 0
+    for b in data:
+        crc = ((crc << 8) & 0xFFFFFFFF) ^ table[((crc >> 24) & 0xFF) ^ b]
+    return crc & 0xFFFFFFFF
+
+
+def build_ogg_page(header_type, granule_position, serial, page_sequence, packets):
+    """Build a single OGG page carrying one or more complete packets.
+
+    Each packet is chopped into 255-byte lacing segments per RFC 3533.
+    The CRC is computed over the fully-assembled page with the CRC field
+    zeroed, matching the reference decoder expectation.
+    """
+    segment_table = bytearray()
+    payload = bytearray()
+    for packet in packets:
+        remaining = len(packet)
+        offset = 0
+        while True:
+            take = min(remaining, 255)
+            segment_table.append(take)
+            payload += packet[offset:offset + take]
+            offset += take
+            if remaining < 255:
+                break
+            remaining -= 255
+            if remaining == 0:
+                segment_table.append(0)
+                break
+    out = bytearray()
+    out += b"OggS"
+    out.append(0)  # version
+    out.append(header_type & 0xFF)
+    out += struct.pack("<q", granule_position)
+    out += struct.pack("<I", serial & 0xFFFFFFFF)
+    out += struct.pack("<I", page_sequence & 0xFFFFFFFF)
+    crc_offset = len(out)
+    out += struct.pack("<I", 0)  # crc placeholder
+    out.append(len(segment_table))
+    out += bytes(segment_table)
+    out += bytes(payload)
+    crc = _ogg_crc(bytes(out))
+    out[crc_offset:crc_offset + 4] = struct.pack("<I", crc)
+    return bytes(out)
+
+
+def _vorbis_comment_payload(vendor, comments):
+    out = bytearray()
+    vendor_bytes = vendor.encode("utf-8")
+    out += struct.pack("<I", len(vendor_bytes))
+    out += vendor_bytes
+    out += struct.pack("<I", len(comments))
+    for c in comments:
+        c_bytes = c.encode("utf-8")
+        out += struct.pack("<I", len(c_bytes))
+        out += c_bytes
+    return bytes(out)
+
+
+def build_ogg_vorbis(
+    sample_rate=44100,
+    channels=2,
+    title="XIFty Track",
+    artist="XIFty Artist",
+    album="XIFty Album",
+    serial=0x12345678,
+):
+    """Build a synthetic OGG/Vorbis stream with ident + comment + setup
+    + a terminating audio page whose granule position encodes a 1s run.
+    """
+    # Vorbis ident header.
+    ident = bytearray()
+    ident += b"\x01vorbis"
+    ident += struct.pack("<I", 0)  # vorbis_version
+    ident.append(channels & 0xFF)
+    ident += struct.pack("<I", sample_rate)
+    ident += struct.pack("<i", 0)  # bitrate_max
+    ident += struct.pack("<i", 0)  # bitrate_nom
+    ident += struct.pack("<i", 0)  # bitrate_min
+    ident.append(0xB8)  # blocksize_0/1 packing (nominal)
+    ident.append(0x01)  # framing bit
+
+    # Vorbis comment header.
+    comment = bytearray()
+    comment += b"\x03vorbis"
+    comment += _vorbis_comment_payload(
+        "xifty-test",
+        [f"TITLE={title}", f"ARTIST={artist}", f"ALBUM={album}"],
+    )
+    comment.append(0x01)  # framing bit
+
+    # Vorbis setup header (minimum stub — the parser does not interpret
+    # its body; we just need a well-formed packet for layout).
+    setup = bytearray()
+    setup += b"\x05vorbis"
+    setup.append(0x01)  # framing bit
+
+    pages = bytearray()
+    # Page 0: ident header (BOS).
+    pages += build_ogg_page(0x02, 0, serial, 0, [bytes(ident)])
+    # Page 1: comment + setup headers packed together.
+    pages += build_ogg_page(0x00, 0, serial, 1, [bytes(comment), bytes(setup)])
+    # Page 2: trailing audio payload (zero-filled) with EOS flag. The
+    # granule position equals sample_rate so duration rounds to 1.0s.
+    audio_packet = b"\x00" * 16
+    pages += build_ogg_page(0x04, sample_rate, serial, 2, [audio_packet])
+    return bytes(pages)
+
+
+def build_ogg_opus(
+    channels=2,
+    pre_skip=312,
+    input_sample_rate=48000,
+    title="XIFty Track",
+    artist="XIFty Artist",
+    album="XIFty Album",
+    serial=0x12345678,
+):
+    """Build a synthetic OGG/Opus stream. Duration rounds to 1.0s: the
+    last-page granule = 48000 + pre_skip so (granule - pre_skip) / 48000
+    = 1.0 (Opus always decodes at 48 kHz per RFC 7845)."""
+    ident = bytearray()
+    ident += b"OpusHead"
+    ident.append(1)  # version
+    ident.append(channels & 0xFF)
+    ident += struct.pack("<H", pre_skip)
+    ident += struct.pack("<I", input_sample_rate)
+    ident += struct.pack("<h", 0)  # output gain
+    ident.append(0)  # mapping family
+
+    tags = bytearray()
+    tags += b"OpusTags"
+    tags += _vorbis_comment_payload(
+        "xifty-test",
+        [f"TITLE={title}", f"ARTIST={artist}", f"ALBUM={album}"],
+    )
+
+    pages = bytearray()
+    pages += build_ogg_page(0x02, 0, serial, 0, [bytes(ident)])
+    pages += build_ogg_page(0x00, 0, serial, 1, [bytes(tags)])
+    audio_packet = b"\x00" * 16
+    pages += build_ogg_page(0x04, 48_000 + pre_skip, serial, 2, [audio_packet])
+    return bytes(pages)
+
+
 def main():
     ROOT.mkdir(parents=True, exist_ok=True)
     xmp = build_xmp()
@@ -1101,6 +1264,8 @@ def main():
         "happy.mov": build_mov(),
         "malformed.mov": build_mov(malformed=True),
         "happy.flac": build_flac(),
+        "happy.ogg": build_ogg_vorbis(),
+        "happy.opus": build_ogg_opus(),
         "happy.aiff": build_aiff("aiff"),
         "happy.aifc": build_aiff("aifc"),
     }

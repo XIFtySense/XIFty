@@ -2293,6 +2293,130 @@ fn aiff_normalization_includes_audio_fields() {
     );
 }
 
+#[test]
+fn probe_snapshot_happy_ogg() {
+    assert_json_snapshot!("probe_happy_ogg", probe_json("happy.ogg"));
+}
+
+#[test]
+fn extract_snapshot_happy_ogg_normalized() {
+    assert_json_snapshot!(
+        "extract_happy_ogg_normalized",
+        extract_json("happy.ogg", ViewMode::Normalized)
+    );
+}
+
+#[test]
+fn ogg_vorbis_normalization_includes_audio_fields() {
+    let output = extract_json("happy.ogg", ViewMode::Normalized);
+    let normalized = normalized_map(&output);
+    assert_eq!(
+        normalized
+            .get("audio.sample_rate")
+            .and_then(|v| v["value"].as_i64()),
+        Some(44100)
+    );
+    assert_eq!(
+        normalized
+            .get("audio.channels")
+            .and_then(|v| v["value"].as_i64()),
+        Some(2)
+    );
+    assert_eq!(
+        normalized
+            .get("audio.bit_depth")
+            .and_then(|v| v["value"].as_i64()),
+        Some(16)
+    );
+    assert_eq!(
+        normalized.get("duration").and_then(|v| v["value"].as_f64()),
+        Some(1.0)
+    );
+    assert_eq!(
+        normalized
+            .get("codec.audio")
+            .and_then(|v| v["value"].as_str()),
+        Some("vorbis")
+    );
+}
+
+#[test]
+fn ogg_vorbis_surfaces_vorbis_comment_tags() {
+    let output = extract_json("happy.ogg", ViewMode::Interpreted);
+    assert_eq!(
+        interpreted_value(&output, "vorbis_comment", "Title"),
+        Some(Value::String("XIFty Track".into()))
+    );
+    assert_eq!(
+        interpreted_value(&output, "vorbis_comment", "Artist"),
+        Some(Value::String("XIFty Artist".into()))
+    );
+    assert_eq!(
+        interpreted_value(&output, "vorbis_comment", "Album"),
+        Some(Value::String("XIFty Album".into()))
+    );
+}
+
+#[test]
+fn probe_snapshot_happy_opus() {
+    assert_json_snapshot!("probe_happy_opus", probe_json("happy.opus"));
+}
+
+#[test]
+fn extract_snapshot_happy_opus_normalized() {
+    assert_json_snapshot!(
+        "extract_happy_opus_normalized",
+        extract_json("happy.opus", ViewMode::Normalized)
+    );
+}
+
+#[test]
+fn ogg_opus_normalization_includes_audio_fields() {
+    let output = extract_json("happy.opus", ViewMode::Normalized);
+    let normalized = normalized_map(&output);
+    assert_eq!(
+        normalized
+            .get("audio.sample_rate")
+            .and_then(|v| v["value"].as_i64()),
+        Some(48_000)
+    );
+    assert_eq!(
+        normalized
+            .get("audio.channels")
+            .and_then(|v| v["value"].as_i64()),
+        Some(2)
+    );
+    // Opus ident does not encode bits-per-sample — normalized bit_depth must be absent.
+    assert!(normalized.get("audio.bit_depth").is_none());
+    assert_eq!(
+        normalized.get("duration").and_then(|v| v["value"].as_f64()),
+        Some(1.0)
+    );
+    assert_eq!(
+        normalized
+            .get("codec.audio")
+            .and_then(|v| v["value"].as_str()),
+        Some("opus")
+    );
+}
+
+#[test]
+fn ogg_opus_surfaces_vorbis_comment_tags() {
+    let output = extract_json("happy.opus", ViewMode::Interpreted);
+    assert_eq!(
+        interpreted_value(&output, "vorbis_comment", "Title"),
+        Some(Value::String("XIFty Track".into()))
+    );
+    assert_eq!(
+        interpreted_value(&output, "vorbis_comment", "Artist"),
+        Some(Value::String("XIFty Artist".into()))
+    );
+    assert_eq!(
+        interpreted_value(&output, "vorbis_comment", "Album"),
+        Some(Value::String("XIFty Album".into()))
+    );
+}
+
 fn assert_float_close(left: Option<f64>, right: Option<f64>, label: &str) {
     let left = left.expect("missing left float value");
     let right = right.expect("missing right float value");

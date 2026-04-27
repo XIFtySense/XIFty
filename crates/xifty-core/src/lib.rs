@@ -17,6 +17,7 @@ pub enum Format {
     M4a,
     Flac,
     Aiff,
+    Ogg,
 }
 
 impl Format {
@@ -33,6 +34,7 @@ impl Format {
             Self::M4a => "m4a",
             Self::Flac => "flac",
             Self::Aiff => "aiff",
+            Self::Ogg => "ogg",
         }
     }
 }

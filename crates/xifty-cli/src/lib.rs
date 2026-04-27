@@ -4,6 +4,7 @@ use xifty_container_aiff::{AiffContainer, parse as parse_aiff};
 use xifty_container_flac::{FlacContainer, parse as parse_flac};
 use xifty_container_isobmff::parse as parse_isobmff;
 use xifty_container_jpeg::parse as parse_jpeg;
+use xifty_container_ogg::{OggCodec, OggContainer, parse as parse_ogg};
 use xifty_container_png::parse as parse_png;
 use xifty_container_riff::parse as parse_riff;
 use xifty_container_tiff::parse as parse_tiff;
@@ -90,6 +91,10 @@ fn probe_source(source: &SourceBytes) -> Result<ProbeOutput, XiftyError> {
         Format::Aiff => {
             let parsed = parse_aiff(&source)?;
             ("aiff".to_string(), parsed.nodes, parsed.issues)
+        }
+        Format::Ogg => {
+            let parsed = parse_ogg(&source)?;
+            ("ogg".to_string(), parsed.nodes, parsed.issues)
         }
     };
     Ok(ProbeOutput {
@@ -426,6 +431,12 @@ fn extract_source(source: &SourceBytes, view_mode: ViewMode) -> Result<AnalysisO
             let issues = aiff.issues.clone();
             let entries = aiff_entries(&aiff);
             ("aiff".to_string(), aiff.nodes, entries, issues)
+        }
+        Format::Ogg => {
+            let ogg = parse_ogg(&source)?;
+            let mut issues = ogg.issues.clone();
+            let entries = ogg_entries(&ogg, source.bytes(), &mut issues);
+            ("ogg".to_string(), ogg.nodes, entries, issues)
         }
     };
 
@@ -1237,6 +1248,194 @@ fn flac_scalar_entry(
             notes: vec![note.into()],
         },
         notes: Vec::new(),
+    }
+}
+
+fn ogg_entries(ogg: &OggContainer, bytes: &[u8], issues: &mut Vec<Issue>) -> Vec<MetadataEntry> {
+    let mut entries = Vec::new();
+
+    match (ogg.first_codec, &ogg.vorbis_ident, &ogg.opus_ident) {
+        (Some(OggCodec::Vorbis), Some(ident), _) => {
+            entries.push(ogg_scalar_entry(
+                "AudioSampleRate",
+                TypedValue::Integer(ident.sample_rate_hz as i64),
+                "derived from Vorbis identification header",
+                Some(ident.offset_start),
+                Some(ident.offset_end),
+                Some("vorbis_ident"),
+            ));
+            entries.push(ogg_scalar_entry(
+                "AudioChannels",
+                TypedValue::Integer(ident.channels as i64),
+                "derived from Vorbis identification header",
+                Some(ident.offset_start),
+                Some(ident.offset_end),
+                Some("vorbis_ident"),
+            ));
+            // Vorbis does not encode bits-per-sample; emit a default
+            // assumption of 16 with an explicit provenance note so the
+            // normalized `audio.bit_depth` stays populated.
+            entries.push(ogg_scalar_entry_with_notes(
+                "AudioBitDepth",
+                TypedValue::Integer(16),
+                "default assumption; vorbis ident header does not encode bits_per_sample",
+                Some(ident.offset_start),
+                Some(ident.offset_end),
+                Some("vorbis_ident"),
+                Vec::new(),
+            ));
+            entries.push(ogg_scalar_entry(
+                "AudioCodec",
+                TypedValue::String("vorbis".into()),
+                "derived from first packet signature",
+                Some(ident.offset_start),
+                Some(ident.offset_end),
+                Some("vorbis_ident"),
+            ));
+            if let Some(granule) = ogg.granule_last {
+                if granule > 0 && ident.sample_rate_hz > 0 {
+                    let duration = granule as f64 / ident.sample_rate_hz as f64;
+                    entries.push(ogg_scalar_entry(
+                        "DurationSeconds",
+                        TypedValue::Float(duration),
+                        "derived from last-page granule / sample_rate",
+                        Some(ident.offset_start),
+                        Some(ident.offset_end),
+                        Some("vorbis_ident"),
+                    ));
+                }
+            }
+        }
+        (Some(OggCodec::Opus), _, Some(ident)) => {
+            // Opus always decodes to 48 kHz.
+            entries.push(ogg_scalar_entry(
+                "AudioSampleRate",
+                TypedValue::Integer(48_000),
+                "opus decoded rate per RFC 7845",
+                Some(ident.offset_start),
+                Some(ident.offset_end),
+                Some("opus_head"),
+            ));
+            entries.push(ogg_scalar_entry(
+                "AudioChannels",
+                TypedValue::Integer(ident.channels as i64),
+                "derived from Opus identification header",
+                Some(ident.offset_start),
+                Some(ident.offset_end),
+                Some("opus_head"),
+            ));
+            entries.push(ogg_scalar_entry(
+                "AudioCodec",
+                TypedValue::String("opus".into()),
+                "derived from first packet signature",
+                Some(ident.offset_start),
+                Some(ident.offset_end),
+                Some("opus_head"),
+            ));
+            entries.push(ogg_scalar_entry(
+                "OpusInputSampleRate",
+                TypedValue::Integer(ident.input_sample_rate as i64),
+                "opus ident header records the encoder's source sample rate (decoding is fixed at 48 kHz)",
+                Some(ident.offset_start),
+                Some(ident.offset_end),
+                Some("opus_head"),
+            ));
+            if let Some(granule) = ogg.granule_last {
+                if granule > 0 {
+                    let adjusted = (granule - ident.pre_skip as i64).max(0);
+                    let duration = adjusted as f64 / 48_000.0;
+                    entries.push(ogg_scalar_entry(
+                        "DurationSeconds",
+                        TypedValue::Float(duration),
+                        "derived from (last-page granule - pre_skip) / 48000",
+                        Some(ident.offset_start),
+                        Some(ident.offset_end),
+                        Some("opus_head"),
+                    ));
+                }
+            }
+        }
+        _ => {}
+    }
+
+    if let Some(block) = &ogg.vorbis_comment {
+        let start = match usize::try_from(block.data_offset) {
+            Ok(value) => value,
+            Err(_) => {
+                issues.push(namespace_issue(
+                    "ogg_vorbis_comment_decode_empty",
+                    "vorbis-comment block offset did not fit in usize",
+                    block.offset_start,
+                    "vorbis_comment",
+                ));
+                return entries;
+            }
+        };
+        let end = start + block.data_length as usize;
+        if let Some(payload) = bytes.get(start..end) {
+            let decoded = decode_vorbis_comment_payload(VorbisCommentPayload {
+                bytes: payload,
+                container: "ogg",
+                offset_start: block.offset_start,
+                offset_end: block.offset_end,
+            });
+            if decoded.is_empty() {
+                issues.push(namespace_issue(
+                    "ogg_vorbis_comment_decode_empty",
+                    "recognized vorbis-comment payload but decoded no entries",
+                    block.offset_start,
+                    "vorbis_comment",
+                ));
+            }
+            entries.extend(decoded);
+        }
+    }
+
+    entries
+}
+
+fn ogg_scalar_entry(
+    tag_name: &str,
+    value: TypedValue,
+    note: &str,
+    offset_start: Option<u64>,
+    offset_end: Option<u64>,
+    path: Option<&str>,
+) -> MetadataEntry {
+    ogg_scalar_entry_with_notes(
+        tag_name,
+        value,
+        note,
+        offset_start,
+        offset_end,
+        path,
+        Vec::new(),
+    )
+}
+
+fn ogg_scalar_entry_with_notes(
+    tag_name: &str,
+    value: TypedValue,
+    note: &str,
+    offset_start: Option<u64>,
+    offset_end: Option<u64>,
+    path: Option<&str>,
+    extra_notes: Vec<String>,
+) -> MetadataEntry {
+    MetadataEntry {
+        namespace: "ogg".into(),
+        tag_id: tag_name.into(),
+        tag_name: tag_name.into(),
+        value,
+        provenance: Provenance {
+            container: "ogg".into(),
+            namespace: "ogg".into(),
+            path: path.map(|p| p.to_string()),
+            offset_start,
+            offset_end,
+            notes: vec![note.into()],
+        },
+        notes: extra_notes,
     }
 }
 
