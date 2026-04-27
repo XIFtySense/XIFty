@@ -286,6 +286,7 @@ function renderNormalized(payload) {
           )
           .join("")}
       </section>
+      ${renderDroneCockpit(fields)}
       ${renderFieldCatalog({
         kicker: "Expanded view",
         title: "Complete normalized field inventory",
@@ -299,6 +300,271 @@ function renderNormalized(payload) {
 
   structuredOutput.hidden = false;
   resultOutput.hidden = true;
+}
+
+// ---------------------------------------------------------------------------
+// Drone cockpit
+//
+// When `drone.*` fields are present in the normalized output, render a
+// cockpit-style instrument panel above the standard nutrition card. Three
+// SVG instruments visualise the spatial state at the moment of capture:
+//
+//   * Attitude indicator — flight pitch + flight roll combined into a classic
+//     artificial-horizon widget.
+//   * Compass — flight yaw, drawn as a rotating compass card with a fixed top
+//     reference notch.
+//   * Gimbal — top-down drone silhouette with an arrow showing where the
+//     camera is pointed (gimbal yaw) and a tilt badge for gimbal pitch.
+//
+// The point is to communicate "the drone was banking left, looking down" at a
+// glance, rather than asking the reader to reconstruct that mental picture
+// from a list of decimal degrees.
+// ---------------------------------------------------------------------------
+
+function renderDroneCockpit(fields) {
+  const flightPitch = numericField(fields, "drone.flight.pitch_deg");
+  const flightYaw = numericField(fields, "drone.flight.yaw_deg");
+  const flightRoll = numericField(fields, "drone.flight.roll_deg");
+  const gimbalPitch = numericField(fields, "drone.gimbal.pitch_deg");
+  const gimbalYaw = numericField(fields, "drone.gimbal.yaw_deg");
+  const gimbalRoll = numericField(fields, "drone.gimbal.roll_deg");
+  const speedX = numericField(fields, "drone.speed.x_mps");
+  const speedY = numericField(fields, "drone.speed.y_mps");
+  const speedZ = numericField(fields, "drone.speed.z_mps");
+  const serial = stringField(fields, "device.serial_number");
+  const model = stringField(fields, "device.model");
+  const locationField = fields["location"];
+
+  const hasFlight = flightPitch != null || flightYaw != null || flightRoll != null;
+  const hasGimbal = gimbalPitch != null || gimbalYaw != null || gimbalRoll != null;
+  const hasSpeed = speedX != null || speedY != null || speedZ != null;
+
+  // Only render the cockpit when we have drone-specific telemetry. We
+  // intentionally do NOT gate on device.model / device.serial_number
+  // because those are populated by ordinary EXIF too (every JPEG with a
+  // camera will carry them), and the cockpit panel is meant to be a
+  // signal-of-drone-content surface.
+  if (!hasFlight && !hasGimbal && !hasSpeed) {
+    return "";
+  }
+
+  const attitude = hasFlight
+    ? attitudeInstrument(flightPitch ?? 0, flightRoll ?? 0)
+    : "";
+  const compass = hasFlight ? compassInstrument(flightYaw ?? 0) : "";
+  const gimbal = hasGimbal
+    ? gimbalInstrument(gimbalPitch ?? 0, gimbalYaw ?? 0, gimbalRoll ?? 0)
+    : "";
+
+  const instruments = [attitude, compass, gimbal].filter(Boolean).join("");
+
+  const speedMagnitude =
+    hasSpeed
+      ? Math.sqrt((speedX ?? 0) ** 2 + (speedY ?? 0) ** 2 + (speedZ ?? 0) ** 2)
+      : null;
+  const speedReadout = hasSpeed
+    ? `${formatNumber(speedMagnitude, 2)} m/s <span class="cockpit-axis">(X ${formatNumber(speedX, 2)} · Y ${formatNumber(speedY, 2)} · Z ${formatNumber(speedZ, 2)})</span>`
+    : "—";
+
+  const locationCoords =
+    locationField?.value?.kind === "coordinates"
+      ? `${formatNumber(locationField.value.value.latitude, 4)}°, ${formatNumber(locationField.value.value.longitude, 4)}°`
+      : null;
+  const locationLink = locationCoords
+    ? `<a class="cockpit-map" href="https://www.openstreetmap.org/?mlat=${locationField.value.value.latitude}&mlon=${locationField.value.value.longitude}&zoom=15" target="_blank" rel="noopener">view on OSM ↗</a>`
+    : "";
+
+  const cameraIdentity = [model, serial && `SN ${serial}`].filter(Boolean).join(" · ") || "—";
+
+  return `
+    <section class="cockpit-panel" aria-label="Drone telemetry visualisation">
+      <header class="cockpit-header">
+        <p class="label-kicker">Drone telemetry</p>
+        <h3>Spatial state at capture</h3>
+        <p class="label-caption">Flight + gimbal angles, speed, GPS, and camera identity rendered live from the file's <code>drone.*</code>, <code>device.*</code>, and <code>location</code> fields.</p>
+      </header>
+      <div class="cockpit-instruments">
+        ${instruments || '<p class="cockpit-empty">No flight or gimbal angles in this file.</p>'}
+      </div>
+      <dl class="cockpit-summary">
+        <div>
+          <dt>Speed</dt>
+          <dd>${speedReadout}</dd>
+        </div>
+        <div>
+          <dt>Location</dt>
+          <dd>${locationCoords ? `${escapeHtml(locationCoords)} ${locationLink}` : "—"}</dd>
+        </div>
+        <div>
+          <dt>Camera</dt>
+          <dd>${escapeHtml(cameraIdentity)}</dd>
+        </div>
+      </dl>
+    </section>
+  `;
+}
+
+function numericField(fields, key) {
+  const v = fields[key]?.value;
+  if (!v) return null;
+  if (v.kind === "float" || v.kind === "integer") {
+    const n = Number(v.value);
+    return Number.isFinite(n) ? n : null;
+  }
+  return null;
+}
+
+function stringField(fields, key) {
+  const v = fields[key]?.value;
+  if (!v) return null;
+  if (v.kind === "string") return String(v.value);
+  return null;
+}
+
+function formatNumber(value, fractionDigits = 1) {
+  if (value == null || !Number.isFinite(value)) return "—";
+  const abs = Math.abs(value);
+  const sign = value < 0 ? "−" : value > 0 ? "+" : "";
+  return `${sign}${abs.toFixed(fractionDigits)}`;
+}
+
+// --- Attitude indicator (artificial horizon) ---
+//
+// A 140×140 widget. Outer black bezel. Inside, a circle clipped to the bezel
+// shows a sky/ground gradient that rotates with roll and slides vertically
+// with pitch (clamped so the horizon stays visible). A fixed centre wing
+// glyph + ladder-tick degrees overlay indicate the airframe reference.
+function attitudeInstrument(pitch, roll) {
+  const clampedPitch = Math.max(-30, Math.min(30, pitch));
+  const pitchOffset = clampedPitch * 1.4; // px per degree
+  return `
+    <div class="cockpit-instrument">
+      <svg viewBox="0 0 140 140" class="cockpit-svg" role="img" aria-label="Attitude indicator">
+        <defs>
+          <clipPath id="attitude-clip"><circle cx="70" cy="70" r="56" /></clipPath>
+        </defs>
+        <circle cx="70" cy="70" r="64" fill="#121412" />
+        <circle cx="70" cy="70" r="58" fill="#fffdf8" />
+        <g clip-path="url(#attitude-clip)" transform="rotate(${(-roll).toFixed(2)} 70 70)">
+          <!-- Sky covers from far above the bezel down to the horizon line. -->
+          <rect x="-60" y="-100" width="260" height="${(170 + pitchOffset).toFixed(2)}" fill="#5a8fb2" />
+          <!-- Ground covers from the horizon line down to far below the bezel. -->
+          <rect x="-60" y="${(70 + pitchOffset).toFixed(2)}" width="260" height="200" fill="#8a5a2b" />
+          <line x1="-60" y1="${(70 + pitchOffset).toFixed(2)}" x2="200" y2="${(70 + pitchOffset).toFixed(2)}" stroke="#fffdf8" stroke-width="1.6" />
+          ${[-20, -10, 10, 20]
+            .map((tick) => {
+              const y = 70 + pitchOffset - tick * 1.4;
+              const w = Math.abs(tick) === 20 ? 28 : 18;
+              return `<line x1="${70 - w / 2}" y1="${y}" x2="${70 + w / 2}" y2="${y}" stroke="#fffdf8" stroke-width="1" opacity="0.7" />`;
+            })
+            .join("")}
+        </g>
+        <circle cx="70" cy="70" r="58" fill="none" stroke="#121412" stroke-width="1.5" />
+        <!-- fixed wing reference -->
+        <line x1="38" y1="70" x2="58" y2="70" stroke="#1a1d1b" stroke-width="2.4" />
+        <line x1="82" y1="70" x2="102" y2="70" stroke="#1a1d1b" stroke-width="2.4" />
+        <circle cx="70" cy="70" r="2.5" fill="#1a1d1b" />
+      </svg>
+      <p class="cockpit-readout">
+        <span class="cockpit-readout-label">Attitude</span>
+        <strong>${formatNumber(pitch, 1)}° pitch · ${formatNumber(roll, 1)}° roll</strong>
+      </p>
+    </div>
+  `;
+}
+
+// --- Compass (heading) ---
+//
+// Outer bezel. Rotating compass card inside (rotates by -yaw so the card
+// shows the heading at the top notch). Cardinal letters + 30° tick marks.
+// Fixed red indicator notch at top.
+function compassInstrument(yaw) {
+  const cardinals = [
+    { label: "N", angle: 0 },
+    { label: "E", angle: 90 },
+    { label: "S", angle: 180 },
+    { label: "W", angle: 270 },
+  ];
+  const ticks = Array.from({ length: 12 }, (_, i) => i * 30);
+  return `
+    <div class="cockpit-instrument">
+      <svg viewBox="0 0 140 140" class="cockpit-svg" role="img" aria-label="Heading compass">
+        <circle cx="70" cy="70" r="64" fill="#121412" />
+        <circle cx="70" cy="70" r="58" fill="#fffdf8" />
+        <g transform="rotate(${(-yaw).toFixed(2)} 70 70)">
+          ${ticks
+            .map((angle) => {
+              const long = angle % 90 === 0;
+              const r1 = long ? 42 : 48;
+              const r2 = 56;
+              const rad = ((angle - 90) * Math.PI) / 180;
+              const x1 = 70 + Math.cos(rad) * r1;
+              const y1 = 70 + Math.sin(rad) * r1;
+              const x2 = 70 + Math.cos(rad) * r2;
+              const y2 = 70 + Math.sin(rad) * r2;
+              return `<line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" stroke="#1a1d1b" stroke-width="${long ? 2 : 1}" opacity="${long ? 1 : 0.5}" />`;
+            })
+            .join("")}
+          ${cardinals
+            .map(({ label, angle }) => {
+              const rad = ((angle - 90) * Math.PI) / 180;
+              const x = 70 + Math.cos(rad) * 32;
+              const y = 70 + Math.sin(rad) * 32;
+              return `<text x="${x.toFixed(1)}" y="${(y + 4).toFixed(1)}" text-anchor="middle" font-family="var(--mono)" font-weight="700" font-size="13" fill="${label === "N" ? "#1f6f4a" : "#1a1d1b"}">${label}</text>`;
+            })
+            .join("")}
+        </g>
+        <circle cx="70" cy="70" r="58" fill="none" stroke="#121412" stroke-width="1.5" />
+        <!-- fixed top notch -->
+        <polygon points="70,8 64,16 76,16" fill="#b8782e" stroke="#121412" stroke-width="1" />
+      </svg>
+      <p class="cockpit-readout">
+        <span class="cockpit-readout-label">Heading</span>
+        <strong>${formatNumber(yaw, 1)}°</strong>
+      </p>
+    </div>
+  `;
+}
+
+// --- Gimbal indicator ---
+//
+// Top-down drone silhouette (cross of four arms with rotors) inside a bezel.
+// A camera-direction arrow rotates by gimbal yaw (drone-relative). A pitch
+// badge shows the camera's tilt down/up. Communicates "where the camera is
+// looking from the drone's frame of reference".
+function gimbalInstrument(pitch, yaw, roll) {
+  return `
+    <div class="cockpit-instrument">
+      <svg viewBox="0 0 140 140" class="cockpit-svg" role="img" aria-label="Gimbal direction">
+        <circle cx="70" cy="70" r="64" fill="#121412" />
+        <circle cx="70" cy="70" r="58" fill="#fffdf8" />
+        <!-- drone silhouette: four arms -->
+        <g stroke="#5c665f" stroke-width="2.2" stroke-linecap="round" fill="none">
+          <line x1="46" y1="46" x2="94" y2="94" />
+          <line x1="94" y1="46" x2="46" y2="94" />
+        </g>
+        <!-- rotors -->
+        <g fill="#5c665f" opacity="0.55">
+          <circle cx="46" cy="46" r="7" />
+          <circle cx="94" cy="46" r="7" />
+          <circle cx="46" cy="94" r="7" />
+          <circle cx="94" cy="94" r="7" />
+        </g>
+        <!-- body -->
+        <rect x="60" y="60" width="20" height="20" rx="3" fill="#1a1d1b" />
+        <!-- camera direction arrow rotated by gimbal yaw -->
+        <g transform="rotate(${yaw.toFixed(2)} 70 70)">
+          <line x1="70" y1="70" x2="70" y2="22" stroke="#1f6f4a" stroke-width="3" stroke-linecap="round" />
+          <polygon points="70,14 64,28 76,28" fill="#1f6f4a" />
+        </g>
+        <circle cx="70" cy="70" r="58" fill="none" stroke="#121412" stroke-width="1.5" />
+      </svg>
+      <p class="cockpit-readout">
+        <span class="cockpit-readout-label">Gimbal</span>
+        <strong>${formatNumber(pitch, 1)}° pitch · ${formatNumber(yaw, 1)}° yaw · ${formatNumber(roll, 1)}° roll</strong>
+      </p>
+    </div>
+  `;
 }
 
 function renderInterpreted(payload) {
