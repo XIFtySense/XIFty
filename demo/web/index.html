@@ -16,32 +16,33 @@
   <body>
     <main class="page">
       <section class="hero">
-        <p class="eyebrow">XIFty Browser Demo</p>
-        <h1>Inspect metadata locally in your browser.</h1>
+        <p class="eyebrow">XIFty</p>
+        <h1>Make sense of your metadata.</h1>
         <p class="lede">
-          Drop in a supported file and XIFty will extract metadata without
-          uploading it anywhere.
+          Drop a photo, video, or audio file. XIFty turns the buried,
+          format-specific bytes into clean, normalized facts you can
+          actually use — locally, in your browser, without uploading
+          anything.
         </p>
         <div class="hero-notes">
           <span class="pill">Local processing only</span>
           <span class="pill">Images · Video · Audio</span>
           <span class="pill">DJI drone telemetry</span>
-          <span class="pill">raw / interpreted / normalized / report</span>
+          <span class="pill">raw · interpreted · normalized · report</span>
         </div>
       </section>
 
       <section class="panel upload-panel">
         <div class="upload-copy">
-          <h2>Choose a file</h2>
+          <h2>Try it</h2>
           <p>
-            Browser-first support covers <strong>images</strong> (JPEG, TIFF,
-            DNG, PNG, WebP, HEIF/HEIC), <strong>video</strong> (MP4, MOV — including
-            DJI drone telemetry: flight + gimbal angles, speed, GPS, model,
-            serial), and <strong>audio</strong> (M4A, FLAC, OGG with Vorbis/Opus,
-            AIFF/AIFC). Drone fields surface under <code>drone.*</code>,
-            <code>device.*</code>, and <code>location</code>; audio fields under
-            <code>audio.*</code>, <code>codec.audio</code>, and
-            <code>duration</code>.
+            Drop a file to see what XIFty surfaces. Works on
+            <strong>images</strong> (JPEG, TIFF, DNG, PNG, WebP, HEIF/HEIC),
+            <strong>video</strong> (MP4, MOV — including DJI drone telemetry),
+            and <strong>audio</strong> (M4A, FLAC, OGG with Vorbis/Opus,
+            AIFF/AIFC). Camera, capture time, GPS, dimensions, codec, drone
+            flight angles, audio sample rate, and more — all surfaced as stable
+            keys you can read straight off.
           </p>
         </div>
         <label class="upload-zone" for="file-input" id="drop-zone">
@@ -54,11 +55,12 @@
       <section class="panel state-panel" id="state-panel">
         <div class="state-copy">
           <p class="section-label" id="state-label">Ready</p>
-          <h2 id="state-title">Drop in a file to inspect everything XIFty can see.</h2>
+          <h2 id="state-title">Drop in a file and we'll make sense of it.</h2>
           <p id="state-detail">
-            The demo keeps extraction local, then lays out normalized facts,
-            interpreted fields, raw metadata, and report findings in separate
-            browsable views.
+            Everything stays in your browser. You'll get a normalized view
+            (clean keys for product code), an interpreted view (decoded
+            namespaces with their meaning), a raw view (the original bytes),
+            and a report view (any conflicts or warnings XIFty caught).
           </p>
         </div>
         <div class="state-aside">
