@@ -98,6 +98,7 @@ Current container coverage:
 - MP4 / MOV
 - M4A / M4B / M4P
 - FLAC
+- OGG (Vorbis / Opus)
 - AIFF / AIFC
 
 Current namespace coverage:
@@ -110,7 +111,8 @@ Current namespace coverage:
 - bounded iTunes (`ilst` atoms: Title, Artist, Album, AlbumArtist, Year, Genre, Comment, Composer, Lyrics, Encoder, TrackNumber, DiskNumber, Compilation, BeatsPerMinute, CoverArt)
 - bounded DJI drone telemetry from MP4 `udta` (flight pitch/yaw/roll, gimbal pitch/yaw/roll, speed XYZ, GPS location, camera model, serial number — surfaced under `drone.*`, `device.*`, and `location` in the normalized view)
 - selected Sony and Apple vendor metadata paths
-- bounded Vorbis comment (FLAC)
+- bounded Vorbis comment (FLAC, OGG)
+- bounded OGG framing (Vorbis + Opus ident headers, last-page granule duration, multiplexed-stream detection)
 - bounded FLAC stream info (sample rate, channels, bit depth, duration, embedded picture)
 - bounded AIFF stream info (sample rate, channels, bit depth, duration from `COMM` chunk)
 
