@@ -768,3 +768,153 @@ body {
     padding: 0.8rem;
   }
 }
+
+/* ---------------------------------------------------------------------------
+   Drone cockpit panel
+   --------------------------------------------------------------------------- */
+
+.cockpit-panel {
+  max-width: 46rem;
+  margin: 0 auto;
+  border: 1.5px solid rgba(26, 29, 27, 0.7);
+  border-radius: 1.2rem;
+  background: linear-gradient(180deg, #fffaf0 0%, #fffdf8 60%);
+  color: #121412;
+  overflow: hidden;
+  box-shadow: 0 18px 48px rgba(31, 28, 19, 0.08);
+}
+
+.cockpit-header {
+  padding: 1rem 1.1rem 0.95rem;
+  border-bottom: 3px solid #121412;
+  background:
+    linear-gradient(180deg, rgba(184, 121, 46, 0.08), transparent),
+    #fffdf8;
+}
+
+.cockpit-header h3 {
+  margin: 0;
+  font-size: clamp(1.5rem, 3vw, 2.2rem);
+  line-height: 0.94;
+  letter-spacing: -0.04em;
+}
+
+.cockpit-instruments {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 1.2rem;
+  padding: 1.4rem 1.2rem;
+  border-bottom: 1.5px solid rgba(26, 29, 27, 0.18);
+}
+
+.cockpit-instrument {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.cockpit-svg {
+  width: 100%;
+  max-width: 160px;
+  height: auto;
+  aspect-ratio: 1 / 1;
+  filter: drop-shadow(0 6px 12px rgba(31, 28, 19, 0.18));
+}
+
+.cockpit-readout {
+  margin: 0;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.cockpit-readout-label {
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.cockpit-readout strong {
+  font-family: var(--mono);
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.cockpit-empty {
+  margin: 0;
+  padding: 1.5rem;
+  text-align: center;
+  color: var(--muted);
+  font-style: italic;
+  grid-column: 1 / -1;
+}
+
+.cockpit-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0;
+  margin: 0;
+  padding: 0;
+}
+
+.cockpit-summary > div {
+  padding: 0.85rem 1.1rem;
+  border-right: 1px solid rgba(18, 20, 18, 0.18);
+  border-top: 1px solid rgba(18, 20, 18, 0.18);
+}
+
+.cockpit-summary > div:first-child {
+  border-top: 0;
+}
+
+.cockpit-summary > div:last-child {
+  border-right: 0;
+}
+
+.cockpit-summary dt {
+  margin: 0 0 0.3rem;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.cockpit-summary dd {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 0.9rem;
+  letter-spacing: -0.01em;
+  word-break: break-word;
+}
+
+.cockpit-axis {
+  display: block;
+  margin-top: 0.2rem;
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.cockpit-map {
+  display: inline-block;
+  margin-left: 0.4rem;
+  color: var(--accent);
+  font-size: 0.75rem;
+  text-decoration: none;
+  border-bottom: 1px solid var(--accent-soft);
+}
+
+.cockpit-map:hover {
+  border-bottom-color: var(--accent);
+}
+
+@media (max-width: 540px) {
+  .cockpit-summary > div {
+    border-right: 0;
+  }
+}
