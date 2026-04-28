@@ -1,0 +1,93 @@
+---
+source: crates/xifty-cli/tests/cli_contract.rs
+assertion_line: 919
+expression: "extract_json(\"happy.mp3\", ViewMode::Normalized)"
+---
+{
+  "input": {
+    "container": "mp3",
+    "detected_format": "mp3",
+    "path": "happy.mp3"
+  },
+  "normalized": {
+    "fields": [
+      {
+        "confidence": 0.949999988079071,
+        "field": "duration",
+        "sources": [
+          {
+            "container": "mp3",
+            "namespace": "mp3",
+            "notes": [
+              "derived from MPEG frame count and sample rate"
+            ],
+            "path": "mpeg_audio_frame"
+          }
+        ],
+        "value": {
+          "kind": "float",
+          "value": 1.303125
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
+        "field": "audio.channels",
+        "sources": [
+          {
+            "container": "mp3",
+            "namespace": "mp3",
+            "notes": [
+              "derived from MPEG audio frame header"
+            ],
+            "path": "mpeg_audio_frame"
+          }
+        ],
+        "value": {
+          "kind": "integer",
+          "value": 2
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
+        "field": "audio.sample_rate",
+        "sources": [
+          {
+            "container": "mp3",
+            "namespace": "mp3",
+            "notes": [
+              "derived from MPEG audio frame header"
+            ],
+            "path": "mpeg_audio_frame"
+          }
+        ],
+        "value": {
+          "kind": "integer",
+          "value": 44100
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
+        "field": "audio.bit_depth",
+        "sources": [
+          {
+            "container": "mp3",
+            "namespace": "mp3",
+            "notes": [
+              "fixed 16-bit per MPEG audio decoder output convention (not tag-derived)"
+            ],
+            "path": "mpeg_audio_frame"
+          }
+        ],
+        "value": {
+          "kind": "integer",
+          "value": 16
+        }
+      }
+    ]
+  },
+  "report": {
+    "conflicts": [],
+    "issues": []
+  },
+  "schema_version": "0.1.0"
+}

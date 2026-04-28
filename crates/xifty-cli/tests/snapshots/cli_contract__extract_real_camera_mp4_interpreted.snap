@@ -1,6 +1,6 @@
 ---
 source: crates/xifty-cli/tests/cli_contract.rs
-assertion_line: 478
+assertion_line: 793
 expression: output
 ---
 {
@@ -465,11 +465,79 @@ expression: output
     "conflicts": [
       {
         "field": "captured_at",
-        "message": "multiple candidates disagreed; selected CreateDate from rtmd"
+        "message": "multiple candidates disagreed; selected CreateDate from rtmd",
+        "sources": [
+          {
+            "namespace": "rtmd",
+            "provenance": {
+              "container": "mp4",
+              "namespace": "rtmd",
+              "offset_end": 25170432,
+              "offset_start": 25168484,
+              "path": "non_real_time_meta"
+            },
+            "tag_id": "CreateDate",
+            "tag_name": "CreateDate",
+            "value": {
+              "kind": "timestamp",
+              "value": "2026-04-16T06:34:34-08:00"
+            }
+          },
+          {
+            "namespace": "quicktime",
+            "provenance": {
+              "container": "mp4",
+              "namespace": "quicktime",
+              "notes": [
+                "derived from movie header creation time"
+              ]
+            },
+            "tag_id": "CreateDate",
+            "tag_name": "CreateDate",
+            "value": {
+              "kind": "timestamp",
+              "value": "2026-04-16T14:34:34"
+            }
+          }
+        ]
       },
       {
         "field": "created_at",
-        "message": "multiple candidates disagreed; selected CreateDate from rtmd"
+        "message": "multiple candidates disagreed; selected CreateDate from rtmd",
+        "sources": [
+          {
+            "namespace": "rtmd",
+            "provenance": {
+              "container": "mp4",
+              "namespace": "rtmd",
+              "offset_end": 25170432,
+              "offset_start": 25168484,
+              "path": "non_real_time_meta"
+            },
+            "tag_id": "CreateDate",
+            "tag_name": "CreateDate",
+            "value": {
+              "kind": "timestamp",
+              "value": "2026-04-16T06:34:34-08:00"
+            }
+          },
+          {
+            "namespace": "quicktime",
+            "provenance": {
+              "container": "mp4",
+              "namespace": "quicktime",
+              "notes": [
+                "derived from movie header creation time"
+              ]
+            },
+            "tag_id": "CreateDate",
+            "tag_name": "CreateDate",
+            "value": {
+              "kind": "timestamp",
+              "value": "2026-04-16T14:34:34"
+            }
+          }
+        ]
       }
     ],
     "issues": []
