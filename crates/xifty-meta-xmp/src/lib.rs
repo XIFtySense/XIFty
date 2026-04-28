@@ -155,13 +155,28 @@ pub fn decode_packet(packet: XmpPacket<'_>) -> Vec<MetadataEntry> {
     // (xmlns drone-dji="http://www.dji.com/drone-dji/1.0/"). Confirmed
     // against real Mavic JPGs at /Volumes/KHAOS2/DCIM/100MEDIA/DJI_*.JPG.
     for (xmp_attr, tag_name) in DJI_XMP_FLOAT_ATTRS {
-        push_dji_float(&mut entries, packet.clone(), tag_name, find_text(text, &[xmp_attr]));
+        push_dji_float(
+            &mut entries,
+            packet.clone(),
+            tag_name,
+            find_text(text, &[xmp_attr]),
+        );
     }
     for (xmp_attr, tag_name) in DJI_XMP_INTEGER_ATTRS {
-        push_dji_integer(&mut entries, packet.clone(), tag_name, find_text(text, &[xmp_attr]));
+        push_dji_integer(
+            &mut entries,
+            packet.clone(),
+            tag_name,
+            find_text(text, &[xmp_attr]),
+        );
     }
     for (xmp_attr, tag_name) in DJI_XMP_STRING_ATTRS {
-        push_dji_string(&mut entries, packet.clone(), tag_name, find_text(text, &[xmp_attr]));
+        push_dji_string(
+            &mut entries,
+            packet.clone(),
+            tag_name,
+            find_text(text, &[xmp_attr]),
+        );
     }
 
     entries
@@ -187,9 +202,7 @@ const DJI_XMP_INTEGER_ATTRS: &[(&str, &str)] = &[
     ("drone-dji:RtkFlag", "RtkFlag"),
 ];
 
-const DJI_XMP_STRING_ATTRS: &[(&str, &str)] = &[
-    ("drone-dji:SelfData", "SelfData"),
-];
+const DJI_XMP_STRING_ATTRS: &[(&str, &str)] = &[("drone-dji:SelfData", "SelfData")];
 
 pub fn decode_png_text_chunk(
     payload: &[u8],
@@ -598,7 +611,8 @@ mod tests {
         // Trimmed from a real Mavic JPG XMP packet. The leading `+` on
         // numeric attributes is DJI's convention; the parser must accept it.
         let entries = decode_packet(XmpPacket {
-            bytes: br#"<x:xmpmeta><rdf:Description xmlns:drone-dji="http://www.dji.com/drone-dji/1.0/"
+            bytes:
+                br#"<x:xmpmeta><rdf:Description xmlns:drone-dji="http://www.dji.com/drone-dji/1.0/"
    drone-dji:AbsoluteAltitude="-44.49"
    drone-dji:RelativeAltitude="+1.00"
    drone-dji:GimbalRollDegree="+0.00"
@@ -615,9 +629,16 @@ mod tests {
         });
 
         let pick_float = |tag: &str| -> Option<f64> {
-            entries.iter().find(|e| e.namespace == "dji" && e.tag_name == tag).and_then(|e| {
-                if let TypedValue::Float(v) = &e.value { Some(*v) } else { None }
-            })
+            entries
+                .iter()
+                .find(|e| e.namespace == "dji" && e.tag_name == tag)
+                .and_then(|e| {
+                    if let TypedValue::Float(v) = &e.value {
+                        Some(*v)
+                    } else {
+                        None
+                    }
+                })
         };
         assert_eq!(pick_float("AbsoluteAltitude"), Some(-44.49));
         assert_eq!(pick_float("RelativeAltitude"), Some(1.0));
@@ -633,10 +654,12 @@ mod tests {
 
         // The provenance carries the DJI namespace too so consumers can
         // tell DJI-derived data apart from other XMP attributes.
-        assert!(entries
-            .iter()
-            .filter(|e| e.namespace == "dji")
-            .all(|e| e.provenance.namespace == "dji"));
+        assert!(
+            entries
+                .iter()
+                .filter(|e| e.namespace == "dji")
+                .all(|e| e.provenance.namespace == "dji")
+        );
     }
 
     #[test]
