@@ -1,0 +1,45 @@
+---
+source: crates/xifty-cli/tests/cli_contract.rs
+assertion_line: 165
+expression: "probe_json(\"happy.mp3\")"
+---
+{
+  "containers": [
+    {
+      "kind": "container",
+      "label": "mp3",
+      "offset_end": 20988,
+      "offset_start": 0
+    },
+    {
+      "kind": "tag",
+      "label": "id3v2",
+      "offset_end": 138,
+      "offset_start": 0,
+      "parent_label": "mp3"
+    },
+    {
+      "kind": "frame",
+      "label": "mpeg_audio_frame",
+      "offset_end": 20988,
+      "offset_start": 138,
+      "parent_label": "mp3"
+    }
+  ],
+  "input": {
+    "container": "mp3",
+    "detected_format": "mp3",
+    "path": "happy.mp3"
+  },
+  "report": {
+    "conflicts": [],
+    "issues": [
+      {
+        "code": "no_metadata_entries",
+        "message": "no supported metadata entries were decoded",
+        "severity": "info"
+      }
+    ]
+  },
+  "schema_version": "0.1.0"
+}
