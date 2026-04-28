@@ -148,8 +148,61 @@ pub fn decode_packet(packet: XmpPacket<'_>) -> Vec<MetadataEntry> {
         find_element_all(text, "dc:subject"),
     );
 
+    // DJI drone telemetry — emitted under the `dji` namespace using the same
+    // tag names that the QuickTime/udta path emits (#87) so the existing
+    // `drone.*` policy reconciliation reuses them without changes. DJI puts
+    // these on RDF Description as attributes in the `drone-dji:` namespace
+    // (xmlns drone-dji="http://www.dji.com/drone-dji/1.0/"). Confirmed
+    // against real Mavic JPGs at /Volumes/KHAOS2/DCIM/100MEDIA/DJI_*.JPG.
+    for (xmp_attr, tag_name) in DJI_XMP_FLOAT_ATTRS {
+        push_dji_float(
+            &mut entries,
+            packet.clone(),
+            tag_name,
+            find_text(text, &[xmp_attr]),
+        );
+    }
+    for (xmp_attr, tag_name) in DJI_XMP_INTEGER_ATTRS {
+        push_dji_integer(
+            &mut entries,
+            packet.clone(),
+            tag_name,
+            find_text(text, &[xmp_attr]),
+        );
+    }
+    for (xmp_attr, tag_name) in DJI_XMP_STRING_ATTRS {
+        push_dji_string(
+            &mut entries,
+            packet.clone(),
+            tag_name,
+            find_text(text, &[xmp_attr]),
+        );
+    }
+
     entries
 }
+
+const DJI_XMP_FLOAT_ATTRS: &[(&str, &str)] = &[
+    ("drone-dji:AbsoluteAltitude", "AbsoluteAltitude"),
+    ("drone-dji:RelativeAltitude", "RelativeAltitude"),
+    ("drone-dji:GimbalRollDegree", "GimbalRollDegree"),
+    ("drone-dji:GimbalYawDegree", "GimbalYawDegree"),
+    ("drone-dji:GimbalPitchDegree", "GimbalPitchDegree"),
+    ("drone-dji:FlightRollDegree", "FlightRollDegree"),
+    ("drone-dji:FlightYawDegree", "FlightYawDegree"),
+    ("drone-dji:FlightPitchDegree", "FlightPitchDegree"),
+    ("drone-dji:FlightXSpeed", "FlightXSpeed"),
+    ("drone-dji:FlightYSpeed", "FlightYSpeed"),
+    ("drone-dji:FlightZSpeed", "FlightZSpeed"),
+];
+
+const DJI_XMP_INTEGER_ATTRS: &[(&str, &str)] = &[
+    ("drone-dji:CamReverse", "CamReverse"),
+    ("drone-dji:GimbalReverse", "GimbalReverse"),
+    ("drone-dji:RtkFlag", "RtkFlag"),
+];
+
+const DJI_XMP_STRING_ATTRS: &[(&str, &str)] = &[("drone-dji:SelfData", "SelfData")];
 
 pub fn decode_png_text_chunk(
     payload: &[u8],
@@ -285,6 +338,92 @@ fn push_integer(
         provenance: Provenance {
             container: packet.container.into(),
             namespace: "xmp".into(),
+            path: Some("xmp_packet".into()),
+            offset_start: Some(packet.offset_start),
+            offset_end: Some(packet.offset_end),
+            notes: Vec::new(),
+        },
+        notes: vec![decoded.note],
+    });
+}
+
+fn push_dji_float(
+    entries: &mut Vec<MetadataEntry>,
+    packet: XmpPacket<'_>,
+    tag_name: &str,
+    value: Option<DecodedText>,
+) {
+    let Some(decoded) = value else {
+        return;
+    };
+    // DJI signs every numeric attribute (`+1.00`, `-44.49`). Plain `parse::<f64>`
+    // accepts the leading `+` so no manual stripping is needed.
+    let Ok(parsed) = decoded.value.trim().parse::<f64>() else {
+        return;
+    };
+    entries.push(MetadataEntry {
+        namespace: "dji".into(),
+        tag_id: tag_name.into(),
+        tag_name: tag_name.into(),
+        value: TypedValue::Float(parsed),
+        provenance: Provenance {
+            container: packet.container.into(),
+            namespace: "dji".into(),
+            path: Some("xmp_packet".into()),
+            offset_start: Some(packet.offset_start),
+            offset_end: Some(packet.offset_end),
+            notes: Vec::new(),
+        },
+        notes: vec![decoded.note],
+    });
+}
+
+fn push_dji_integer(
+    entries: &mut Vec<MetadataEntry>,
+    packet: XmpPacket<'_>,
+    tag_name: &str,
+    value: Option<DecodedText>,
+) {
+    let Some(decoded) = value else {
+        return;
+    };
+    let Ok(parsed) = decoded.value.trim().parse::<i64>() else {
+        return;
+    };
+    entries.push(MetadataEntry {
+        namespace: "dji".into(),
+        tag_id: tag_name.into(),
+        tag_name: tag_name.into(),
+        value: TypedValue::Integer(parsed),
+        provenance: Provenance {
+            container: packet.container.into(),
+            namespace: "dji".into(),
+            path: Some("xmp_packet".into()),
+            offset_start: Some(packet.offset_start),
+            offset_end: Some(packet.offset_end),
+            notes: Vec::new(),
+        },
+        notes: vec![decoded.note],
+    });
+}
+
+fn push_dji_string(
+    entries: &mut Vec<MetadataEntry>,
+    packet: XmpPacket<'_>,
+    tag_name: &str,
+    value: Option<DecodedText>,
+) {
+    let Some(decoded) = value else {
+        return;
+    };
+    entries.push(MetadataEntry {
+        namespace: "dji".into(),
+        tag_id: tag_name.into(),
+        tag_name: tag_name.into(),
+        value: TypedValue::String(decoded.value),
+        provenance: Provenance {
+            container: packet.container.into(),
+            namespace: "dji".into(),
             path: Some("xmp_packet".into()),
             offset_start: Some(packet.offset_start),
             offset_end: Some(packet.offset_end),
@@ -465,6 +604,62 @@ mod tests {
         assert!(entries.iter().any(|entry| entry.tag_name == "Author"));
         assert!(entries.iter().any(|entry| entry.tag_name == "GPSLatitude"));
         assert!(entries.iter().all(|entry| !entry.notes.is_empty()));
+    }
+
+    #[test]
+    fn xmp_decoder_extracts_dji_drone_namespace() {
+        // Trimmed from a real Mavic JPG XMP packet. The leading `+` on
+        // numeric attributes is DJI's convention; the parser must accept it.
+        let entries = decode_packet(XmpPacket {
+            bytes:
+                br#"<x:xmpmeta><rdf:Description xmlns:drone-dji="http://www.dji.com/drone-dji/1.0/"
+   drone-dji:AbsoluteAltitude="-44.49"
+   drone-dji:RelativeAltitude="+1.00"
+   drone-dji:GimbalRollDegree="+0.00"
+   drone-dji:GimbalYawDegree="-12.30"
+   drone-dji:GimbalPitchDegree="+5.50"
+   drone-dji:FlightRollDegree="-0.30"
+   drone-dji:FlightYawDegree="+106.50"
+   drone-dji:FlightPitchDegree="-0.50"
+   drone-dji:CamReverse="0"
+   drone-dji:GimbalReverse="0"/></x:xmpmeta>"#,
+            container: "jpeg",
+            offset_start: 0,
+            offset_end: 320,
+        });
+
+        let pick_float = |tag: &str| -> Option<f64> {
+            entries
+                .iter()
+                .find(|e| e.namespace == "dji" && e.tag_name == tag)
+                .and_then(|e| {
+                    if let TypedValue::Float(v) = &e.value {
+                        Some(*v)
+                    } else {
+                        None
+                    }
+                })
+        };
+        assert_eq!(pick_float("AbsoluteAltitude"), Some(-44.49));
+        assert_eq!(pick_float("RelativeAltitude"), Some(1.0));
+        assert_eq!(pick_float("FlightYawDegree"), Some(106.5));
+        assert_eq!(pick_float("FlightPitchDegree"), Some(-0.5));
+        assert_eq!(pick_float("GimbalPitchDegree"), Some(5.5));
+
+        let cam_reverse = entries
+            .iter()
+            .find(|e| e.namespace == "dji" && e.tag_name == "CamReverse")
+            .expect("CamReverse should be emitted");
+        assert!(matches!(cam_reverse.value, TypedValue::Integer(0)));
+
+        // The provenance carries the DJI namespace too so consumers can
+        // tell DJI-derived data apart from other XMP attributes.
+        assert!(
+            entries
+                .iter()
+                .filter(|e| e.namespace == "dji")
+                .all(|e| e.provenance.namespace == "dji")
+        );
     }
 
     #[test]
