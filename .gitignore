@@ -12,3 +12,6 @@ node_modules/
 demo/web/pkg/
 .loswf/state/
 *.bak.*
+.claude/worktrees/
+.claude/scheduled_tasks.lock
+Untitled-*
