@@ -794,7 +794,7 @@ dependencies = [
 
 [[package]]
 name = "xifty-cli"
-version = "0.1.9"
+version = "0.1.10"
 dependencies = [
  "clap",
  "flate2",
@@ -829,7 +829,7 @@ dependencies = [
 
 [[package]]
 name = "xifty-container-aiff"
-version = "0.1.9"
+version = "0.1.10"
 dependencies = [
  "xifty-core",
  "xifty-source",
@@ -837,7 +837,7 @@ dependencies = [
 
 [[package]]
 name = "xifty-container-flac"
-version = "0.1.9"
+version = "0.1.10"
 dependencies = [
  "xifty-core",
  "xifty-source",
@@ -845,7 +845,7 @@ dependencies = [
 
 [[package]]
 name = "xifty-container-isobmff"
-version = "0.1.9"
+version = "0.1.10"
 dependencies = [
  "xifty-core",
  "xifty-source",
@@ -853,7 +853,7 @@ dependencies = [
 
 [[package]]
 name = "xifty-container-jpeg"
-version = "0.1.9"
+version = "0.1.10"
 dependencies = [
  "xifty-core",
  "xifty-source",
@@ -861,7 +861,7 @@ dependencies = [
 
 [[package]]
 name = "xifty-container-ogg"
-version = "0.1.9"
+version = "0.1.10"
 dependencies = [
  "xifty-core",
  "xifty-source",
@@ -869,7 +869,7 @@ dependencies = [
 
 [[package]]
 name = "xifty-container-png"
-version = "0.1.9"
+version = "0.1.10"
 dependencies = [
  "xifty-core",
  "xifty-source",
@@ -877,7 +877,7 @@ dependencies = [
 
 [[package]]
 name = "xifty-container-riff"
-version = "0.1.9"
+version = "0.1.10"
 dependencies = [
  "xifty-core",
  "xifty-source",
@@ -885,7 +885,7 @@ dependencies = [
 
 [[package]]
 name = "xifty-container-tiff"
-version = "0.1.9"
+version = "0.1.10"
 dependencies = [
  "xifty-core",
  "xifty-source",
@@ -893,7 +893,7 @@ dependencies = [
 
 [[package]]
 name = "xifty-core"
-version = "0.1.9"
+version = "0.1.10"
 dependencies = [
  "serde",
  "thiserror",
@@ -901,7 +901,7 @@ dependencies = [
 
 [[package]]
 name = "xifty-detect"
-version = "0.1.9"
+version = "0.1.10"
 dependencies = [
  "xifty-core",
  "xifty-source",
@@ -909,7 +909,7 @@ dependencies = [
 
 [[package]]
 name = "xifty-ffi"
-version = "0.1.9"
+version = "0.1.10"
 dependencies = [
  "xifty-cli",
  "xifty-core",
@@ -918,7 +918,7 @@ dependencies = [
 
 [[package]]
 name = "xifty-json"
-version = "0.1.9"
+version = "0.1.10"
 dependencies = [
  "serde_json",
  "xifty-core",
@@ -926,7 +926,7 @@ dependencies = [
 
 [[package]]
 name = "xifty-meta-apple"
-version = "0.1.9"
+version = "0.1.10"
 dependencies = [
  "plist",
  "xifty-container-tiff",
@@ -936,7 +936,7 @@ dependencies = [
 
 [[package]]
 name = "xifty-meta-exif"
-version = "0.1.9"
+version = "0.1.10"
 dependencies = [
  "xifty-container-jpeg",
  "xifty-container-tiff",
@@ -946,42 +946,42 @@ dependencies = [
 
 [[package]]
 name = "xifty-meta-icc"
-version = "0.1.9"
+version = "0.1.10"
 dependencies = [
  "xifty-core",
 ]
 
 [[package]]
 name = "xifty-meta-iptc"
-version = "0.1.9"
+version = "0.1.10"
 dependencies = [
  "xifty-core",
 ]
 
 [[package]]
 name = "xifty-meta-itunes"
-version = "0.1.9"
+version = "0.1.10"
 dependencies = [
  "xifty-core",
 ]
 
 [[package]]
 name = "xifty-meta-quicktime"
-version = "0.1.9"
+version = "0.1.10"
 dependencies = [
  "xifty-core",
 ]
 
 [[package]]
 name = "xifty-meta-rtmd"
-version = "0.1.9"
+version = "0.1.10"
 dependencies = [
  "xifty-core",
 ]
 
 [[package]]
 name = "xifty-meta-sony"
-version = "0.1.9"
+version = "0.1.10"
 dependencies = [
  "xifty-container-tiff",
  "xifty-core",
@@ -990,21 +990,21 @@ dependencies = [
 
 [[package]]
 name = "xifty-meta-vorbis-comment"
-version = "0.1.9"
+version = "0.1.10"
 dependencies = [
  "xifty-core",
 ]
 
 [[package]]
 name = "xifty-meta-xmp"
-version = "0.1.9"
+version = "0.1.10"
 dependencies = [
  "xifty-core",
 ]
 
 [[package]]
 name = "xifty-normalize"
-version = "0.1.9"
+version = "0.1.10"
 dependencies = [
  "xifty-core",
  "xifty-policy",
@@ -1012,14 +1012,14 @@ dependencies = [
 
 [[package]]
 name = "xifty-policy"
-version = "0.1.9"
+version = "0.1.10"
 dependencies = [
  "xifty-core",
 ]
 
 [[package]]
 name = "xifty-source"
-version = "0.1.9"
+version = "0.1.10"
 dependencies = [
  "memmap2",
  "xifty-core",
@@ -1027,14 +1027,14 @@ dependencies = [
 
 [[package]]
 name = "xifty-validate"
-version = "0.1.9"
+version = "0.1.10"
 dependencies = [
  "xifty-core",
 ]
 
 [[package]]
 name = "xifty-wasm"
-version = "0.1.9"
+version = "0.1.10"
 dependencies = [
  "serde_json",
  "wasm-bindgen",
