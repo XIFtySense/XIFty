@@ -38,14 +38,21 @@ pub fn normalize_with_policy(entries: &[MetadataEntry]) -> PolicyResult {
             float_coordinate(entries, "GPSLatitude").zip(float_coordinate(entries, "GPSLongitude"))
         });
     if let Some(((lat_src, latitude), (lon_src, longitude))) = coordinates {
+        let altitude = float_coordinate(entries, "GPSAltitude");
+        let mut sources = vec![lat_src, lon_src];
+        let altitude_value = altitude.map(|(alt_src, altitude)| {
+            sources.push(alt_src);
+            altitude
+        });
         result.fields.push(NormalizedField {
             field: "location".into(),
             value: TypedValue::Coordinates {
                 latitude,
                 longitude,
+                altitude: altitude_value,
             },
             confidence: 0.9,
-            sources: vec![lat_src, lon_src],
+            sources,
             notes: Vec::new(),
         });
     }
@@ -342,7 +349,72 @@ mod tests {
             },
         ];
         let fields = normalize(&entries);
-        assert!(fields.iter().any(|field| field.field == "location"));
+        assert!(fields.iter().any(|field| {
+            field.field == "location"
+                && matches!(
+                    field.value,
+                    TypedValue::Coordinates {
+                        latitude,
+                        longitude,
+                        altitude: None,
+                    } if (latitude - 40.4462).abs() < 1e-9
+                        && (longitude - -79.98).abs() < 1e-9
+                )
+        }));
+    }
+
+    #[test]
+    fn normalizes_altitude_into_location_coordinates() {
+        let prov = Provenance {
+            container: "mp4".into(),
+            namespace: "quicktime".into(),
+            path: None,
+            offset_start: None,
+            offset_end: None,
+            notes: Vec::new(),
+        };
+        let entries = vec![
+            MetadataEntry {
+                namespace: "quicktime".into(),
+                tag_id: "GPSLatitude".into(),
+                tag_name: "GPSLatitude".into(),
+                value: TypedValue::Float(40.0),
+                provenance: prov.clone(),
+                notes: Vec::new(),
+            },
+            MetadataEntry {
+                namespace: "quicktime".into(),
+                tag_id: "GPSLongitude".into(),
+                tag_name: "GPSLongitude".into(),
+                value: TypedValue::Float(-73.0),
+                provenance: prov.clone(),
+                notes: Vec::new(),
+            },
+            MetadataEntry {
+                namespace: "quicktime".into(),
+                tag_id: "GPSAltitude".into(),
+                tag_name: "GPSAltitude".into(),
+                value: TypedValue::Float(50.0),
+                provenance: prov,
+                notes: Vec::new(),
+            },
+        ];
+        let fields = normalize(&entries);
+        let location = fields
+            .iter()
+            .find(|field| field.field == "location")
+            .expect("missing location");
+        assert!(matches!(
+            location.value,
+            TypedValue::Coordinates {
+                latitude,
+                longitude,
+                altitude: Some(altitude),
+            } if (latitude - 40.0).abs() < 1e-9
+                && (longitude - -73.0).abs() < 1e-9
+                && (altitude - 50.0).abs() < 1e-9
+        ));
+        assert_eq!(location.sources.len(), 3);
     }
 
     #[test]
