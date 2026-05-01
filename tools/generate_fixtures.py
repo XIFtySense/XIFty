@@ -372,7 +372,13 @@ def build_editorial_xmp(
 </x:xmpmeta>""".encode("utf-8")
 
 
-def build_png(exif_payload=None, xmp_payload=None, malformed=False):
+def build_png(
+    exif_payload=None,
+    xmp_payload=None,
+    malformed=False,
+    creation_time=None,
+    time_chunk=None,
+):
     signature = b"\x89PNG\r\n\x1a\n"
     ihdr = png_chunk(b"IHDR", struct.pack(">IIBBBBB", 1, 1, 8, 2, 0, 0, 0))
     chunks = [ihdr]
@@ -384,6 +390,10 @@ def build_png(exif_payload=None, xmp_payload=None, malformed=False):
     if xmp_payload is not None:
         text_data = b"XML:com.adobe.xmp\x00\x00\x00\x00\x00" + xmp_payload
         chunks.append(png_chunk(b"iTXt", text_data))
+    if creation_time is not None:
+        chunks.append(png_chunk(b"tEXt", b"Creation Time\x00" + creation_time.encode("utf-8")))
+    if time_chunk is not None:
+        chunks.append(png_chunk(b"tIME", time_chunk))
     chunks.append(png_chunk(b"IEND", b""))
     return signature + b"".join(chunks)
 
@@ -1232,6 +1242,8 @@ def main():
         "malformed_icc.png": build_png_with_malformed_icc(),
         "no_icc.png": build_png(None),
         "xmp_only.png": build_png(None, xmp_with_location),
+        "png_creation_time.png": build_png(None, creation_time="2024-05-02T03:04:05Z"),
+        "png_time_only.png": build_png(None, time_chunk=struct.pack(">HBBBBB", 2024, 5, 2, 3, 4, 5)),
         "mixed.png": build_png(build_tiff(gps=False), xmp_with_location),
         "conflicting.png": build_png(build_tiff(gps=False), xmp_conflict),
         "validate_conflicts.png": build_png(build_tiff(gps=False, make="Canon"), validate_conflicts_xmp),

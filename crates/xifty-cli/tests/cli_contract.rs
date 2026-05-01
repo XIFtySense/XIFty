@@ -235,6 +235,30 @@ fn extract_snapshot_xmp_only_png_normalized() {
 }
 
 #[test]
+fn png_text_creation_time_normalizes_to_captured_at() {
+    let output = normalized_map(&extract_json("png_creation_time.png", ViewMode::Normalized));
+    assert_eq!(
+        output["captured_at"],
+        serde_json::json!({
+            "kind": "timestamp",
+            "value": "2024-05-02T03:04:05Z"
+        })
+    );
+}
+
+#[test]
+fn png_time_chunk_normalizes_to_captured_at() {
+    let output = normalized_map(&extract_json("png_time_only.png", ViewMode::Normalized));
+    assert_eq!(
+        output["captured_at"],
+        serde_json::json!({
+            "kind": "timestamp",
+            "value": "2024-05-02T03:04:05Z"
+        })
+    );
+}
+
+#[test]
 fn extract_snapshot_xmp_only_webp_normalized() {
     assert_json_snapshot!(
         "extract_xmp_only_webp_normalized",

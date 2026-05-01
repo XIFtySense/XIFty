@@ -1,5 +1,5 @@
 use flate2::read::ZlibDecoder;
-use std::{io::Read, path::PathBuf};
+use std::{fs, io::Read, path::PathBuf, process::Command, time::SystemTime};
 use xifty_container_aiff::{AiffContainer, parse as parse_aiff};
 use xifty_container_flac::{FlacContainer, parse as parse_flac};
 use xifty_container_isobmff::parse as parse_isobmff;
@@ -111,7 +111,8 @@ fn probe_source(source: &SourceBytes) -> Result<ProbeOutput, XiftyError> {
 
 pub fn extract_path(path: PathBuf, view_mode: ViewMode) -> Result<AnalysisOutput, XiftyError> {
     let source = SourceBytes::from_path(&path)?;
-    extract_source(&source, view_mode)
+    let filesystem_metadata = fs::metadata(&path).ok();
+    extract_source(&source, view_mode, filesystem_metadata.as_ref())
 }
 
 pub fn extract_bytes(
@@ -120,13 +121,17 @@ pub fn extract_bytes(
     view_mode: ViewMode,
 ) -> Result<AnalysisOutput, XiftyError> {
     let source = SourceBytes::new(browser_path(file_name), bytes);
-    extract_source(&source, view_mode)
+    extract_source(&source, view_mode, None)
 }
 
-fn extract_source(source: &SourceBytes, view_mode: ViewMode) -> Result<AnalysisOutput, XiftyError> {
+fn extract_source(
+    source: &SourceBytes,
+    view_mode: ViewMode,
+    filesystem_metadata: Option<&fs::Metadata>,
+) -> Result<AnalysisOutput, XiftyError> {
     let format = detect(&source)?;
 
-    let (container_name, nodes, entries, issues) = match format {
+    let (container_name, nodes, mut entries, issues) = match format {
         Format::Jpeg => {
             let jpeg = parse_jpeg(&source)?;
             let mut issues = jpeg.issues.clone();
@@ -238,6 +243,58 @@ fn extract_source(source: &SourceBytes, view_mode: ViewMode) -> Result<AnalysisO
                         "png",
                         chunk.offset_start,
                         chunk.offset_end,
+                    ));
+                }
+            }
+            for chunk in png.text_payloads() {
+                let Some(payload) = payload_slice(
+                    source.bytes(),
+                    chunk.data_offset,
+                    chunk.data_length as usize,
+                ) else {
+                    continue;
+                };
+                match decode_png_creation_time_payload(&chunk.chunk_type, payload) {
+                    Ok(Some(value)) => entries.push(png_timestamp_entry(
+                        "CreationTime",
+                        "CreateDate",
+                        value,
+                        chunk.offset_start,
+                        chunk.offset_end,
+                        &String::from_utf8_lossy(&chunk.chunk_type),
+                    )),
+                    Ok(None) => {}
+                    Err(()) => issues.push(namespace_issue(
+                        "png_creation_time_payload_invalid",
+                        "PNG Creation Time text chunk could not be decoded",
+                        chunk.offset_start,
+                        &String::from_utf8_lossy(&chunk.chunk_type),
+                    )),
+                }
+            }
+            for chunk in png.time_payloads() {
+                let Some(payload) = payload_slice(
+                    source.bytes(),
+                    chunk.data_offset,
+                    chunk.data_length as usize,
+                ) else {
+                    continue;
+                };
+                if let Some(value) = decode_png_time_payload(payload) {
+                    entries.push(png_timestamp_entry(
+                        "tIME",
+                        "CreateDate",
+                        value,
+                        chunk.offset_start,
+                        chunk.offset_end,
+                        "tIME",
+                    ));
+                } else {
+                    issues.push(namespace_issue(
+                        "png_time_payload_invalid",
+                        "PNG tIME chunk could not be decoded",
+                        chunk.offset_start,
+                        "tIME",
                     ));
                 }
             }
@@ -440,6 +497,13 @@ fn extract_source(source: &SourceBytes, view_mode: ViewMode) -> Result<AnalysisO
         }
     };
 
+    add_filesystem_timestamp_fallbacks(
+        &mut entries,
+        &source.source.path,
+        &format,
+        filesystem_metadata,
+    );
+
     let normalization = normalize_with_policy(&entries);
     let mut report = build_report(issues, &entries);
     let mut merged = std::mem::take(&mut report.conflicts);
@@ -573,6 +637,106 @@ fn payload_slice(bytes: &[u8], absolute_offset: u64, len: usize) -> Option<&[u8]
     bytes.get(start..start + len)
 }
 
+fn add_filesystem_timestamp_fallbacks(
+    entries: &mut Vec<MetadataEntry>,
+    path: &std::path::Path,
+    format: &Format,
+    metadata: Option<&fs::Metadata>,
+) {
+    let Some(metadata) = metadata else {
+        return;
+    };
+    if !matches!(format, Format::Png) || !is_apple_screen_capture(path) {
+        return;
+    }
+    let has_captured_candidate = entries
+        .iter()
+        .any(|entry| matches!(entry.tag_name.as_str(), "DateTimeOriginal" | "CreateDate"));
+    if !has_captured_candidate {
+        if let Ok(created) = metadata.created() {
+            if let Some(value) = system_time_to_utc_timestamp(created) {
+                entries.push(filesystem_timestamp_entry(
+                    path,
+                    "FileCreateDate",
+                    "CreateDate",
+                    value,
+                    "filesystem creation time used because no embedded capture timestamp was decoded",
+                ));
+            }
+        }
+    }
+}
+
+fn is_apple_screen_capture(path: &std::path::Path) -> bool {
+    Command::new("xattr")
+        .arg("-p")
+        .arg("com.apple.metadata:kMDItemIsScreenCapture")
+        .arg(path)
+        .output()
+        .map(|output| output.status.success() && output.stdout.starts_with(b"bplist00"))
+        .unwrap_or(false)
+}
+
+fn filesystem_timestamp_entry(
+    path: &std::path::Path,
+    tag_id: &str,
+    tag_name: &str,
+    value: String,
+    note: &str,
+) -> MetadataEntry {
+    MetadataEntry {
+        namespace: "filesystem".into(),
+        tag_id: tag_id.into(),
+        tag_name: tag_name.into(),
+        value: TypedValue::Timestamp(value),
+        provenance: Provenance {
+            container: "source".into(),
+            namespace: "filesystem".into(),
+            path: Some(path.to_string_lossy().into_owned()),
+            offset_start: None,
+            offset_end: None,
+            notes: Vec::new(),
+        },
+        notes: vec![note.into()],
+    }
+}
+
+fn system_time_to_utc_timestamp(time: SystemTime) -> Option<String> {
+    let duration = time.duration_since(SystemTime::UNIX_EPOCH).ok()?;
+    let seconds = i64::try_from(duration.as_secs()).ok()?;
+    let (year, month, day, hour, minute, second) = unix_seconds_to_utc(seconds)?;
+    Some(format!(
+        "{year:04}-{month:02}-{day:02}T{hour:02}:{minute:02}:{second:02}Z"
+    ))
+}
+
+fn unix_seconds_to_utc(seconds: i64) -> Option<(i64, u32, u32, u32, u32, u32)> {
+    if seconds < 0 {
+        return None;
+    }
+    let days = seconds / 86_400;
+    let seconds_of_day = seconds % 86_400;
+    let (year, month, day) = civil_from_days(days)?;
+    let hour = u32::try_from(seconds_of_day / 3_600).ok()?;
+    let minute = u32::try_from((seconds_of_day % 3_600) / 60).ok()?;
+    let second = u32::try_from(seconds_of_day % 60).ok()?;
+    Some((year, month, day, hour, minute, second))
+}
+
+fn civil_from_days(days_since_unix_epoch: i64) -> Option<(i64, u32, u32)> {
+    let z = days_since_unix_epoch + 719_468;
+    let era = z / 146_097;
+    let doe = z - era * 146_097;
+    let yoe = (doe - doe / 1_460 + doe / 36_524 - doe / 146_096) / 365;
+    let year = yoe + era * 400;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let day = doy - (153 * mp + 2) / 5 + 1;
+    let month = mp + if mp < 10 { 3 } else { -9 };
+    let year = year + if month <= 2 { 1 } else { 0 };
+    Some((year, u32::try_from(month).ok()?, u32::try_from(day).ok()?))
+}
+
 fn decode_png_iccp_payload(payload: &[u8]) -> Option<Vec<u8>> {
     let separator = payload.iter().position(|byte| *byte == 0)?;
     let compression_method = *payload.get(separator + 1)?;
@@ -584,6 +748,125 @@ fn decode_png_iccp_payload(payload: &[u8]) -> Option<Vec<u8>> {
     let mut decoded = Vec::new();
     decoder.read_to_end(&mut decoded).ok()?;
     Some(decoded)
+}
+
+fn decode_png_creation_time_payload(
+    chunk_type: &[u8; 4],
+    payload: &[u8],
+) -> Result<Option<String>, ()> {
+    let Some((keyword, text)) = decode_png_text_payload(chunk_type, payload)? else {
+        return Ok(None);
+    };
+    if keyword.eq_ignore_ascii_case("Creation Time") {
+        return Ok(Some(text.trim().to_string()));
+    }
+    Ok(None)
+}
+
+fn decode_png_text_payload(
+    chunk_type: &[u8; 4],
+    payload: &[u8],
+) -> Result<Option<(String, String)>, ()> {
+    let nul = payload.iter().position(|byte| *byte == 0).ok_or(())?;
+    let keyword = String::from_utf8_lossy(&payload[..nul]).into_owned();
+    let content = match chunk_type {
+        b"tEXt" => payload.get(nul + 1..).ok_or(())?.to_vec(),
+        b"zTXt" => {
+            let method = *payload.get(nul + 1).ok_or(())?;
+            if method != 0 {
+                return Err(());
+            }
+            let compressed = payload.get(nul + 2..).ok_or(())?;
+            let mut decoder = ZlibDecoder::new(compressed);
+            let mut decoded = Vec::new();
+            decoder.read_to_end(&mut decoded).map_err(|_| ())?;
+            decoded
+        }
+        b"iTXt" => {
+            let mut cursor = nul + 1;
+            let compression_flag = *payload.get(cursor).ok_or(())?;
+            cursor += 1;
+            let compression_method = *payload.get(cursor).ok_or(())?;
+            cursor += 1;
+            let lang_end = payload
+                .get(cursor..)
+                .ok_or(())?
+                .iter()
+                .position(|byte| *byte == 0)
+                .ok_or(())?;
+            cursor += lang_end + 1;
+            let translated_end = payload
+                .get(cursor..)
+                .ok_or(())?
+                .iter()
+                .position(|byte| *byte == 0)
+                .ok_or(())?;
+            cursor += translated_end + 1;
+            let text = payload.get(cursor..).ok_or(())?;
+            if compression_flag == 0 {
+                text.to_vec()
+            } else {
+                if compression_method != 0 {
+                    return Err(());
+                }
+                let mut decoder = ZlibDecoder::new(text);
+                let mut decoded = Vec::new();
+                decoder.read_to_end(&mut decoded).map_err(|_| ())?;
+                decoded
+            }
+        }
+        _ => return Ok(None),
+    };
+    let text = String::from_utf8(content).map_err(|_| ())?;
+    Ok(Some((keyword, text)))
+}
+
+fn decode_png_time_payload(payload: &[u8]) -> Option<String> {
+    if payload.len() != 7 {
+        return None;
+    }
+    let year = u16::from_be_bytes(payload[0..2].try_into().ok()?);
+    let month = payload[2];
+    let day = payload[3];
+    let hour = payload[4];
+    let minute = payload[5];
+    let second = payload[6];
+    if !(1..=12).contains(&month)
+        || !(1..=31).contains(&day)
+        || hour > 23
+        || minute > 59
+        || second > 60
+    {
+        return None;
+    }
+    Some(format!(
+        "{year:04}-{month:02}-{day:02}T{hour:02}:{minute:02}:{second:02}Z"
+    ))
+}
+
+fn png_timestamp_entry(
+    tag_id: &str,
+    tag_name: &str,
+    value: String,
+    offset_start: u64,
+    offset_end: u64,
+    path: &str,
+) -> MetadataEntry {
+    MetadataEntry {
+        namespace: "png".into(),
+        tag_id: tag_id.into(),
+        tag_name: tag_name.into(),
+        value: TypedValue::Timestamp(value),
+        provenance: Provenance {
+            container: "png".into(),
+            namespace: "png".into(),
+            path: Some(path.into()),
+            offset_start: Some(offset_start),
+            offset_end: Some(offset_end),
+            notes: Vec::new(),
+        },
+        notes: vec!["decoded from PNG timestamp chunk".into()],
+    }
 }
 
 /// Decode a PNG text chunk (tEXt/zTXt/iTXt) into raw IPTC IIM bytes.

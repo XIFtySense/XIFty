@@ -1038,7 +1038,9 @@ function typedValueToString(value) {
     case "rational":
       return formatRationalValue(value.value?.numerator, value.value?.denominator);
     case "coordinates":
-      return `${value.value?.latitude}, ${value.value?.longitude}`;
+      return value.value?.altitude === undefined
+        ? `${value.value?.latitude}, ${value.value?.longitude}`
+        : `${value.value?.latitude}, ${value.value?.longitude}, ${value.value?.altitude}m`;
     case "dimensions":
       return `${value.value?.width} × ${value.value?.height}`;
     default:

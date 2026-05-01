@@ -30,6 +30,20 @@ impl PngContainer {
             .filter(|chunk| &chunk.chunk_type == b"iTXt" || &chunk.chunk_type == b"tEXt")
     }
 
+    pub fn text_payloads(&self) -> impl Iterator<Item = &PngChunk> {
+        self.chunks.iter().filter(|chunk| {
+            &chunk.chunk_type == b"iTXt"
+                || &chunk.chunk_type == b"tEXt"
+                || &chunk.chunk_type == b"zTXt"
+        })
+    }
+
+    pub fn time_payloads(&self) -> impl Iterator<Item = &PngChunk> {
+        self.chunks
+            .iter()
+            .filter(|chunk| &chunk.chunk_type == b"tIME")
+    }
+
     pub fn icc_payloads(&self) -> impl Iterator<Item = &PngChunk> {
         self.chunks
             .iter()

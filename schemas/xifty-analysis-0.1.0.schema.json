@@ -156,7 +156,8 @@
               "required": ["latitude", "longitude"],
               "properties": {
                 "latitude": { "type": "number" },
-                "longitude": { "type": "number" }
+                "longitude": { "type": "number" },
+                "altitude": { "type": "number" }
               }
             }
           }

@@ -460,17 +460,8 @@ fn maybe_choose_rational(
     }
 
     let winner = choose_match(&matches, preference);
-    let TypedValue::Rational {
-        numerator,
-        denominator,
-    } = &winner.value
-    else {
+    let Some(value) = rational_value(&winner.value) else {
         return;
-    };
-
-    let value = TypedValue::Rational {
-        numerator: *numerator,
-        denominator: *denominator,
     };
 
     if has_material_difference(&matches, &value) {
@@ -588,9 +579,110 @@ fn typed_values_equal(left: &TypedValue, right: &TypedValue) -> bool {
                 numerator: bn,
                 denominator: bd,
             },
-        ) => an == bn && ad == bd,
+        ) => {
+            (an == bn && ad == bd)
+                || ((*an as f64 / *ad as f64) - (*bn as f64 / *bd as f64)).abs() < 0.000_001
+        }
+        _ if numeric_value(left).is_some() && numeric_value(right).is_some() => {
+            let left = numeric_value(left).unwrap();
+            let right = numeric_value(right).unwrap();
+            (left - right).abs() < 0.000_001
+        }
         _ => false,
     }
+}
+
+fn rational_value(value: &TypedValue) -> Option<TypedValue> {
+    if let TypedValue::Rational {
+        numerator,
+        denominator,
+    } = value
+    {
+        if *denominator == 0 {
+            return None;
+        }
+        return Some(TypedValue::Rational {
+            numerator: *numerator,
+            denominator: *denominator,
+        });
+    }
+
+    let (numerator, denominator) = match value {
+        TypedValue::Integer(value) => (*value, 1),
+        TypedValue::Float(value) => decimal_to_rational(*value)?,
+        TypedValue::String(value) | TypedValue::Timestamp(value) => parse_rational_text(value)?,
+        _ => return None,
+    };
+    let (numerator, denominator) = reduce_rational(numerator, denominator)?;
+    Some(TypedValue::Rational {
+        numerator,
+        denominator,
+    })
+}
+
+fn parse_rational_text(input: &str) -> Option<(i64, i64)> {
+    let trimmed = input.trim().trim_end_matches('s').trim();
+    if let Some((left, right)) = trimmed.split_once('/') {
+        let numerator = left.trim().parse::<i64>().ok()?;
+        let denominator = right.trim().parse::<i64>().ok()?;
+        return Some((numerator, denominator));
+    }
+    decimal_to_rational(trimmed.parse::<f64>().ok()?)
+}
+
+fn rational_value_from_text(input: &str) -> Option<TypedValue> {
+    let (numerator, denominator) = parse_rational_text(input)?;
+    let (numerator, denominator) = reduce_rational(numerator, denominator)?;
+    Some(TypedValue::Rational {
+        numerator,
+        denominator,
+    })
+}
+
+fn decimal_to_rational(value: f64) -> Option<(i64, i64)> {
+    if !value.is_finite() {
+        return None;
+    }
+    if value == 0.0 {
+        return Some((0, 1));
+    }
+    let sign = if value.is_sign_negative() { -1 } else { 1 };
+    let absolute = value.abs();
+    if absolute < 1.0 {
+        let reciprocal = 1.0 / absolute;
+        let rounded = reciprocal.round();
+        if (reciprocal - rounded).abs() < 0.000_001 && rounded <= i64::MAX as f64 {
+            return Some((sign, rounded as i64));
+        }
+    }
+    let denominator = 1_000_000i64;
+    let numerator = (absolute * denominator as f64).round();
+    if numerator > i64::MAX as f64 {
+        return None;
+    }
+    Some((sign * numerator as i64, denominator))
+}
+
+fn reduce_rational(numerator: i64, denominator: i64) -> Option<(i64, i64)> {
+    if denominator == 0 {
+        return None;
+    }
+    let sign = if denominator < 0 { -1 } else { 1 };
+    let mut numerator = numerator * sign;
+    let mut denominator = denominator.abs();
+    let divisor = gcd(numerator.abs(), denominator);
+    numerator /= divisor;
+    denominator /= divisor;
+    Some((numerator, denominator))
+}
+
+fn gcd(mut left: i64, mut right: i64) -> i64 {
+    while right != 0 {
+        let remainder = left % right;
+        left = right;
+        right = remainder;
+    }
+    left.max(1)
 }
 
 fn numeric_value(value: &TypedValue) -> Option<f64> {
@@ -606,6 +698,10 @@ fn numeric_value(value: &TypedValue) -> Option<f64> {
             } else {
                 Some(*numerator as f64 / *denominator as f64)
             }
+        }
+        TypedValue::String(value) | TypedValue::Timestamp(value) => {
+            let rational = rational_value_from_text(value)?;
+            numeric_value(&rational)
         }
         _ => None,
     }
@@ -824,5 +920,44 @@ mod tests {
         assert_eq!(author.value, TypedValue::String("XMP Kai".into()));
         assert_eq!(result.conflicts.len(), 1);
         assert!(author.notes.iter().any(|note| note.contains("selected")));
+    }
+
+    #[test]
+    fn canonicalizes_exposure_time_to_rational_from_float_and_string() {
+        let prov = xifty_core::Provenance {
+            container: "mp4".into(),
+            namespace: "quicktime".into(),
+            path: None,
+            offset_start: None,
+            offset_end: None,
+            notes: Vec::new(),
+        };
+        for value in [
+            TypedValue::Float(0.004),
+            TypedValue::String("1/250".into()),
+            TypedValue::String("0.004s".into()),
+        ] {
+            let entry = MetadataEntry {
+                namespace: "quicktime".into(),
+                tag_id: "ExposureTime".into(),
+                tag_name: "ExposureTime".into(),
+                value,
+                provenance: prov.clone(),
+                notes: Vec::new(),
+            };
+            let result = reconcile(&[entry]);
+            let shutter = result
+                .fields
+                .iter()
+                .find(|field| field.field == "exposure.shutter_speed")
+                .expect("missing shutter speed");
+            assert_eq!(
+                shutter.value,
+                TypedValue::Rational {
+                    numerator: 1,
+                    denominator: 250
+                }
+            );
+        }
     }
 }

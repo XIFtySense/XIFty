@@ -101,12 +101,23 @@ pub enum TypedValue {
     String(String),
     Integer(i64),
     Float(f64),
-    Rational { numerator: i64, denominator: i64 },
+    Rational {
+        numerator: i64,
+        denominator: i64,
+    },
     RationalList(Vec<RationalValue>),
     Bytes(Vec<u8>),
     Timestamp(String),
-    Coordinates { latitude: f64, longitude: f64 },
-    Dimensions { width: u32, height: u32 },
+    Coordinates {
+        latitude: f64,
+        longitude: f64,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        altitude: Option<f64>,
+    },
+    Dimensions {
+        width: u32,
+        height: u32,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq)]
