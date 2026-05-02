@@ -22,11 +22,6 @@ expression: "extract_json(\"malformed_chunk.png\", ViewMode::Report)"
         "code": "png_missing_iend",
         "message": "png stream ended without IEND chunk",
         "severity": "warning"
-      },
-      {
-        "code": "no_metadata_entries",
-        "message": "no supported metadata entries were decoded",
-        "severity": "info"
       }
     ]
   },
