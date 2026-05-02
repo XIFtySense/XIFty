@@ -1,6 +1,6 @@
 ---
 source: crates/xifty-cli/tests/cli_contract.rs
-assertion_line: 793
+assertion_line: 1199
 expression: output
 ---
 {
@@ -275,6 +275,297 @@ expression: output
         "value": {
           "kind": "string",
           "value": "rec709-xvycc"
+        }
+      },
+      {
+        "namespace": "sony_video",
+        "provenance": {
+          "container": "mp4",
+          "namespace": "sony_video",
+          "offset_start": 68,
+          "path": "moov/uuid/PROF/FPRF"
+        },
+        "tag_id": "PROF/FPRF",
+        "tag_name": "FileFunctionFlags",
+        "value": {
+          "kind": "integer",
+          "value": 536870912
+        }
+      },
+      {
+        "namespace": "sony_video",
+        "provenance": {
+          "container": "mp4",
+          "namespace": "sony_video",
+          "offset_start": 88,
+          "path": "moov/uuid/PROF/APRF"
+        },
+        "tag_id": "PROF/APRF/1",
+        "tag_name": "AudioTrackID",
+        "value": {
+          "kind": "integer",
+          "value": 2
+        }
+      },
+      {
+        "namespace": "sony_video",
+        "provenance": {
+          "container": "mp4",
+          "namespace": "sony_video",
+          "offset_start": 88,
+          "path": "moov/uuid/PROF/APRF"
+        },
+        "tag_id": "PROF/APRF/2",
+        "tag_name": "AudioCodec",
+        "value": {
+          "kind": "string",
+          "value": "twos"
+        }
+      },
+      {
+        "namespace": "sony_video",
+        "provenance": {
+          "container": "mp4",
+          "namespace": "sony_video",
+          "offset_start": 88,
+          "path": "moov/uuid/PROF/APRF"
+        },
+        "tag_id": "PROF/APRF/5",
+        "tag_name": "AudioAvgBitrate",
+        "value": {
+          "kind": "integer",
+          "value": 1536000
+        }
+      },
+      {
+        "namespace": "sony_video",
+        "provenance": {
+          "container": "mp4",
+          "namespace": "sony_video",
+          "offset_start": 88,
+          "path": "moov/uuid/PROF/APRF"
+        },
+        "tag_id": "PROF/APRF/6",
+        "tag_name": "AudioMaxBitrate",
+        "value": {
+          "kind": "integer",
+          "value": 1536000
+        }
+      },
+      {
+        "namespace": "sony_video",
+        "provenance": {
+          "container": "mp4",
+          "namespace": "sony_video",
+          "offset_start": 88,
+          "path": "moov/uuid/PROF/APRF"
+        },
+        "tag_id": "PROF/APRF/7",
+        "tag_name": "AudioSampleRate",
+        "value": {
+          "kind": "integer",
+          "value": 48000
+        }
+      },
+      {
+        "namespace": "sony_video",
+        "provenance": {
+          "container": "mp4",
+          "namespace": "sony_video",
+          "offset_start": 88,
+          "path": "moov/uuid/PROF/APRF"
+        },
+        "tag_id": "PROF/APRF/8",
+        "tag_name": "AudioChannels",
+        "value": {
+          "kind": "integer",
+          "value": 2
+        }
+      },
+      {
+        "namespace": "sony_video",
+        "provenance": {
+          "container": "mp4",
+          "namespace": "sony_video",
+          "offset_start": 132,
+          "path": "moov/uuid/PROF/VPRF"
+        },
+        "tag_id": "PROF/VPRF/1",
+        "tag_name": "VideoTrackID",
+        "value": {
+          "kind": "integer",
+          "value": 1
+        }
+      },
+      {
+        "namespace": "sony_video",
+        "provenance": {
+          "container": "mp4",
+          "namespace": "sony_video",
+          "offset_start": 132,
+          "path": "moov/uuid/PROF/VPRF"
+        },
+        "tag_id": "PROF/VPRF/2",
+        "tag_name": "VideoCodec",
+        "value": {
+          "kind": "string",
+          "value": "avc1"
+        }
+      },
+      {
+        "namespace": "sony_video",
+        "provenance": {
+          "container": "mp4",
+          "namespace": "sony_video",
+          "offset_start": 132,
+          "path": "moov/uuid/PROF/VPRF"
+        },
+        "tag_id": "PROF/VPRF/5",
+        "tag_name": "VideoAvgBitrate",
+        "value": {
+          "kind": "integer",
+          "value": 100000000
+        }
+      },
+      {
+        "namespace": "sony_video",
+        "provenance": {
+          "container": "mp4",
+          "namespace": "sony_video",
+          "offset_start": 132,
+          "path": "moov/uuid/PROF/VPRF"
+        },
+        "tag_id": "PROF/VPRF/6",
+        "tag_name": "VideoMaxBitrate",
+        "value": {
+          "kind": "integer",
+          "value": 100000000
+        }
+      },
+      {
+        "namespace": "sony_video",
+        "provenance": {
+          "container": "mp4",
+          "namespace": "sony_video",
+          "offset_start": 132,
+          "path": "moov/uuid/PROF/VPRF"
+        },
+        "tag_id": "PROF/VPRF/7",
+        "tag_name": "VideoAvgFrameRate",
+        "value": {
+          "kind": "float",
+          "value": 23.97601318359375
+        }
+      },
+      {
+        "namespace": "sony_video",
+        "provenance": {
+          "container": "mp4",
+          "namespace": "sony_video",
+          "offset_start": 132,
+          "path": "moov/uuid/PROF/VPRF"
+        },
+        "tag_id": "PROF/VPRF/8",
+        "tag_name": "VideoMaxFrameRate",
+        "value": {
+          "kind": "float",
+          "value": 23.97601318359375
+        }
+      },
+      {
+        "namespace": "sony_video",
+        "provenance": {
+          "container": "mp4",
+          "namespace": "sony_video",
+          "offset_start": 132,
+          "path": "moov/uuid/PROF/VPRF"
+        },
+        "tag_id": "PROF/VPRF/9",
+        "tag_name": "VideoSize",
+        "value": {
+          "kind": "dimensions",
+          "value": {
+            "height": 2160,
+            "width": 3840
+          }
+        }
+      },
+      {
+        "namespace": "sony_video",
+        "provenance": {
+          "container": "mp4",
+          "namespace": "sony_video",
+          "offset_start": 132,
+          "path": "moov/uuid/PROF/VPRF"
+        },
+        "tag_id": "PROF/VPRF/10",
+        "tag_name": "PixelAspectRatio",
+        "value": {
+          "kind": "rational",
+          "value": {
+            "denominator": 1,
+            "numerator": 1
+          }
+        }
+      },
+      {
+        "namespace": "sony_video",
+        "provenance": {
+          "container": "mp4",
+          "namespace": "sony_video",
+          "offset_start": 25167328,
+          "path": "moov/uuid/USMT/MTDT"
+        },
+        "tag_id": "USMT/MTDT/0x000a",
+        "tag_name": "TrackProperty",
+        "value": {
+          "kind": "string",
+          "value": "flags=1 attr=0 priority=0"
+        }
+      },
+      {
+        "namespace": "sony_video",
+        "provenance": {
+          "container": "mp4",
+          "namespace": "sony_video",
+          "offset_start": 25167844,
+          "path": "moov/uuid/USMT/MTDT"
+        },
+        "tag_id": "USMT/MTDT/0x000a",
+        "tag_name": "TrackProperty",
+        "value": {
+          "kind": "string",
+          "value": "flags=1 attr=0 priority=0"
+        }
+      },
+      {
+        "namespace": "sony_video",
+        "provenance": {
+          "container": "mp4",
+          "namespace": "sony_video",
+          "offset_start": 25168353,
+          "path": "moov/uuid/USMT/MTDT"
+        },
+        "tag_id": "USMT/MTDT/0x000a",
+        "tag_name": "TrackProperty",
+        "value": {
+          "kind": "string",
+          "value": "flags=16 attr=0 priority=0"
+        }
+      },
+      {
+        "namespace": "sony_video",
+        "provenance": {
+          "container": "mp4",
+          "namespace": "sony_video",
+          "offset_start": 25168405,
+          "path": "moov/uuid/USMT/MTDT"
+        },
+        "tag_id": "USMT/MTDT/0x000b",
+        "tag_name": "TimeZone",
+        "value": {
+          "kind": "integer",
+          "value": -480
         }
       },
       {

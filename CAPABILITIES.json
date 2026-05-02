@@ -254,6 +254,34 @@
         "Zoom",
         "SerialNumber"
       ]
+    },
+    "sony_video": {
+      "status": "bounded",
+      "supported_tags": [
+        "FileFunctionFlags",
+        "AudioTrackID",
+        "AudioCodec",
+        "AudioAvgBitrate",
+        "AudioMaxBitrate",
+        "AudioSampleRate",
+        "AudioChannels",
+        "VideoTrackID",
+        "VideoCodec",
+        "VideoAvgBitrate",
+        "VideoMaxBitrate",
+        "VideoAvgFrameRate",
+        "VideoMaxFrameRate",
+        "VideoSize",
+        "PixelAspectRatio",
+        "Title",
+        "ProductionDate",
+        "Software",
+        "Product",
+        "TrackProperty",
+        "TimeZone",
+        "ModifyDate"
+      ],
+      "notes": "Sony PROF (FPRF/APRF/VPRF) and USMT (MTDT) UUID atoms in MP4/MOV. Field maps reverse-engineered from ExifTool QuickTime.pm (`%QuickTime::FileProf`, `%AudioProf`, `%VideoProf`, `%MetaData`, `ProcessMetaData`). Phase 1 ship list; PRPF/AOLY are recognised structurally but not yet decoded."
     }
   },
   "containers": {
@@ -372,12 +400,14 @@
       "namespaces": {
         "quicktime": "bounded",
         "rtmd": "bounded",
-        "dji": "supported"
+        "dji": "supported",
+        "sony_video": "bounded"
       }
     },
     "mov": {
       "namespaces": {
-        "quicktime": "bounded"
+        "quicktime": "bounded",
+        "sony_video": "bounded"
       }
     },
     "m4a": {

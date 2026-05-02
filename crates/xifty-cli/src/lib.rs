@@ -42,6 +42,7 @@ use xifty_meta_quicktime::{
 };
 use xifty_meta_rtmd::{RtmdPacket, decode_packet as decode_rtmd_packet};
 use xifty_meta_sony::decode_from_tiff as decode_sony_from_tiff;
+use xifty_meta_sony_video::{decode_prof, decode_usmt};
 use xifty_meta_vorbis_comment::{
     VorbisCommentPayload, decode_payload as decode_vorbis_comment_payload,
 };
@@ -1752,6 +1753,29 @@ fn isobmff_entries(
                 offset_start: payload.offset_start,
                 offset_end: payload.offset_end,
             }));
+        }
+    }
+
+    // Sony video user-data UUID atoms (PROF/USMT/...). The container parser
+    // recognises the full Sony-userdata family by usertype tail; here we
+    // dispatch the bounded ship-list (PROF + USMT). Unknown atom names are a
+    // silent no-op — the recognition layer already swallowed the
+    // uninterpreted info-issue, so adding a future decoder is a one-line
+    // change with no container-layer churn.
+    for payload in container.sony_video_atoms() {
+        let Some(payload_bytes) =
+            payload_slice(bytes, payload.data_offset, payload.data_length as usize)
+        else {
+            continue;
+        };
+        match payload.tag.as_deref() {
+            Some("PROF") => {
+                entries.extend(decode_prof(payload_bytes, payload.data_offset, format_name))
+            }
+            Some("USMT") => {
+                entries.extend(decode_usmt(payload_bytes, payload.data_offset, format_name))
+            }
+            _ => {}
         }
     }
 
