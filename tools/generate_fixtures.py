@@ -1269,17 +1269,34 @@ def build_mp3_xing_vbr(frame_count=20):
     return bytes(out)
 
 
-def build_mp3_vbr_no_xing(frame_count=8):
-    """VBR-shaped MP3 with no Xing/Info or VBRI header.
+def _mp3_frame_with_bitrate_index(bitrate_index):
+    """MPEG-1 Layer III frame at the given bitrate index, 44.1 kHz stereo.
 
-    Synthetic: every frame is CBR-shaped but the file is intended for the
-    container parser to recognize as "VBR with unknown duration" via test
-    assertions that explicitly invoke the helper. The file itself parses as
-    a regular CBR stream from the container's perspective.
+    `bitrate_index` is the 4-bit field; valid 1..=14. Frame size follows the
+    MPEG-1 L3 formula: `144 * bitrate_bps / sample_rate + padding`.
     """
+    mpeg1_l3_kbps = [
+        0, 32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320,
+    ]
+    kbps = mpeg1_l3_kbps[bitrate_index]
+    sample_rate = 44100
+    frame_size = (144 * kbps * 1000) // sample_rate  # no padding
+    byte2 = (bitrate_index << 4) | 0x00  # sample_rate_index=0 (44.1k), no padding
+    header = bytes([0xFF, 0xFB, byte2, 0x04])
+    return header + b"\x00" * (frame_size - 4)
+
+
+def build_mp3_vbr_no_xing(frame_count=8):
+    """Genuine VBR MP3 with no Xing/Info or VBRI header.
+
+    Frames alternate between two MPEG-1 Layer III bitrates (128 kbps and 192
+    kbps). The container parser walks subsequent frames, observes the bitrate
+    variation, and emits the `mp3_vbr_duration_unknown` issue.
+    """
+    bitrate_indices = [9, 10]  # 128 kbps, 160 kbps
     out = bytearray(build_id3v2_3_text_frames())
-    for _ in range(frame_count):
-        out.extend(build_mp3_cbr_frame())
+    for i in range(frame_count):
+        out.extend(_mp3_frame_with_bitrate_index(bitrate_indices[i % 2]))
     return bytes(out)
 
 

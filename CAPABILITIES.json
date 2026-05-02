@@ -83,7 +83,10 @@
       "supported_tags": [
         "TIT2",
         "TPE1",
-        "TALB"
+        "TALB",
+        "TCON",
+        "TYER",
+        "TDRC"
       ]
     },
     "mp3": {

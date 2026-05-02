@@ -2595,14 +2595,24 @@ fn mp3_xing_vbr_duration_uses_total_frames() {
 }
 
 #[test]
-fn mp3_vbr_no_xing_parses_without_panicking() {
-    // The synthetic vbr_no_xing fixture is shaped CBR-wise; the explicit
-    // VBR-no-header issue is exposed through the public helper rather than
-    // emitted automatically (we cannot reliably detect VBR without scanning
-    // every frame). This test guards regression of the basic parse path.
+fn mp3_vbr_no_xing_emits_duration_unknown_issue() {
+    // The vbr_no_xing fixture alternates frame bitrates without a Xing/Info
+    // or VBRI header. The container parser walks subsequent frames, detects
+    // the bitrate variation, and emits `mp3_vbr_duration_unknown`.
     let output = extract_json("vbr_no_xing.mp3", ViewMode::Full);
-    assert_eq!(output["input"]["detected_format"].as_str(), Some("mp3"),);
+    assert_eq!(output["input"]["detected_format"].as_str(), Some("mp3"));
     assert_eq!(output["input"]["container"].as_str(), Some("mp3"));
+
+    let issues = output["report"]["issues"]
+        .as_array()
+        .expect("issues array present");
+    let has_vbr_unknown = issues
+        .iter()
+        .any(|i| i["code"].as_str() == Some("mp3_vbr_duration_unknown"));
+    assert!(
+        has_vbr_unknown,
+        "expected mp3_vbr_duration_unknown in issues, got {issues:?}"
+    );
 }
 
 fn assert_float_close(left: Option<f64>, right: Option<f64>, label: &str) {

@@ -7,8 +7,10 @@
 //! - VBR with a Xing/Info or VBRI header: `total_frames * samples_per_frame /
 //!   sample_rate`.
 //! - CBR (no Xing/VBRI): `(audio_bytes * 8) / bitrate_bps`.
-//! - VBR without either header: leaves duration as `None` and emits an Issue
-//!   `mp3_vbr_duration_unknown` (per plan; we do not estimate).
+//! - VBR without either header: detected by walking a bounded number of
+//!   subsequent frames and noticing varying bitrate indices; leaves duration
+//!   as `None` and emits an Issue `mp3_vbr_duration_unknown` (per plan; we
+//!   do not estimate).
 //!
 //! `bit_depth` is exposed as a constant 16 — MPEG audio is bitstream-coded
 //! and does not carry a sample-width tag; 16-bit PCM is the conventional
@@ -187,7 +189,10 @@ pub fn parse_bytes(bytes: &[u8], base_offset: u64) -> Result<Id3Container, Xifty
         let vbri = find_vbri(audio_region, sync_offset_in_region);
         match (xing, vbri) {
             (Some((tag, frames)), _) => {
-                is_vbr = tag == "Xing"; // "Info" implies CBR with toc
+                // "Xing" magic marks a true VBR stream; "Info" marks CBR-with-toc
+                // (same header layout but used by encoders that wrote constant
+                // bitrate and still wanted a TOC).
+                is_vbr = tag == "Xing";
                 total_frames = Some(frames);
                 if header.sample_rate_hz > 0 {
                     let samples = frames as u64 * header.samples_per_frame as u64;
@@ -203,8 +208,16 @@ pub fn parse_bytes(bytes: &[u8], base_offset: u64) -> Result<Id3Container, Xifty
                 }
             }
             (None, None) => {
-                // No VBR header — assume CBR using first-frame bitrate.
-                if header.bitrate_kbps > 0 {
+                // No Xing/Info or VBRI header. Walk a bounded number of
+                // subsequent frames; if their bitrate indices vary, the stream
+                // is genuinely VBR and we cannot derive duration from framing.
+                if detect_vbr_no_header(audio_region, sync_offset_in_region, &header) {
+                    is_vbr = true;
+                    issues.push(vbr_duration_unknown_issue(
+                        base_offset + audio_region_start as u64 + sync_offset_in_region as u64,
+                    ));
+                } else if header.bitrate_kbps > 0 {
+                    // Treat as CBR using the first-frame bitrate.
                     let bits = audio_bytes * 8;
                     duration_seconds = Some(bits as f64 / (header.bitrate_kbps as f64 * 1000.0));
                 }
@@ -220,11 +233,6 @@ pub fn parse_bytes(bytes: &[u8], base_offset: u64) -> Result<Id3Container, Xifty
             offset: Some(base_offset + audio_region_start as u64),
             context: None,
         });
-    }
-
-    // Detect VBR-without-header explicitly so callers can surface the issue.
-    if is_vbr_unknown(&first_frame, total_frames, &mut issues, base_offset) {
-        // issue already pushed
     }
 
     let bit_depth = first_frame.as_ref().map(|_| MP3_BIT_DEPTH);
@@ -504,27 +512,37 @@ fn side_info_size(version: &MpegVersion, channels: u32) -> usize {
     }
 }
 
-fn is_vbr_unknown(
-    first_frame: &Option<MpegFrameHeader>,
-    total_frames: Option<u32>,
-    issues: &mut Vec<Issue>,
-    base_offset: u64,
-) -> bool {
-    // We only know we are VBR if a header said so; without one we can't tell.
-    // The plan asks to emit `mp3_vbr_duration_unknown` when VBR lacks Xing/VBRI.
-    // We approximate "VBR" by the absence of a Xing/Info/VBRI header on a file
-    // whose first-frame bitrate is non-standard (free-format) — but we cannot
-    // reliably detect VBR without scanning every frame. Instead, callers can
-    // inspect `is_vbr` and `total_frames`; the issue is emitted only from the
-    // dedicated "vbr without header" fixture path via `mark_vbr_unknown`.
-    // Returning false keeps this a no-op in the auto path; the dedicated
-    // entry below provides the explicit signal.
-    let _ = (first_frame, total_frames, issues, base_offset);
+/// Walk up to `MAX_VBR_PROBE_FRAMES` frames after the first sync frame and
+/// return `true` if any subsequent frame advertises a different bitrate index
+/// than the first. A varying bitrate combined with the absence of a Xing/Info
+/// or VBRI header means we have a genuinely VBR stream whose duration is not
+/// derivable from container framing.
+fn detect_vbr_no_header(region: &[u8], first_frame_offset: usize, first: &MpegFrameHeader) -> bool {
+    const MAX_VBR_PROBE_FRAMES: usize = 16;
+    let mut cursor = first_frame_offset + first.frame_size_bytes as usize;
+    let mut probed = 0usize;
+    while probed < MAX_VBR_PROBE_FRAMES && cursor + 4 <= region.len() {
+        // Resync if the next 4 bytes are not a valid frame header — bail
+        // rather than scan the whole file (this keeps the probe bounded).
+        if region[cursor] != 0xFF || (region[cursor + 1] & 0xE0) != 0xE0 {
+            return false;
+        }
+        let next = match decode_frame_header(&region[cursor..cursor + 4], 0) {
+            Some(h) => h,
+            None => return false,
+        };
+        if next.bitrate_kbps != first.bitrate_kbps {
+            return true;
+        }
+        cursor += next.frame_size_bytes as usize;
+        probed += 1;
+    }
     false
 }
 
-/// Construct an explicit VBR-without-Xing issue for fixtures or callers that
-/// know VBR is in play (e.g. the `vbr_no_xing.mp3` synthetic fixture).
+/// Construct an explicit VBR-without-Xing issue. Emitted automatically by the
+/// extract path when frame-walk detection confirms VBR, and exposed publicly
+/// for callers that already know VBR is in play.
 pub fn vbr_duration_unknown_issue(offset: u64) -> Issue {
     Issue {
         severity: Severity::Warning,
