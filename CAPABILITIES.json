@@ -180,6 +180,9 @@
         "AnimationDurationSeconds",
         "LoopCount"
       ]
+    },
+    "canon": {
+      "status": "planned"
     }
   },
   "containers": {
@@ -205,6 +208,15 @@
         "xmp": "bounded",
         "icc": "bounded",
         "iptc": "bounded"
+      }
+    },
+    "cr2": {
+      "namespaces": {
+        "exif": "bounded",
+        "xmp": "bounded",
+        "icc": "bounded",
+        "iptc": "bounded",
+        "canon": "planned"
       }
     },
     "png": {

@@ -21,6 +21,7 @@ members = [
   "crates/xifty-meta-bwf",
   "crates/xifty-meta-ixml",
   "crates/xifty-meta-sony",
+  "crates/xifty-meta-canon",
   "crates/xifty-meta-xmp",
   "crates/xifty-meta-quicktime",
   "crates/xifty-meta-itunes",
