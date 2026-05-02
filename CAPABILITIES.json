@@ -219,6 +219,15 @@
         "canon": "planned"
       }
     },
+    "arw": {
+      "namespaces": {
+        "exif": "bounded",
+        "xmp": "bounded",
+        "icc": "bounded",
+        "iptc": "bounded",
+        "sony": "planned"
+      }
+    },
     "png": {
       "namespaces": {
         "exif": "supported",
