@@ -1,0 +1,16 @@
+---
+source: crates/xifty-cli/tests/cli_contract.rs
+expression: "extract_json(\"happy.gif\", ViewMode::Report)"
+---
+{
+  "input": {
+    "container": "gif",
+    "detected_format": "gif",
+    "path": "happy.gif"
+  },
+  "report": {
+    "conflicts": [],
+    "issues": []
+  },
+  "schema_version": "0.1.0"
+}

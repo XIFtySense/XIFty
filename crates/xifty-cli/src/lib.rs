@@ -4,6 +4,7 @@ use std::process::Command;
 use std::{fs, io::Read, path::PathBuf, time::SystemTime};
 use xifty_container_aiff::{AiffContainer, parse as parse_aiff};
 use xifty_container_flac::{FlacContainer, parse as parse_flac};
+use xifty_container_gif::{GifContainer, parse as parse_gif};
 use xifty_container_id3::{Id3Container, parse as parse_mp3};
 use xifty_container_isobmff::parse as parse_isobmff;
 use xifty_container_jpeg::parse as parse_jpeg;
@@ -115,6 +116,10 @@ fn probe_source(source: &SourceBytes) -> Result<ProbeOutput, XiftyError> {
         Format::Wav => {
             let parsed = parse_riff(&source)?;
             ("wav".to_string(), parsed.nodes, parsed.issues)
+        }
+        Format::Gif => {
+            let parsed = parse_gif(&source)?;
+            ("gif".to_string(), parsed.nodes, parsed.issues)
         }
     };
     Ok(ProbeOutput {
@@ -532,6 +537,12 @@ fn extract_source(
             let mut issues = riff.issues.clone();
             let entries = wav_entries(&riff, source.bytes(), &mut issues);
             ("wav".to_string(), riff.nodes, entries, issues)
+        }
+        Format::Gif => {
+            let gif = parse_gif(&source)?;
+            let mut issues = gif.issues.clone();
+            let entries = gif_entries(&gif, &mut issues);
+            ("gif".to_string(), gif.nodes, entries, issues)
         }
     };
 
@@ -2192,6 +2203,114 @@ fn wav_scalar_entry(
         provenance: Provenance {
             container: "wav".into(),
             namespace: "wav".into(),
+            path: path.map(|p| p.to_string()),
+            offset_start,
+            offset_end,
+            notes: vec![note.into()],
+        },
+        notes: Vec::new(),
+    }
+}
+
+fn gif_entries(gif: &GifContainer, issues: &mut Vec<Issue>) -> Vec<MetadataEntry> {
+    let mut entries = Vec::new();
+
+    let lsd_offset = Some(6u64);
+    let lsd_end = Some(13u64);
+
+    entries.push(gif_scalar_entry(
+        "ImageWidth",
+        TypedValue::Integer(gif.width as i64),
+        "derived from GIF Logical Screen Descriptor",
+        lsd_offset,
+        lsd_end,
+        Some("lsd"),
+    ));
+    entries.push(gif_scalar_entry(
+        "ImageHeight",
+        TypedValue::Integer(gif.height as i64),
+        "derived from GIF Logical Screen Descriptor",
+        lsd_offset,
+        lsd_end,
+        Some("lsd"),
+    ));
+    entries.push(gif_scalar_entry(
+        "FrameCount",
+        TypedValue::Integer(gif.frame_count as i64),
+        "count of GIF Image Descriptor blocks",
+        None,
+        None,
+        None,
+    ));
+    if gif.global_color_table_size > 0 {
+        entries.push(gif_scalar_entry(
+            "GlobalPaletteSize",
+            TypedValue::Integer(gif.global_color_table_size as i64),
+            "byte length of GIF global color table",
+            None,
+            None,
+            Some("gct"),
+        ));
+    }
+    if gif.frame_count > 1 {
+        let duration = gif.animation_duration_centiseconds as f64 / 100.0;
+        entries.push(gif_scalar_entry(
+            "AnimationDurationSeconds",
+            TypedValue::Float(duration),
+            "sum of GIF Graphic Control Extension delays (centiseconds / 100)",
+            None,
+            None,
+            None,
+        ));
+        if let Some(loop_count) = gif.loop_count {
+            entries.push(gif_scalar_entry(
+                "LoopCount",
+                TypedValue::Integer(loop_count as i64),
+                "decoded from NETSCAPE2.0 application extension (0 = infinite)",
+                None,
+                None,
+                Some("app_ext:NETSCAPE2.0"),
+            ));
+        }
+    }
+
+    for (offset_start, offset_end, payload) in gif.xmp_payloads() {
+        let decoded = decode_packet(XmpPacket {
+            bytes: payload,
+            container: "gif",
+            offset_start,
+            offset_end,
+        });
+        if decoded.is_empty() {
+            issues.push(namespace_issue(
+                "xmp_decode_empty",
+                "recognized XMP payload but could not decode bounded XMP fields",
+                offset_start,
+                "app_ext:XMP Data",
+            ));
+        }
+        entries.extend(decoded);
+    }
+
+    entries
+}
+
+fn gif_scalar_entry(
+    tag_name: &str,
+    value: TypedValue,
+    note: &str,
+    offset_start: Option<u64>,
+    offset_end: Option<u64>,
+    path: Option<&str>,
+) -> MetadataEntry {
+    MetadataEntry {
+        namespace: "gif".into(),
+        tag_id: tag_name.into(),
+        tag_name: tag_name.into(),
+        value,
+        provenance: Provenance {
+            container: "gif".into(),
+            namespace: "gif".into(),
             path: path.map(|p| p.to_string()),
             offset_start,
             offset_end,

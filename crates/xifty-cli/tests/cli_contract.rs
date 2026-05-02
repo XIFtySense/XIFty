@@ -2832,6 +2832,40 @@ fn wav_does_not_emit_riff_non_webp_form_issue() {
     );
 }
 
+#[test]
+fn probe_snapshot_happy_gif() {
+    assert_json_snapshot!("probe_happy_gif", probe_json("happy.gif"));
+}
+
+#[test]
+fn probe_snapshot_animated_gif() {
+    assert_json_snapshot!("probe_animated_gif", probe_json("animated.gif"));
+}
+
+#[test]
+fn extract_snapshot_happy_gif_report() {
+    assert_json_snapshot!(
+        "extract_happy_gif_report",
+        extract_json("happy.gif", ViewMode::Report)
+    );
+}
+
+#[test]
+fn extract_snapshot_animated_gif_normalized() {
+    assert_json_snapshot!(
+        "extract_animated_gif_normalized",
+        extract_json("animated.gif", ViewMode::Normalized)
+    );
+}
+
+#[test]
+fn extract_snapshot_xmp_gif_normalized() {
+    assert_json_snapshot!(
+        "extract_xmp_gif_normalized",
+        extract_json("xmp.gif", ViewMode::Normalized)
+    );
+}
+
 fn assert_float_close(left: Option<f64>, right: Option<f64>, label: &str) {
     let left = left.expect("missing left float value");
     let right = right.expect("missing right float value");

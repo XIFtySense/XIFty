@@ -21,6 +21,7 @@ pub enum Format {
     Ogg,
     Mp3,
     Wav,
+    Gif,
 }
 
 impl Format {
@@ -41,6 +42,7 @@ impl Format {
             Self::Ogg => "ogg",
             Self::Mp3 => "mp3",
             Self::Wav => "wav",
+            Self::Gif => "gif",
         }
     }
 }

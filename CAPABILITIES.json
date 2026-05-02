@@ -169,6 +169,17 @@
         "BitDepth",
         "PixelBitDepths"
       ]
+    },
+    "gif": {
+      "status": "bounded",
+      "supported_tags": [
+        "ImageWidth",
+        "ImageHeight",
+        "FrameCount",
+        "GlobalPaletteSize",
+        "AnimationDurationSeconds",
+        "LoopCount"
+      ]
     }
   },
   "containers": {
@@ -280,6 +291,12 @@
         "bwf": "bounded",
         "ixml": "bounded"
       }
+    },
+    "gif": {
+      "namespaces": {
+        "gif": "bounded",
+        "xmp": "bounded"
+      }
     }
   },
   "normalized_fields": [
@@ -319,7 +336,8 @@
     "color.transfer",
     "color.matrix",
     "color.range",
-    "color.bit_depth"
+    "color.bit_depth",
+    "animation.frame_count"
   ],
   "surfaces": {
     "cli": {

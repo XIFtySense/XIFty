@@ -59,6 +59,8 @@ pub fn normalize_with_policy(entries: &[MetadataEntry]) -> PolicyResult {
 
     derive_avif_color_fields(entries, &mut result.fields);
 
+    derive_animation_frame_count(entries, &mut result.fields);
+
     if let Some((entry, keywords)) = entry_strings(entries, "Keywords") {
         if !result.fields.iter().any(|field| field.field == "keywords") {
             result.fields.push(NormalizedField {
@@ -115,6 +117,36 @@ fn derive_avif_color_fields(entries: &[MetadataEntry], fields: &mut Vec<Normaliz
             ensure_field(fields, "color.bit_depth", value, &entry.provenance);
         }
     }
+}
+
+/// Lift the `gif`-namespace `FrameCount` entry into a normalized
+/// `animation.frame_count` field. GIF is the only container that emits a
+/// `FrameCount` entry today; the container parser counts Image Descriptor
+/// blocks, so the value is authoritative for static (1) and animated (>1)
+/// files alike.
+fn derive_animation_frame_count(entries: &[MetadataEntry], fields: &mut Vec<NormalizedField>) {
+    let Some(entry) = entries
+        .iter()
+        .find(|entry| entry.namespace == "gif" && entry.tag_name == "FrameCount")
+    else {
+        return;
+    };
+    let TypedValue::Integer(value) = entry.value else {
+        return;
+    };
+    if fields
+        .iter()
+        .any(|field| field.field == "animation.frame_count")
+    {
+        return;
+    }
+    fields.push(NormalizedField {
+        field: "animation.frame_count".into(),
+        value: TypedValue::Integer(value),
+        confidence: 0.95,
+        sources: vec![entry.provenance.clone()],
+        notes: Vec::new(),
+    });
 }
 
 fn enrich_exif_timestamps(entries: &[MetadataEntry], fields: &mut [NormalizedField]) {
@@ -567,6 +599,42 @@ mod tests {
         assert_eq!(by_name("color.matrix"), TypedValue::Integer(9));
         assert_eq!(by_name("color.range"), TypedValue::Integer(1));
         assert_eq!(by_name("color.bit_depth"), TypedValue::Integer(10));
+    }
+
+    #[test]
+    fn surfaces_animation_frame_count_from_gif_namespace() {
+        let prov = Provenance {
+            container: "gif".into(),
+            namespace: "gif".into(),
+            path: None,
+            offset_start: None,
+            offset_end: None,
+            notes: Vec::new(),
+        };
+        let entries = vec![MetadataEntry {
+            namespace: "gif".into(),
+            tag_id: "FrameCount".into(),
+            tag_name: "FrameCount".into(),
+            value: TypedValue::Integer(3),
+            provenance: prov,
+            notes: Vec::new(),
+        }];
+        let fields = normalize(&entries);
+        let frame_count = fields
+            .iter()
+            .find(|field| field.field == "animation.frame_count")
+            .expect("animation.frame_count surfaced");
+        assert_eq!(frame_count.value, TypedValue::Integer(3));
+    }
+
+    #[test]
+    fn skips_animation_frame_count_when_absent() {
+        let fields = normalize(&[]);
+        assert!(
+            !fields
+                .iter()
+                .any(|field| field.field == "animation.frame_count")
+        );
     }
 
     #[test]

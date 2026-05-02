@@ -802,6 +802,7 @@ dependencies = [
  "serde_json",
  "xifty-container-aiff",
  "xifty-container-flac",
+ "xifty-container-gif",
  "xifty-container-id3",
  "xifty-container-isobmff",
  "xifty-container-jpeg",
@@ -841,6 +842,14 @@ dependencies = [
 
 [[package]]
 name = "xifty-container-flac"
+version = "0.1.11"
+dependencies = [
+ "xifty-core",
+ "xifty-source",
+]
+
+[[package]]
+name = "xifty-container-gif"
 version = "0.1.11"
 dependencies = [
  "xifty-core",
