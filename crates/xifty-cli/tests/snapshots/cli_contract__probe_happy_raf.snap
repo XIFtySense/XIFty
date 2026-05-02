@@ -1,0 +1,51 @@
+---
+source: crates/xifty-cli/tests/cli_contract.rs
+expression: "probe_json(\"happy.raf\")"
+---
+{
+  "containers": [
+    {
+      "kind": "container",
+      "label": "raf",
+      "offset_end": 558,
+      "offset_start": 0
+    },
+    {
+      "kind": "header",
+      "label": "raf_header",
+      "offset_end": 108,
+      "offset_start": 0,
+      "parent_label": "raf"
+    },
+    {
+      "kind": "block",
+      "label": "raf_jpeg_preview",
+      "offset_end": 558,
+      "offset_start": 148,
+      "parent_label": "raf"
+    },
+    {
+      "kind": "block",
+      "label": "raf_embedded_tiff",
+      "offset_end": 556,
+      "offset_start": 160,
+      "parent_label": "raf_jpeg_preview"
+    }
+  ],
+  "input": {
+    "container": "raf",
+    "detected_format": "raf",
+    "path": "happy.raf"
+  },
+  "report": {
+    "conflicts": [],
+    "issues": [
+      {
+        "code": "no_metadata_entries",
+        "message": "no supported metadata entries were decoded",
+        "severity": "info"
+      }
+    ]
+  },
+  "schema_version": "0.1.0"
+}

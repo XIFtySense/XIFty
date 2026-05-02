@@ -49,6 +49,7 @@ def build_tiff(
     dng=False,
     cr2=False,
     canon_makernote=False,
+    fuji_makernote=False,
 ):
     b = TiffBuilder(endian)
     p16, p32 = b.pack16, b.pack32
@@ -118,7 +119,7 @@ def build_tiff(
         exposure_time = p32(1) + p32(250)
         f_number = p32(56) + p32(10)
         focal_length = p32(50) + p32(1)
-        exif_count = 8 + (1 if canon_makernote else 0)
+        exif_count = 8 + (1 if canon_makernote else 0) + (1 if fuji_makernote else 0)
         exif_data_base = exif_off + 2 + exif_count * 12 + 4
         dto1_off = exif_data_base
         dto2_off = exif_data_base + len(dto) + (len(dto) % 2)
@@ -145,6 +146,25 @@ def build_tiff(
                 + p32(0)
                 + canon_image_type
             )
+        # Fuji MakerNote: 8-byte "FUJIFILM" header + LE u32 sub-IFD offset
+        # (relative to MakerNote start) + sub-IFD with two allowlisted tags
+        # (Quality=2, PictureMode=3) and one fall-through (0x1234=99).
+        fuji_makernote_blob = b""
+        fuji_makernote_off = focal_length_off + len(focal_length) + len(canon_makernote_blob)
+        if fuji_makernote:
+            sub_ifd_local_offset = 12  # 8-byte header + 4-byte offset field
+            sub_ifd = (
+                p16(3)
+                + p16(0x1000) + p16(4) + p32(1) + p32(2)
+                + p16(0x1031) + p16(4) + p32(1) + p32(3)
+                + p16(0x1234) + p16(4) + p32(1) + p32(99)
+                + p32(0)
+            )
+            fuji_makernote_blob = (
+                b"FUJIFILM"
+                + struct.pack("<I", sub_ifd_local_offset)
+                + sub_ifd
+            )
         exif_entries = [
             (0x9003, 2, len(dto), p32(dto1_off)),
             (0x9004, 2, len(dto), p32(dto2_off)),
@@ -159,6 +179,10 @@ def build_tiff(
             # MakerNote tag: type=UNDEFINED (7), count covers entire blob.
             exif_entries.append(
                 (0x927C, 7, len(canon_makernote_blob), p32(canon_makernote_off))
+            )
+        if fuji_makernote:
+            exif_entries.append(
+                (0x927C, 7, len(fuji_makernote_blob), p32(fuji_makernote_off))
             )
         exif_ifd = bytearray(b.ifd_bytes(exif_entries))
         exif_ifd += dto
@@ -177,6 +201,7 @@ def build_tiff(
         exif_ifd += f_number
         exif_ifd += focal_length
         exif_ifd += canon_makernote_blob
+        exif_ifd += fuji_makernote_blob
 
         if gps:
             gps_off = exif_off + len(exif_ifd)
@@ -220,6 +245,36 @@ def build_tiff(
     out += exif_ifd
     out += gps_ifd
     return bytes(out)
+
+
+def build_raf(exif_tiff):
+    """Build a synthetic Fuji RAF whose preview block is a JFIF JPEG carrying
+    the supplied TIFF as its APP1/Exif payload. The RAF header is 148 bytes;
+    only fields we care about (magic, version, preview offset/length) are
+    populated. CFA / raw-data slots are left empty so the parser can still
+    register `raf_jpeg_preview` and `raf_embedded_tiff` container nodes.
+    """
+    # Build the JFIF JPEG preview wrapping the EXIF TIFF.
+    payload = b"Exif\x00\x00" + exif_tiff
+    jpeg = bytearray(b"\xFF\xD8")
+    jpeg += b"\xFF\xE1" + struct.pack(">H", len(payload) + 2) + payload
+    jpeg += b"\xFF\xD9"
+
+    header_len = 148
+    preview_offset = header_len
+    preview_len = len(jpeg)
+    header = bytearray(b"\x00" * header_len)
+    header[0:15] = b"FUJIFILMCCD-RAW"
+    # bytes[15] left as NUL; format version "0201" at 16..20
+    header[16:20] = b"0201"
+    header[20:28] = b"FF129502"  # camera id (8 bytes)
+    header[28:60] = b"X-T1".ljust(32, b"\x00")
+    header[60:64] = b"0100"
+    # JPEG preview offset/length at bytes 84..92 (big-endian u32)
+    header[84:88] = struct.pack(">I", preview_offset)
+    header[88:92] = struct.pack(">I", preview_len)
+    # CFA + RAW left as zeros; the parser tolerates empty blocks.
+    return bytes(header) + bytes(jpeg)
 
 
 def build_jpeg(exif_payload=None, malformed=False):
@@ -1573,6 +1628,7 @@ def main():
         "happy.dng": build_tiff(gps=False, dng=True),
         "happy.cr2": build_tiff(gps=False, cr2=True, make="Canon", canon_makernote=True),
         "happy.arw": build_tiff(gps=False, make="SONY"),
+        "happy.raf": build_raf(build_tiff(gps=False, make="FUJIFILM", fuji_makernote=True)),
         "happy.png": build_png(build_tiff(gps=False)),
         "icc.png": build_png_with_icc(icc),
         "iptc.png": build_png_with_iptc(build_iptc_iim()),

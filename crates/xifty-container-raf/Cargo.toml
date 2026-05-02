@@ -1,0 +1,10 @@
+[package]
+name = "xifty-container-raf"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+xifty-core = { path = "../xifty-core" }
+xifty-source = { path = "../xifty-source" }
+xifty-container-jpeg = { path = "../xifty-container-jpeg" }

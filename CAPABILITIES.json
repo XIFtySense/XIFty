@@ -183,6 +183,25 @@
     },
     "canon": {
       "status": "planned"
+    },
+    "fuji": {
+      "status": "bounded",
+      "supported_tags": [
+        "Quality",
+        "Sharpness",
+        "WhiteBalance",
+        "Saturation",
+        "Contrast",
+        "FlashMode",
+        "FlashStrength",
+        "Macro",
+        "FocusMode",
+        "SlowSync",
+        "PictureMode",
+        "ContinuousBracket",
+        "DynamicRange",
+        "FilmMode"
+      ]
     }
   },
   "containers": {
@@ -226,6 +245,12 @@
         "icc": "bounded",
         "iptc": "bounded",
         "sony": "planned"
+      }
+    },
+    "raf": {
+      "namespaces": {
+        "exif": "bounded",
+        "fuji": "bounded"
       }
     },
     "png": {

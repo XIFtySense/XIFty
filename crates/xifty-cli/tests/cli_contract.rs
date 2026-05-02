@@ -607,6 +607,27 @@ fn extract_snapshot_happy_arw_normalized() {
 }
 
 #[test]
+fn probe_snapshot_happy_raf() {
+    assert_json_snapshot!("probe_happy_raf", probe_json("happy.raf"));
+}
+
+#[test]
+fn extract_snapshot_happy_raf_normalized() {
+    assert_json_snapshot!(
+        "extract_happy_raf_normalized",
+        extract_json("happy.raf", ViewMode::Normalized)
+    );
+}
+
+#[test]
+fn extract_snapshot_happy_raf_interpreted() {
+    assert_json_snapshot!(
+        "extract_happy_raf_interpreted",
+        extract_json("happy.raf", ViewMode::Interpreted)
+    );
+}
+
+#[test]
 fn extract_snapshot_xmp_tiff_normalized() {
     assert_json_snapshot!(
         "extract_xmp_tiff_normalized",

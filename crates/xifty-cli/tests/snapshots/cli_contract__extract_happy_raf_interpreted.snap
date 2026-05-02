@@ -1,0 +1,382 @@
+---
+source: crates/xifty-cli/tests/cli_contract.rs
+expression: "extract_json(\"happy.raf\", ViewMode::Interpreted)"
+---
+{
+  "input": {
+    "container": "raf",
+    "detected_format": "raf",
+    "path": "happy.raf"
+  },
+  "interpreted": {
+    "metadata": [
+      {
+        "namespace": "exif",
+        "provenance": {
+          "container": "raf",
+          "namespace": "exif",
+          "offset_end": 182,
+          "offset_start": 170,
+          "path": "ifd0"
+        },
+        "tag_id": "0x0100",
+        "tag_name": "ImageWidth",
+        "value": {
+          "kind": "integer",
+          "value": 800
+        }
+      },
+      {
+        "namespace": "exif",
+        "provenance": {
+          "container": "raf",
+          "namespace": "exif",
+          "offset_end": 194,
+          "offset_start": 182,
+          "path": "ifd0"
+        },
+        "tag_id": "0x0101",
+        "tag_name": "ImageHeight",
+        "value": {
+          "kind": "integer",
+          "value": 600
+        }
+      },
+      {
+        "namespace": "exif",
+        "provenance": {
+          "container": "raf",
+          "namespace": "exif",
+          "offset_end": 206,
+          "offset_start": 194,
+          "path": "ifd0"
+        },
+        "tag_id": "0x010F",
+        "tag_name": "Make",
+        "value": {
+          "kind": "string",
+          "value": "FUJIFILM"
+        }
+      },
+      {
+        "namespace": "exif",
+        "provenance": {
+          "container": "raf",
+          "namespace": "exif",
+          "offset_end": 218,
+          "offset_start": 206,
+          "path": "ifd0"
+        },
+        "tag_id": "0x0110",
+        "tag_name": "Model",
+        "value": {
+          "kind": "string",
+          "value": "IterationOne"
+        }
+      },
+      {
+        "namespace": "exif",
+        "provenance": {
+          "container": "raf",
+          "namespace": "exif",
+          "offset_end": 230,
+          "offset_start": 218,
+          "path": "ifd0"
+        },
+        "tag_id": "0x0112",
+        "tag_name": "Orientation",
+        "value": {
+          "kind": "integer",
+          "value": 1
+        }
+      },
+      {
+        "namespace": "exif",
+        "provenance": {
+          "container": "raf",
+          "namespace": "exif",
+          "offset_end": 242,
+          "offset_start": 230,
+          "path": "ifd0"
+        },
+        "tag_id": "0x0131",
+        "tag_name": "Software",
+        "value": {
+          "kind": "string",
+          "value": "XIFtyTestGen"
+        }
+      },
+      {
+        "namespace": "exif",
+        "provenance": {
+          "container": "raf",
+          "namespace": "exif",
+          "offset_end": 254,
+          "offset_start": 242,
+          "path": "ifd0"
+        },
+        "tag_id": "0x8769",
+        "tag_name": "ExifOffset",
+        "value": {
+          "kind": "integer",
+          "value": 136
+        }
+      },
+      {
+        "namespace": "exif",
+        "provenance": {
+          "container": "raf",
+          "namespace": "exif",
+          "offset_end": 310,
+          "offset_start": 298,
+          "path": "exif_ifd"
+        },
+        "tag_id": "0x9003",
+        "tag_name": "DateTimeOriginal",
+        "value": {
+          "kind": "timestamp",
+          "value": "2024:04:16 12:34:56"
+        }
+      },
+      {
+        "namespace": "exif",
+        "provenance": {
+          "container": "raf",
+          "namespace": "exif",
+          "offset_end": 322,
+          "offset_start": 310,
+          "path": "exif_ifd"
+        },
+        "tag_id": "0x9004",
+        "tag_name": "CreateDate",
+        "value": {
+          "kind": "timestamp",
+          "value": "2024:04:16 12:34:56"
+        }
+      },
+      {
+        "namespace": "exif",
+        "provenance": {
+          "container": "raf",
+          "namespace": "exif",
+          "offset_end": 334,
+          "offset_start": 322,
+          "path": "exif_ifd"
+        },
+        "tag_id": "0x829A",
+        "tag_name": "ExposureTime",
+        "value": {
+          "kind": "rational",
+          "value": {
+            "denominator": 250,
+            "numerator": 1
+          }
+        }
+      },
+      {
+        "namespace": "exif",
+        "provenance": {
+          "container": "raf",
+          "namespace": "exif",
+          "offset_end": 346,
+          "offset_start": 334,
+          "path": "exif_ifd"
+        },
+        "tag_id": "0x829D",
+        "tag_name": "FNumber",
+        "value": {
+          "kind": "rational",
+          "value": {
+            "denominator": 10,
+            "numerator": 56
+          }
+        }
+      },
+      {
+        "namespace": "exif",
+        "provenance": {
+          "container": "raf",
+          "namespace": "exif",
+          "offset_end": 358,
+          "offset_start": 346,
+          "path": "exif_ifd"
+        },
+        "tag_id": "0x8827",
+        "tag_name": "ISO",
+        "value": {
+          "kind": "integer",
+          "value": 200
+        }
+      },
+      {
+        "namespace": "exif",
+        "provenance": {
+          "container": "raf",
+          "namespace": "exif",
+          "offset_end": 370,
+          "offset_start": 358,
+          "path": "exif_ifd"
+        },
+        "tag_id": "0x920A",
+        "tag_name": "FocalLength",
+        "value": {
+          "kind": "rational",
+          "value": {
+            "denominator": 1,
+            "numerator": 50
+          }
+        }
+      },
+      {
+        "namespace": "exif",
+        "provenance": {
+          "container": "raf",
+          "namespace": "exif",
+          "offset_end": 382,
+          "offset_start": 370,
+          "path": "exif_ifd"
+        },
+        "tag_id": "0xA433",
+        "tag_name": "LensMake",
+        "value": {
+          "kind": "string",
+          "value": "XIFty Optics"
+        }
+      },
+      {
+        "namespace": "exif",
+        "provenance": {
+          "container": "raf",
+          "namespace": "exif",
+          "offset_end": 394,
+          "offset_start": 382,
+          "path": "exif_ifd"
+        },
+        "tag_id": "0xA434",
+        "tag_name": "LensModel",
+        "value": {
+          "kind": "string",
+          "value": "XIFty 50mm F2"
+        }
+      },
+      {
+        "namespace": "exif",
+        "provenance": {
+          "container": "raf",
+          "namespace": "exif",
+          "offset_end": 406,
+          "offset_start": 394,
+          "path": "exif_ifd"
+        },
+        "tag_id": "0x927C",
+        "tag_name": "MakerNote",
+        "value": {
+          "kind": "bytes",
+          "value": [
+            70,
+            85,
+            74,
+            73,
+            70,
+            73,
+            76,
+            77,
+            12,
+            0,
+            0,
+            0,
+            3,
+            0,
+            0,
+            16,
+            4,
+            0,
+            1,
+            0,
+            0,
+            0,
+            2,
+            0,
+            0,
+            0,
+            49,
+            16,
+            4,
+            0,
+            1,
+            0,
+            0,
+            0,
+            3,
+            0,
+            0,
+            0,
+            52,
+            18,
+            4,
+            0,
+            1,
+            0,
+            0,
+            0,
+            99,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      },
+      {
+        "namespace": "fuji",
+        "provenance": {
+          "container": "raf",
+          "namespace": "fuji",
+          "path": "ifd0_makernote"
+        },
+        "tag_id": "0x1000",
+        "tag_name": "Quality",
+        "value": {
+          "kind": "integer",
+          "value": 2
+        }
+      },
+      {
+        "namespace": "fuji",
+        "provenance": {
+          "container": "raf",
+          "namespace": "fuji",
+          "path": "ifd0_makernote"
+        },
+        "tag_id": "0x1031",
+        "tag_name": "PictureMode",
+        "value": {
+          "kind": "integer",
+          "value": 3
+        }
+      },
+      {
+        "namespace": "fuji",
+        "provenance": {
+          "container": "raf",
+          "namespace": "fuji",
+          "path": "ifd0_makernote"
+        },
+        "tag_id": "0x1234",
+        "tag_name": "FujiTag_1234",
+        "value": {
+          "kind": "integer",
+          "value": 99
+        }
+      }
+    ]
+  },
+  "report": {
+    "conflicts": [],
+    "issues": []
+  },
+  "schema_version": "0.1.0"
+}
