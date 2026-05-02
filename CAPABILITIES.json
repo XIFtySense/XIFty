@@ -203,6 +203,25 @@
         "FilmMode"
       ]
     },
+    "panasonic": {
+      "status": "bounded",
+      "supported_tags": [
+        "PanasonicRawVersion",
+        "SensorWidth",
+        "SensorHeight",
+        "SensorTopBorder",
+        "SensorLeftBorder",
+        "SensorBottomBorder",
+        "SensorRightBorder",
+        "CFAPattern",
+        "BlackLevelRed",
+        "ISO",
+        "WBRedLevel",
+        "WBGreenLevel",
+        "WBBlueLevel",
+        "JpgFromRaw"
+      ]
+    },
     "olympus_makernote": {
       "status": "bounded",
       "supported_tags": [
@@ -278,6 +297,11 @@
       "namespaces": {
         "exif": "bounded",
         "olympus_makernote": "bounded"
+      }
+    },
+    "rw2": {
+      "namespaces": {
+        "panasonic": "bounded"
       }
     },
     "png": {

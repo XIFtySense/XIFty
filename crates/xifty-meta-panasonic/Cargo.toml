@@ -1,0 +1,10 @@
+[package]
+name = "xifty-meta-panasonic"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+xifty-core = { path = "../xifty-core" }
+xifty-container-rw2 = { path = "../xifty-container-rw2" }
+xifty-source = { path = "../xifty-source" }

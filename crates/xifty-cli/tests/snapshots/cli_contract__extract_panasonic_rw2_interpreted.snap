@@ -1,0 +1,95 @@
+---
+source: crates/xifty-cli/tests/cli_contract.rs
+expression: "extract_json(\"happy.rw2\", ViewMode::Interpreted)"
+---
+{
+  "input": {
+    "container": "rw2",
+    "detected_format": "rw2",
+    "path": "happy.rw2"
+  },
+  "interpreted": {
+    "metadata": [
+      {
+        "namespace": "panasonic",
+        "provenance": {
+          "container": "rw2",
+          "namespace": "panasonic",
+          "path": "panasonic_ifd0"
+        },
+        "tag_id": "0x0001",
+        "tag_name": "PanasonicRawVersion",
+        "value": {
+          "kind": "bytes",
+          "value": [
+            48,
+            48,
+            48,
+            49
+          ]
+        }
+      },
+      {
+        "namespace": "panasonic",
+        "provenance": {
+          "container": "rw2",
+          "namespace": "panasonic",
+          "path": "panasonic_ifd0"
+        },
+        "tag_id": "0x0002",
+        "tag_name": "SensorWidth",
+        "value": {
+          "kind": "integer",
+          "value": 4096
+        }
+      },
+      {
+        "namespace": "panasonic",
+        "provenance": {
+          "container": "rw2",
+          "namespace": "panasonic",
+          "path": "panasonic_ifd0"
+        },
+        "tag_id": "0x0003",
+        "tag_name": "SensorHeight",
+        "value": {
+          "kind": "integer",
+          "value": 3072
+        }
+      },
+      {
+        "namespace": "panasonic",
+        "provenance": {
+          "container": "rw2",
+          "namespace": "panasonic",
+          "path": "panasonic_ifd0"
+        },
+        "tag_id": "0x0017",
+        "tag_name": "ISO",
+        "value": {
+          "kind": "integer",
+          "value": 200
+        }
+      },
+      {
+        "namespace": "panasonic",
+        "provenance": {
+          "container": "rw2",
+          "namespace": "panasonic",
+          "path": "panasonic_ifd0"
+        },
+        "tag_id": "0x010F",
+        "tag_name": "PanasonicTag_010F",
+        "value": {
+          "kind": "integer",
+          "value": 3735928559
+        }
+      }
+    ]
+  },
+  "report": {
+    "conflicts": [],
+    "issues": []
+  },
+  "schema_version": "0.1.0"
+}
