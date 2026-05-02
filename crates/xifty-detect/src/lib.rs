@@ -14,6 +14,17 @@ pub fn detect(source: &SourceBytes) -> Result<Format, XiftyError> {
         return Ok(Format::Raf);
     }
 
+    // Olympus ORF is TIFF-shaped but uses non-standard magic instead of
+    // decimal 42. Three vendor variants exist in the wild: little-endian
+    // `IIRO\x08\x00` and `IIRS\x08\x00`, and big-endian `MMOR\x00\x08`.
+    // Checked before the standard TIFF arm because the magic bytes are
+    // disjoint and ORF must not fall through to plain TIFF.
+    if bytes.len() >= 4
+        && (&bytes[0..4] == b"IIRO" || &bytes[0..4] == b"IIRS" || &bytes[0..4] == b"MMOR")
+    {
+        return Ok(Format::Orf);
+    }
+
     if bytes.len() >= 4 && (&bytes[0..4] == b"II*\0" || &bytes[0..4] == b"MM\0*") {
         // CR2 must be checked BEFORE DNG: both are TIFF-shaped but mutually
         // exclusive (Canon CR2 carries no DNGVersion tag). The Canon
@@ -743,6 +754,49 @@ mod tests {
         bytes.extend_from_slice(&0xFFFF_FFFFu32.to_le_bytes()); // bogus offset
         bytes.extend_from_slice(&0u32.to_le_bytes());
         let path = temp_file("a.tif", &bytes);
+        assert_eq!(
+            detect(&SourceBytes::from_path(&path).unwrap()).unwrap(),
+            Format::Tiff
+        );
+        let _ = fs::remove_file(path);
+    }
+
+    #[test]
+    fn detects_orf_iiro_magic() {
+        // IIRO little-endian variant.
+        let path = temp_file("a.orf", b"IIRO\x08\x00\x00\x00\x00\x00\x00\x00");
+        assert_eq!(
+            detect(&SourceBytes::from_path(&path).unwrap()).unwrap(),
+            Format::Orf
+        );
+        let _ = fs::remove_file(path);
+    }
+
+    #[test]
+    fn detects_orf_iirs_magic() {
+        // IIRS little-endian variant.
+        let path = temp_file("b.orf", b"IIRS\x08\x00\x00\x00\x00\x00\x00\x00");
+        assert_eq!(
+            detect(&SourceBytes::from_path(&path).unwrap()).unwrap(),
+            Format::Orf
+        );
+        let _ = fs::remove_file(path);
+    }
+
+    #[test]
+    fn detects_orf_mmor_magic() {
+        // MMOR big-endian variant.
+        let path = temp_file("c.orf", b"MMOR\x00\x08\x00\x00\x00\x00\x00\x00");
+        assert_eq!(
+            detect(&SourceBytes::from_path(&path).unwrap()).unwrap(),
+            Format::Orf
+        );
+        let _ = fs::remove_file(path);
+    }
+
+    #[test]
+    fn plain_tiff_still_detects_as_tiff_after_orf_branch() {
+        let path = temp_file("d.tif", b"II*\0\x08\x00\x00\x00");
         assert_eq!(
             detect(&SourceBytes::from_path(&path).unwrap()).unwrap(),
             Format::Tiff

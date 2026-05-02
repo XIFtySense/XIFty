@@ -30,6 +30,7 @@ use xifty_meta_id3v2::{
 use xifty_meta_iptc::{IptcPayload, decode_payload as decode_iptc_payload};
 use xifty_meta_itunes::{ItunesPayload, decode_payload as decode_itunes_payload};
 use xifty_meta_ixml::{IxmlPayload, decode_payload as decode_ixml_payload};
+use xifty_meta_olympus::decode_from_tiff as decode_olympus_from_tiff;
 use xifty_meta_quicktime::{
     QuickTimePayload, QuickTimeUdtaPayload, decode_payload as decode_quicktime_payload,
     decode_udta_payload,
@@ -83,6 +84,15 @@ fn probe_source(source: &SourceBytes) -> Result<ProbeOutput, XiftyError> {
         Format::Raf => {
             let parsed = parse_raf(&source)?;
             ("raf".to_string(), parsed.nodes, parsed.issues)
+        }
+        Format::Orf => {
+            let parsed = xifty_container_tiff::parse_bytes_accepting(
+                source.bytes(),
+                0,
+                "orf",
+                ORF_TIFF_MAGICS,
+            )?;
+            ("orf".to_string(), parsed.nodes, parsed.issues)
         }
         Format::Png => {
             let parsed = parse_png(&source)?;
@@ -258,6 +268,7 @@ fn extract_source(
         Format::Cr2 => tiff_extract(&source, "cr2")?,
         Format::Arw => tiff_extract(&source, "arw")?,
         Format::Raf => raf_extract(&source)?,
+        Format::Orf => orf_extract(&source)?,
         Format::Png => {
             let png = parse_png(&source)?;
             let mut entries = Vec::new();
@@ -751,6 +762,100 @@ fn raf_extract(
     }
 
     Ok(("raf".to_string(), nodes, entries, issues))
+}
+
+/// Olympus ORF accepted TIFF magic words (post-endianness u16):
+/// `RO` (`IIRO` LE / `MMOR` BE = 0x4F52) and `RS` (`IIRS` LE = 0x5352).
+const ORF_TIFF_MAGICS: &[u16] = &[0x4F52, 0x5352];
+
+/// Extraction path for Olympus ORF.
+///
+/// ORF is byte-for-byte TIFF after a vendor magic word, so we reuse the
+/// existing TIFF entry parsers via [`xifty_container_tiff::parse_bytes_accepting`]
+/// and chain the standard EXIF / XMP / ICC / IPTC decoders alongside the
+/// Olympus MakerNote decoder. The Apple, Sony, Canon, and Fuji MakerNote
+/// decoders are intentionally not invoked here — they are gated on Apple,
+/// Sony, Canon, and Fuji `Make` strings respectively and would never match
+/// against an Olympus body.
+fn orf_extract(
+    source: &SourceBytes,
+) -> Result<
+    (
+        String,
+        Vec<xifty_core::ContainerNode>,
+        Vec<MetadataEntry>,
+        Vec<Issue>,
+    ),
+    XiftyError,
+> {
+    let tiff =
+        xifty_container_tiff::parse_bytes_accepting(source.bytes(), 0, "orf", ORF_TIFF_MAGICS)?;
+    let mut issues = tiff.issues.clone();
+    let mut entries = decode_from_tiff(source.bytes(), 0, "orf", &tiff);
+    entries.extend(decode_olympus_from_tiff(
+        source.bytes(),
+        0,
+        "orf",
+        &tiff,
+        &entries,
+    ));
+    if let Some((offset_start, payload)) = xifty_container_tiff::xmp_payload(source.bytes(), &tiff)
+    {
+        let decoded = decode_packet(XmpPacket {
+            bytes: payload,
+            container: "orf",
+            offset_start,
+            offset_end: offset_start + payload.len() as u64,
+        });
+        if decoded.is_empty() {
+            issues.push(namespace_issue(
+                "xmp_decode_empty",
+                "recognized XMP payload but could not decode bounded XMP fields",
+                offset_start,
+                "ifd0_xmp",
+            ));
+        }
+        entries.extend(decoded);
+    }
+    if let Some((offset_start, payload)) = xifty_container_tiff::icc_payload(source.bytes(), &tiff)
+    {
+        let decoded = decode_icc_payload(IccPayload {
+            bytes: payload,
+            container: "orf",
+            path: "ifd0_icc",
+            offset_start,
+            offset_end: offset_start + payload.len() as u64,
+        });
+        if decoded.is_empty() {
+            issues.push(namespace_issue(
+                "icc_decode_empty",
+                "recognized ICC payload but could not decode bounded ICC fields",
+                offset_start,
+                "ifd0_icc",
+            ));
+        }
+        entries.extend(decoded);
+    }
+    if let Some((offset_start, payload)) = xifty_container_tiff::iptc_payload(source.bytes(), &tiff)
+    {
+        let decoded = decode_iptc_payload(IptcPayload {
+            bytes: payload,
+            container: "orf",
+            path: "ifd0_iptc",
+            offset_start,
+            offset_end: offset_start + payload.len() as u64,
+        });
+        if decoded.is_empty() {
+            issues.push(namespace_issue(
+                "iptc_decode_empty",
+                "recognized IPTC payload but could not decode bounded IPTC datasets",
+                offset_start,
+                "ifd0_iptc",
+            ));
+        }
+        entries.extend(decoded);
+    }
+    Ok(("orf".to_string(), tiff.nodes, entries, issues))
 }
 
 fn browser_path(file_name: Option<String>) -> PathBuf {

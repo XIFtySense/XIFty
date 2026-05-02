@@ -1,0 +1,45 @@
+---
+source: crates/xifty-cli/tests/cli_contract.rs
+assertion_line: 632
+expression: "probe_json(\"happy.orf\")"
+---
+{
+  "containers": [
+    {
+      "kind": "container",
+      "label": "orf",
+      "offset_end": 378,
+      "offset_start": 0
+    },
+    {
+      "kind": "ifd",
+      "label": "ifd0",
+      "offset_end": 94,
+      "offset_start": 8,
+      "parent_label": "orf"
+    },
+    {
+      "kind": "ifd",
+      "label": "exif_ifd",
+      "offset_end": 244,
+      "offset_start": 134,
+      "parent_label": "orf"
+    }
+  ],
+  "input": {
+    "container": "orf",
+    "detected_format": "orf",
+    "path": "happy.orf"
+  },
+  "report": {
+    "conflicts": [],
+    "issues": [
+      {
+        "code": "no_metadata_entries",
+        "message": "no supported metadata entries were decoded",
+        "severity": "info"
+      }
+    ]
+  },
+  "schema_version": "0.1.0"
+}
