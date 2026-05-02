@@ -12,6 +12,7 @@ use xifty_container_ogg::{OggCodec, OggContainer, parse as parse_ogg};
 use xifty_container_png::parse as parse_png;
 use xifty_container_raf::{embedded_tiff_slice as raf_embedded_tiff_slice, parse as parse_raf};
 use xifty_container_riff::parse as parse_riff;
+use xifty_container_rw2::parse as parse_rw2;
 use xifty_container_tiff::parse as parse_tiff;
 use xifty_core::{
     AnalysisOutput, Format, InterpretedView, Issue, MetadataEntry, ProbeInput, ProbeOutput,
@@ -31,6 +32,7 @@ use xifty_meta_iptc::{IptcPayload, decode_payload as decode_iptc_payload};
 use xifty_meta_itunes::{ItunesPayload, decode_payload as decode_itunes_payload};
 use xifty_meta_ixml::{IxmlPayload, decode_payload as decode_ixml_payload};
 use xifty_meta_olympus::decode_from_tiff as decode_olympus_from_tiff;
+use xifty_meta_panasonic::decode_from_rw2;
 use xifty_meta_quicktime::{
     QuickTimePayload, QuickTimeUdtaPayload, decode_payload as decode_quicktime_payload,
     decode_udta_payload,
@@ -93,6 +95,10 @@ fn probe_source(source: &SourceBytes) -> Result<ProbeOutput, XiftyError> {
                 ORF_TIFF_MAGICS,
             )?;
             ("orf".to_string(), parsed.nodes, parsed.issues)
+        }
+        Format::Rw2 => {
+            let parsed = parse_rw2(&source)?;
+            ("rw2".to_string(), parsed.nodes, parsed.issues)
         }
         Format::Png => {
             let parsed = parse_png(&source)?;
@@ -269,6 +275,7 @@ fn extract_source(
         Format::Arw => tiff_extract(&source, "arw")?,
         Format::Raf => raf_extract(&source)?,
         Format::Orf => orf_extract(&source)?,
+        Format::Rw2 => rw2_extract(&source)?,
         Format::Png => {
             let png = parse_png(&source)?;
             let mut entries = Vec::new();
@@ -856,6 +863,33 @@ fn orf_extract(
         entries.extend(decoded);
     }
     Ok(("orf".to_string(), tiff.nodes, entries, issues))
+}
+
+/// Extraction path for Panasonic RW2.
+///
+/// **Load-bearing isolation rule:** RW2 IFD0 tag IDs collide numerically with
+/// standard TIFF / EXIF tag IDs but carry Panasonic-private semantics. This
+/// helper therefore MUST NEVER call `decode_from_tiff` (the EXIF decoder),
+/// `decode_apple_from_tiff`, `decode_sony_from_tiff`, `decode_canon_from_tiff`,
+/// `decode_fuji_from_tiff`, or `decode_olympus_from_tiff`. All RW2 metadata
+/// flows through `xifty-meta-panasonic` only, which emits entries in the
+/// dedicated `panasonic` namespace. See `xifty-container-rw2` and
+/// `xifty-meta-panasonic` module docs for the full collision policy.
+fn rw2_extract(
+    source: &SourceBytes,
+) -> Result<
+    (
+        String,
+        Vec<xifty_core::ContainerNode>,
+        Vec<MetadataEntry>,
+        Vec<Issue>,
+    ),
+    XiftyError,
+> {
+    let rw2 = parse_rw2(source)?;
+    let issues = rw2.issues.clone();
+    let entries = decode_from_rw2(source.bytes(), 0, "rw2", &rw2);
+    Ok(("rw2".to_string(), rw2.nodes, entries, issues))
 }
 
 fn browser_path(file_name: Option<String>) -> PathBuf {

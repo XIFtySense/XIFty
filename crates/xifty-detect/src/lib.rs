@@ -25,6 +25,17 @@ pub fn detect(source: &SourceBytes) -> Result<Format, XiftyError> {
         return Ok(Format::Orf);
     }
 
+    // Panasonic RW2 is TIFF-shaped but uses magic byte 0x55 ("U") at byte 2
+    // instead of the standard 0x2A ("*"). It is checked BEFORE the standard
+    // TIFF arm because RW2 must never be misrouted through the EXIF/TIFF
+    // pipeline — Panasonic uses a private IFD0 tag-numbering scheme whose
+    // tag IDs collide with standard TIFF/EXIF semantics. Big-endian RW2 has
+    // not been observed in the wild; only the little-endian variant is
+    // recognised here.
+    if bytes.len() >= 4 && &bytes[0..4] == b"IIU\0" {
+        return Ok(Format::Rw2);
+    }
+
     if bytes.len() >= 4 && (&bytes[0..4] == b"II*\0" || &bytes[0..4] == b"MM\0*") {
         // CR2 must be checked BEFORE DNG: both are TIFF-shaped but mutually
         // exclusive (Canon CR2 carries no DNGVersion tag). The Canon
@@ -802,6 +813,36 @@ mod tests {
             Format::Tiff
         );
         let _ = fs::remove_file(path);
+    }
+
+    #[test]
+    fn detects_rw2_magic() {
+        // Panasonic RW2: "IIU\0" + 4-byte u32 IFD0 offset. Magic byte 2 is
+        // 0x55 ("U") instead of TIFF's 0x2A.
+        let path = temp_file("a.rw2", b"IIU\0\x18\x00\x00\x00");
+        assert_eq!(
+            detect(&SourceBytes::from_path(&path).unwrap()).unwrap(),
+            Format::Rw2
+        );
+        let _ = fs::remove_file(path);
+    }
+
+    #[test]
+    fn rw2_does_not_misroute_to_tiff() {
+        // Standard TIFF magic must still classify as TIFF; RW2's `IIU\0`
+        // must never fall through to the TIFF arm.
+        let tiff_path = temp_file("a.tif", b"II*\0\x08\x00\x00\x00");
+        let rw2_path = temp_file("a.rw2", b"IIU\0\x18\x00\x00\x00");
+        assert_eq!(
+            detect(&SourceBytes::from_path(&tiff_path).unwrap()).unwrap(),
+            Format::Tiff
+        );
+        assert_eq!(
+            detect(&SourceBytes::from_path(&rw2_path).unwrap()).unwrap(),
+            Format::Rw2
+        );
+        let _ = fs::remove_file(tiff_path);
+        let _ = fs::remove_file(rw2_path);
     }
 
     #[test]

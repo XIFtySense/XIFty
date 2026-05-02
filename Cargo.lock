@@ -810,6 +810,7 @@ dependencies = [
  "xifty-container-png",
  "xifty-container-raf",
  "xifty-container-riff",
+ "xifty-container-rw2",
  "xifty-container-tiff",
  "xifty-core",
  "xifty-detect",
@@ -825,6 +826,7 @@ dependencies = [
  "xifty-meta-itunes",
  "xifty-meta-ixml",
  "xifty-meta-olympus",
+ "xifty-meta-panasonic",
  "xifty-meta-quicktime",
  "xifty-meta-rtmd",
  "xifty-meta-sony",
@@ -911,6 +913,14 @@ dependencies = [
 
 [[package]]
 name = "xifty-container-riff"
+version = "0.1.11"
+dependencies = [
+ "xifty-core",
+ "xifty-source",
+]
+
+[[package]]
+name = "xifty-container-rw2"
 version = "0.1.11"
 dependencies = [
  "xifty-core",
@@ -1043,6 +1053,15 @@ name = "xifty-meta-olympus"
 version = "0.1.11"
 dependencies = [
  "xifty-container-tiff",
+ "xifty-core",
+ "xifty-source",
+]
+
+[[package]]
+name = "xifty-meta-panasonic"
+version = "0.1.11"
+dependencies = [
+ "xifty-container-rw2",
  "xifty-core",
  "xifty-source",
 ]

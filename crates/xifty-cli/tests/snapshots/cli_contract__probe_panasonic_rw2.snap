@@ -1,0 +1,37 @@
+---
+source: crates/xifty-cli/tests/cli_contract.rs
+expression: "probe_json(\"happy.rw2\")"
+---
+{
+  "containers": [
+    {
+      "kind": "container",
+      "label": "rw2",
+      "offset_end": 74,
+      "offset_start": 0
+    },
+    {
+      "kind": "ifd",
+      "label": "panasonic_ifd0",
+      "offset_end": 70,
+      "offset_start": 8,
+      "parent_label": "rw2"
+    }
+  ],
+  "input": {
+    "container": "rw2",
+    "detected_format": "rw2",
+    "path": "happy.rw2"
+  },
+  "report": {
+    "conflicts": [],
+    "issues": [
+      {
+        "code": "no_metadata_entries",
+        "message": "no supported metadata entries were decoded",
+        "severity": "info"
+      }
+    ]
+  },
+  "schema_version": "0.1.0"
+}

@@ -280,6 +280,52 @@ def build_tiff(
     return bytes(out)
 
 
+def build_rw2():
+    """Build a synthetic Panasonic RW2.
+
+    RW2 reuses the TIFF on-disk shape (endianness marker + 4-byte magic +
+    4-byte first-IFD offset, then 12-byte IFD entries) but uses magic byte
+    0x55 ("U") instead of TIFF's 0x2A ("*"), and a Panasonic-private IFD0
+    tag-numbering scheme. Tag IDs in the 0x0001..0x002d range collide with
+    standard TIFF / EXIF tag IDs but carry entirely different semantics, so
+    the bytes here MUST round-trip through the dedicated `xifty-meta-panasonic`
+    decoder, never `xifty-meta-exif`. Notably this fixture intentionally
+    includes tag 0x010F (which means "Make" in standard TIFF/EXIF) so the
+    extract-snapshot test can prove tag-ID collisions are routed correctly to
+    the `panasonic` namespace.
+    """
+    p16 = lambda v: struct.pack("<H", v)
+    p32 = lambda v: struct.pack("<I", v)
+    raw_version = b"0001"  # PanasonicRawVersion ASCII-ish 4-byte payload
+
+    # IFD0 layout: header(8) + count(2) + N*entry(12) + next(4) + payload blob.
+    # 5 entries: PanasonicRawVersion, SensorWidth, SensorHeight, ISO,
+    # collision-canary tag 0x010F.
+    ifd_count = 5
+    ifd_size = 2 + ifd_count * 12 + 4
+    ifd_offset = 8
+    raw_version_offset = ifd_offset + ifd_size  # payload lives right after IFD
+
+    out = bytearray()
+    out += b"IIU\x00"
+    out += p32(ifd_offset)
+    out += p16(ifd_count)
+    # 0x0001 PanasonicRawVersion, type=7 UNDEFINED, count=4, inline value
+    out += p16(0x0001) + p16(7) + p32(len(raw_version)) + raw_version
+    # 0x0002 SensorWidth, type=4 LONG, count=1, inline value
+    out += p16(0x0002) + p16(4) + p32(1) + p32(4096)
+    # 0x0003 SensorHeight, type=4 LONG, count=1, inline value
+    out += p16(0x0003) + p16(4) + p32(1) + p32(3072)
+    # 0x0017 ISO, type=3 SHORT, count=1, inline value
+    out += p16(0x0017) + p16(3) + p32(1) + p16(200) + b"\x00\x00"
+    # 0x010F: in standard TIFF/EXIF this is "Make"; in RW2 IFD0 it is a
+    # Panasonic-private value. The collision-regression snapshot test asserts
+    # this lands in the `panasonic` namespace, NEVER `exif`.
+    out += p16(0x010F) + p16(4) + p32(1) + p32(0xDEADBEEF)
+    out += p32(0)  # next IFD = 0
+    return bytes(out)
+
+
 def build_raf(exif_tiff):
     """Build a synthetic Fuji RAF whose preview block is a JFIF JPEG carrying
     the supplied TIFF as its APP1/Exif payload. The RAF header is 148 bytes;
@@ -1663,6 +1709,7 @@ def main():
         "happy.arw": build_tiff(gps=False, make="SONY"),
         "happy.raf": build_raf(build_tiff(gps=False, make="FUJIFILM", fuji_makernote=True)),
         "happy.orf": build_tiff(gps=False, make="OLYMPUS", olympus_makernote=True, orf=True),
+        "happy.rw2": build_rw2(),
         "happy.png": build_png(build_tiff(gps=False)),
         "icc.png": build_png_with_icc(icc),
         "iptc.png": build_png_with_iptc(build_iptc_iim()),

@@ -641,6 +641,62 @@ fn extract_snapshot_happy_orf_normalized() {
 }
 
 #[test]
+fn probe_snapshot_panasonic_rw2() {
+    assert_json_snapshot!("probe_panasonic_rw2", probe_json("happy.rw2"));
+}
+
+#[test]
+fn extract_snapshot_panasonic_rw2_interpreted() {
+    assert_json_snapshot!(
+        "extract_panasonic_rw2_interpreted",
+        extract_json("happy.rw2", ViewMode::Interpreted)
+    );
+}
+
+/// Tag-ID collision regression: tag 0x010F means "Make" in standard TIFF /
+/// EXIF, but in Panasonic RW2 IFD0 it is a Panasonic-private value. The
+/// fixture deliberately includes 0x010F so this test can prove RW2 metadata
+/// lands in the `panasonic` namespace and NEVER leaks into `exif`. This is
+/// the load-bearing rule documented in `xifty-container-rw2` and
+/// `xifty-meta-panasonic`.
+#[test]
+fn rw2_metadata_uses_panasonic_namespace_never_exif() {
+    let analysis = xifty_cli::extract_path(fixture("happy.rw2"), ViewMode::Interpreted).unwrap();
+    let interpreted = analysis.interpreted.expect("interpreted view present");
+    assert!(
+        !interpreted.metadata.is_empty(),
+        "expected at least one panasonic entry"
+    );
+    let panasonic_count = interpreted
+        .metadata
+        .iter()
+        .filter(|e| e.namespace == "panasonic")
+        .count();
+    let exif_count = interpreted
+        .metadata
+        .iter()
+        .filter(|e| e.namespace == "exif")
+        .count();
+    assert!(
+        panasonic_count >= 1,
+        "expected at least one entry in `panasonic` namespace, got {panasonic_count} (entries: {:?})",
+        interpreted.metadata,
+    );
+    assert_eq!(
+        exif_count, 0,
+        "RW2 must not produce any `exif` namespace entries (collision policy violated): {:?}",
+        interpreted.metadata,
+    );
+    // The 0x010F canary specifically must land in `panasonic`.
+    let canary = interpreted
+        .metadata
+        .iter()
+        .find(|e| e.tag_id == "0x010F")
+        .expect("0x010F collision canary present");
+    assert_eq!(canary.namespace, "panasonic");
+}
+
+#[test]
 fn extract_snapshot_xmp_tiff_normalized() {
     assert_json_snapshot!(
         "extract_xmp_tiff_normalized",
