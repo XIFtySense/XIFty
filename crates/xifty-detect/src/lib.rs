@@ -8,6 +8,12 @@ pub fn detect(source: &SourceBytes) -> Result<Format, XiftyError> {
     }
 
     if bytes.len() >= 4 && (&bytes[0..4] == b"II*\0" || &bytes[0..4] == b"MM\0*") {
+        // CR2 must be checked BEFORE DNG: both are TIFF-shaped but mutually
+        // exclusive (Canon CR2 carries no DNGVersion tag). The Canon
+        // signature lives at bytes 8..12 with IFD0 placed at offset 0x10.
+        if is_cr2_tiff(bytes) {
+            return Ok(Format::Cr2);
+        }
         if is_dng_tiff(bytes) {
             return Ok(Format::Dng);
         }
@@ -80,6 +86,34 @@ pub fn detect(source: &SourceBytes) -> Result<Format, XiftyError> {
     }
 
     Err(XiftyError::UnsupportedFormat)
+}
+
+/// Detect Canon CR2 by its dual-anchor signature: IFD0 offset must equal
+/// `0x10` AND the four bytes at offsets 8..12 must form Canon's marker
+/// (`CR\x02\x00` little-endian / `CR\x00\x02` big-endian). Real CR2 writers
+/// always reserve bytes 8..12 for this marker and place IFD0 at byte 16; the
+/// dual-anchor check rejects plain TIFFs that happen to carry the same magic
+/// at byte 8 by coincidence.
+fn is_cr2_tiff(bytes: &[u8]) -> bool {
+    if bytes.len() < 16 {
+        return false;
+    }
+    let little_endian = &bytes[0..2] == b"II";
+    let ifd0_offset = if little_endian {
+        u32::from_le_bytes([bytes[4], bytes[5], bytes[6], bytes[7]])
+    } else {
+        u32::from_be_bytes([bytes[4], bytes[5], bytes[6], bytes[7]])
+    };
+    if ifd0_offset != 0x10 {
+        return false;
+    }
+    // The CR2 marker is two big-endian-friendly bytes ("CR") followed by a
+    // version u16 (`0x0002`) whose byte order matches the file endianness.
+    if little_endian {
+        &bytes[8..12] == b"CR\x02\x00"
+    } else {
+        &bytes[8..12] == b"CR\x00\x02"
+    }
 }
 
 /// Probe IFD0 of a TIFF-shaped byte stream for the DNGVersion tag (0xC612).
@@ -371,6 +405,62 @@ mod tests {
         out.extend_from_slice(&[0x01, 0x04, 0x00, 0x00]); // inline value
         out.extend_from_slice(&0u32.to_le_bytes()); // next IFD = 0
         out
+    }
+
+    /// Build a minimal little-endian CR2-shaped TIFF: II*\0 header, IFD0 offset
+    /// 0x10, Canon marker `CR\x02\x00` at bytes 8..12, then a single IFD0 entry.
+    fn cr2_with_tag(tag: u16) -> Vec<u8> {
+        let mut out = Vec::new();
+        out.extend_from_slice(b"II*\0");
+        out.extend_from_slice(&0x10u32.to_le_bytes()); // IFD0 at offset 16
+        out.extend_from_slice(b"CR\x02\x00"); // Canon CR2 marker
+        out.extend_from_slice(&1u16.to_le_bytes()); // one entry
+        out.extend_from_slice(&tag.to_le_bytes());
+        out.extend_from_slice(&1u16.to_le_bytes()); // type = BYTE
+        out.extend_from_slice(&4u32.to_le_bytes()); // count = 4
+        out.extend_from_slice(&[0x01, 0x04, 0x00, 0x00]); // inline value
+        out.extend_from_slice(&0u32.to_le_bytes()); // next IFD = 0
+        out
+    }
+
+    #[test]
+    fn detects_cr2_when_canon_marker_present() {
+        let cr2_bytes = cr2_with_tag(0x010F);
+        let path = temp_file("a.cr2", &cr2_bytes);
+        assert_eq!(
+            detect(&SourceBytes::from_path(&path).unwrap()).unwrap(),
+            Format::Cr2
+        );
+        let _ = fs::remove_file(path);
+    }
+
+    #[test]
+    fn does_not_classify_dng_as_cr2() {
+        // DNG files have IFD0 at offset 8 and no Canon marker — must stay DNG.
+        let dng_bytes = tiff_with_tag(0xC612);
+        let path = temp_file("a.dng", &dng_bytes);
+        assert_eq!(
+            detect(&SourceBytes::from_path(&path).unwrap()).unwrap(),
+            Format::Dng
+        );
+        let _ = fs::remove_file(path);
+    }
+
+    #[test]
+    fn does_not_classify_plain_tiff_as_cr2_when_marker_missing() {
+        // IFD0 offset 0x10 alone is not enough — bytes 8..12 must match.
+        let mut bytes = Vec::new();
+        bytes.extend_from_slice(b"II*\0");
+        bytes.extend_from_slice(&0x10u32.to_le_bytes());
+        bytes.extend_from_slice(&[0, 0, 0, 0]); // not the Canon marker
+        bytes.extend_from_slice(&0u16.to_le_bytes()); // 0 entries
+        bytes.extend_from_slice(&0u32.to_le_bytes());
+        let path = temp_file("a.tif", &bytes);
+        assert_eq!(
+            detect(&SourceBytes::from_path(&path).unwrap()).unwrap(),
+            Format::Tiff
+        );
+        let _ = fs::remove_file(path);
     }
 
     #[test]

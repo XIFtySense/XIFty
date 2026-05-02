@@ -19,6 +19,7 @@ use xifty_core::{
 use xifty_detect::detect;
 use xifty_meta_apple::decode_from_tiff as decode_apple_from_tiff;
 use xifty_meta_bwf::{BwfPayload, decode_payload as decode_bwf_payload};
+use xifty_meta_canon::decode_from_tiff as decode_canon_from_tiff;
 use xifty_meta_exif::{decode_from_tiff, exif_payload_from_jpeg};
 use xifty_meta_icc::{IccPayload, decode_payload as decode_icc_payload};
 use xifty_meta_id3v2::{
@@ -68,6 +69,10 @@ fn probe_source(source: &SourceBytes) -> Result<ProbeOutput, XiftyError> {
         Format::Dng => {
             let parsed = parse_tiff(&source)?;
             ("dng".to_string(), parsed.nodes, parsed.issues)
+        }
+        Format::Cr2 => {
+            let parsed = parse_tiff(&source)?;
+            ("cr2".to_string(), parsed.nodes, parsed.issues)
         }
         Format::Png => {
             let parsed = parse_png(&source)?;
@@ -240,6 +245,7 @@ fn extract_source(
         }
         Format::Tiff => tiff_extract(&source, "tiff")?,
         Format::Dng => tiff_extract(&source, "dng")?,
+        Format::Cr2 => tiff_extract(&source, "cr2")?,
         Format::Png => {
             let png = parse_png(&source)?;
             let mut entries = Vec::new();
@@ -609,6 +615,13 @@ fn tiff_extract(
         &entries,
     ));
     entries.extend(decode_sony_from_tiff(
+        source.bytes(),
+        0,
+        container_label,
+        &tiff,
+        &entries,
+    ));
+    entries.extend(decode_canon_from_tiff(
         source.bytes(),
         0,
         container_label,

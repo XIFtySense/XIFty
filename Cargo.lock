@@ -815,6 +815,7 @@ dependencies = [
  "xifty-json",
  "xifty-meta-apple",
  "xifty-meta-bwf",
+ "xifty-meta-canon",
  "xifty-meta-exif",
  "xifty-meta-icc",
  "xifty-meta-id3v2",
@@ -960,6 +961,15 @@ name = "xifty-meta-bwf"
 version = "0.1.11"
 dependencies = [
  "xifty-core",
+]
+
+[[package]]
+name = "xifty-meta-canon"
+version = "0.1.11"
+dependencies = [
+ "xifty-container-tiff",
+ "xifty-core",
+ "xifty-source",
 ]
 
 [[package]]

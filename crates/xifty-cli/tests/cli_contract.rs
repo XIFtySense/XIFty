@@ -573,6 +573,27 @@ fn extract_snapshot_happy_dng_normalized() {
 }
 
 #[test]
+fn probe_snapshot_happy_cr2() {
+    assert_json_snapshot!("probe_happy_cr2", probe_json("happy.cr2"));
+}
+
+#[test]
+fn extract_snapshot_happy_cr2_raw() {
+    assert_json_snapshot!(
+        "extract_happy_cr2_raw",
+        extract_json("happy.cr2", ViewMode::Raw)
+    );
+}
+
+#[test]
+fn extract_snapshot_happy_cr2_interpreted() {
+    assert_json_snapshot!(
+        "extract_happy_cr2_interpreted",
+        extract_json("happy.cr2", ViewMode::Interpreted)
+    );
+}
+
+#[test]
 fn extract_snapshot_xmp_tiff_normalized() {
     assert_json_snapshot!(
         "extract_xmp_tiff_normalized",

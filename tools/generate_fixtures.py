@@ -47,6 +47,8 @@ def build_tiff(
     iptc_payload=None,
     make="XIFtyCam",
     dng=False,
+    cr2=False,
+    canon_makernote=False,
 ):
     b = TiffBuilder(endian)
     p16, p32 = b.pack16, b.pack32
@@ -68,7 +70,10 @@ def build_tiff(
     dng_count = 3 if dng else 0
     ifd0_count = 6 + extra_count + dng_count + (0 if no_exif else 1) + (1 if gps and not no_exif else 0)
     ifd0_size = 2 + ifd0_count * 12 + 4
-    data_base = 8 + ifd0_size
+    # CR2 violates strict TIFF: IFD0 lives at offset 0x10 with the Canon
+    # marker (`CR\x02\x00`) at bytes 8..12. Plain TIFF/DNG keep IFD0 at 8.
+    ifd0_offset = 0x10 if cr2 else 8
+    data_base = ifd0_offset + ifd0_size
 
     make_off = b.add_blob(make, data_base)
     model_off = b.add_blob(model, data_base)
@@ -113,7 +118,7 @@ def build_tiff(
         exposure_time = p32(1) + p32(250)
         f_number = p32(56) + p32(10)
         focal_length = p32(50) + p32(1)
-        exif_count = 8
+        exif_count = 8 + (1 if canon_makernote else 0)
         exif_data_base = exif_off + 2 + exif_count * 12 + 4
         dto1_off = exif_data_base
         dto2_off = exif_data_base + len(dto) + (len(dto) % 2)
@@ -122,6 +127,24 @@ def build_tiff(
         exposure_time_off = lens_model_off + len(lens_model) + (len(lens_model) % 2)
         f_number_off = exposure_time_off + len(exposure_time)
         focal_length_off = f_number_off + len(f_number)
+        # Canon MakerNote: a tiny sub-IFD with one ASCII entry
+        # (0x0006 CanonImageType). Lives after focal_length, value blob
+        # immediately after the sub-IFD.
+        canon_image_type = b"Canon EOS XIFty Test\0"
+        canon_makernote_off = focal_length_off + len(focal_length)
+        canon_sub_ifd_size = 2 + 1 * 12 + 4  # count + 1 entry + next-IFD
+        canon_image_type_off = canon_makernote_off + canon_sub_ifd_size
+        canon_makernote_blob = b""
+        if canon_makernote:
+            canon_makernote_blob = (
+                p16(1)
+                + p16(0x0006)
+                + p16(2)
+                + p32(len(canon_image_type))
+                + p32(canon_image_type_off)
+                + p32(0)
+                + canon_image_type
+            )
         exif_entries = [
             (0x9003, 2, len(dto), p32(dto1_off)),
             (0x9004, 2, len(dto), p32(dto2_off)),
@@ -132,6 +155,11 @@ def build_tiff(
             (0xA433, 2, len(lens_make), p32(lens_make_off)),
             (0xA434, 2, len(lens_model), p32(lens_model_off)),
         ]
+        if canon_makernote:
+            # MakerNote tag: type=UNDEFINED (7), count covers entire blob.
+            exif_entries.append(
+                (0x927C, 7, len(canon_makernote_blob), p32(canon_makernote_off))
+            )
         exif_ifd = bytearray(b.ifd_bytes(exif_entries))
         exif_ifd += dto
         if len(dto) % 2:
@@ -148,6 +176,7 @@ def build_tiff(
         exif_ifd += exposure_time
         exif_ifd += f_number
         exif_ifd += focal_length
+        exif_ifd += canon_makernote_blob
 
         if gps:
             gps_off = exif_off + len(exif_ifd)
@@ -177,8 +206,15 @@ def build_tiff(
         if gps:
             ifd0.append((0x8825, 4, 1, p32(888888 if bad_offsets else gps_off)))
 
-    header = endian.encode("ascii") + (b"*\x00" if b.le else b"\x00*") + p32(8)
+    header = endian.encode("ascii") + (b"*\x00" if b.le else b"\x00*") + p32(ifd0_offset)
     out = bytearray(header)
+    if cr2:
+        # Canon CR2 marker: bytes 8..12 are "CR" + version u16 (0x0002) in
+        # file endianness. IFD0 starts at offset 0x10, so pad with 4 zero
+        # bytes after the marker (the spec leaves bytes 12..16 reserved).
+        out += b"CR"
+        out += p16(2)
+        out += b"\x00\x00\x00\x00"
     out += b.ifd_bytes(ifd0)
     out += b.data
     out += exif_ifd
@@ -1535,6 +1571,7 @@ def main():
         "malformed_offsets.tiff": build_tiff(gps=True, bad_offsets=True),
         "no_exif.tiff": build_tiff(no_exif=True),
         "happy.dng": build_tiff(gps=False, dng=True),
+        "happy.cr2": build_tiff(gps=False, cr2=True, make="Canon", canon_makernote=True),
         "happy.png": build_png(build_tiff(gps=False)),
         "icc.png": build_png_with_icc(icc),
         "iptc.png": build_png_with_iptc(build_iptc_iim()),
