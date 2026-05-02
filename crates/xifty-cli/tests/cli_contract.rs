@@ -641,6 +641,19 @@ fn extract_snapshot_happy_orf_normalized() {
 }
 
 #[test]
+fn probe_snapshot_happy_cr3() {
+    assert_json_snapshot!("probe_happy_cr3", probe_json("happy.cr3"));
+}
+
+#[test]
+fn extract_snapshot_happy_cr3_interpreted() {
+    assert_json_snapshot!(
+        "extract_happy_cr3_interpreted",
+        extract_json("happy.cr3", ViewMode::Interpreted)
+    );
+}
+
+#[test]
 fn probe_snapshot_happy_nef() {
     assert_json_snapshot!("probe_happy_nef", probe_json("happy.nef"));
 }

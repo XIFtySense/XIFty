@@ -1,8 +1,36 @@
+//! ISOBMFF (ISO/IEC 14496-12) container parser shared by HEIF/AVIF/MP4/MOV
+//! and the Canon CR3 RAW format.
+//!
+//! Canon CR3 stores EXIF and Canon maker-note data inside a Canon-specific
+//! `uuid` box under `moov/uuid`. The payload of that uuid box is laid out as
+//! a sequence of FourCC sub-boxes named `CMT1`/`CMT2`/`CMT3`/`CMT4`, each
+//! wrapping a TIFF-shaped IFD. The Canon CMT UUID is
+//! `85 c0 b6 87 82 0f 11 e0 81 11 f4 ce 46 2b 6a 48` per ExifTool
+//! `lib/Image/ExifTool/Canon.pm` (reverse-engineering reference).
+//!
+//! Dispatch:
+//! - `CMT1` is surfaced as `IsobmffPayload { kind: "exif", tag: Some("CMT1") }`
+//!   so the existing `exif_payloads()` filter routes it through the EXIF
+//!   pipeline (and from there through `xifty-meta-canon`).
+//! - `CMT2` / `CMT3` / `CMT4` are surfaced as
+//!   `IsobmffPayload { kind: "canon-cmt", tag: Some("CMT*") }` and exposed via
+//!   the `canon_cmt_payloads()` helper.
+
 use std::collections::HashMap;
 
 use xifty_core::{ContainerNode, Issue, Severity, XiftyError, issue};
 use xifty_source::{Cursor, Endian, SourceBytes};
 
+/// Canon CR3 maker-note UUID. Sub-boxes inside this uuid payload are
+/// FourCC-tagged `CMT1`/`CMT2`/`CMT3`/`CMT4` TIFF-shaped IFDs.
+/// Source: ExifTool `lib/Image/ExifTool/Canon.pm`.
+const CANON_CMT_UUID: [u8; 16] = [
+    0x85, 0xc0, 0xb6, 0x87, 0x82, 0x0f, 0x11, 0xe0, 0x81, 0x11, 0xf4, 0xce, 0x46, 0x2b, 0x6a, 0x48,
+];
+
+/// Recognised payload `kind` discriminants:
+/// `"exif"`, `"xmp"`, `"icc"`, `"iptc"`, `"quicktime"`, `"quicktime-udta"`,
+/// `"itunes"`, and `"canon-cmt"` (Canon CR3 CMT2/CMT3/CMT4 maker-note IFDs).
 #[derive(Debug, Clone)]
 pub struct IsobmffPayload {
     pub kind: &'static str,
@@ -114,6 +142,15 @@ impl IsobmffContainer {
         self.payloads
             .iter()
             .filter(|payload| payload.kind == "itunes")
+    }
+
+    /// Canon CR3 maker-note IFDs surfaced from the Canon `uuid` box payload.
+    /// CMT1 is routed through the regular `exif_payloads()` channel; this
+    /// helper covers CMT2/CMT3/CMT4 which carry Canon-specific TIFF IFDs.
+    pub fn canon_cmt_payloads(&self) -> impl Iterator<Item = &IsobmffPayload> {
+        self.payloads
+            .iter()
+            .filter(|payload| payload.kind == "canon-cmt")
     }
 
     pub fn is_heif_still_image(&self) -> bool {
@@ -539,6 +576,9 @@ fn parse_children(
                     offset: Some(cursor.absolute_offset(offset)),
                     context: Some(parsed.path.clone()),
                 });
+            }
+            b"uuid" => {
+                parse_uuid(cursor, &parsed, payloads, issues);
             }
             _ => {}
         }
@@ -1773,6 +1813,95 @@ fn read_sized_uint(
     Ok(value)
 }
 
+/// Walk a `uuid` box. When the 16-byte usertype matches the Canon CMT UUID,
+/// emit one `IsobmffPayload` per CMT* sub-box (CMT1 → `kind="exif"`,
+/// CMT2/3/4 → `kind="canon-cmt"`). All other UUIDs are recorded as a
+/// recognised-but-uninterpreted structural info issue and skipped without
+/// raising a parse error so unrelated `uuid` payloads (XMP-via-uuid, GoPro
+/// telemetry, vendor blobs) keep flowing through the regular pipeline
+/// untouched.
+fn parse_uuid(
+    cursor: &Cursor<'_>,
+    parsed: &ParsedBox,
+    payloads: &mut Vec<IsobmffPayload>,
+    issues: &mut Vec<Issue>,
+) {
+    if parsed.data_offset + 16 > parsed.end {
+        issues.push(Issue {
+            severity: Severity::Warning,
+            code: "isobmff_uuid_usertype_truncated".into(),
+            message: "uuid box is missing its 16-byte usertype".into(),
+            offset: Some(cursor.absolute_offset(parsed.data_offset)),
+            context: Some(parsed.path.clone()),
+        });
+        return;
+    }
+    let Ok(usertype_slice) = cursor.slice(parsed.data_offset, 16) else {
+        return;
+    };
+    let mut usertype = [0u8; 16];
+    usertype.copy_from_slice(usertype_slice);
+    let inner_start = parsed.data_offset + 16;
+    if usertype != CANON_CMT_UUID {
+        issues.push(Issue {
+            severity: Severity::Info,
+            code: "isobmff_structure_recognized_uninterpreted".into(),
+            message: "recognized uuid box but the usertype is not handled".into(),
+            offset: Some(cursor.absolute_offset(parsed.start)),
+            context: Some(parsed.path.clone()),
+        });
+        return;
+    }
+
+    let mut offset = inner_start;
+    while offset + 8 <= parsed.end {
+        let Ok(size32) = cursor.read_u32(offset, Endian::Big) else {
+            break;
+        };
+        let Ok(type_slice) = cursor.slice(offset + 4, 4) else {
+            break;
+        };
+        let box_type = [type_slice[0], type_slice[1], type_slice[2], type_slice[3]];
+        let box_size = size32 as usize;
+        if box_size < 8 || offset + box_size > parsed.end {
+            issues.push(Issue {
+                severity: Severity::Warning,
+                code: "isobmff_canon_cmt_truncated".into(),
+                message: format!(
+                    "canon uuid sub-box {} declared invalid size {}",
+                    fourcc(box_type),
+                    box_size
+                ),
+                offset: Some(cursor.absolute_offset(offset)),
+                context: Some(parsed.path.clone()),
+            });
+            return;
+        }
+        let data_offset = offset + 8;
+        let end = offset + box_size;
+        let (kind, tag) = match &box_type {
+            b"CMT1" => ("exif", "CMT1"),
+            b"CMT2" => ("canon-cmt", "CMT2"),
+            b"CMT3" => ("canon-cmt", "CMT3"),
+            b"CMT4" => ("canon-cmt", "CMT4"),
+            _ => {
+                offset = end;
+                continue;
+            }
+        };
+        payloads.push(IsobmffPayload {
+            kind,
+            tag: Some(tag.into()),
+            offset_start: cursor.absolute_offset(offset),
+            offset_end: cursor.absolute_offset(end),
+            data_offset: cursor.absolute_offset(data_offset),
+            data_length: (end - data_offset) as u64,
+            path: format!("{}/{}", parsed.path, fourcc(box_type)),
+        });
+        offset = end;
+    }
+}
+
 fn parse_mime_payload(cursor: &Cursor<'_>, parsed: &ParsedBox) -> Option<IsobmffPayload> {
     let payload = cursor.bytes().get(parsed.data_offset..parsed.end)?;
     let nul = payload.iter().position(|byte| *byte == 0)?;
@@ -1988,6 +2117,104 @@ mod tests {
         assert_eq!(&parsed.major_brand, b"heic");
         assert!(parsed.is_heif_still_image());
         assert_eq!(parsed.exif_payloads().count(), 1);
+    }
+
+    /// Build a synthetic Canon CR3: ftyp(crx ) + moov{ uuid(Canon CMT UUID
+    /// + inner sub-boxes) }. Each `cmt_payload` is a (FourCC, bytes) pair.
+    fn cr3_with_cmt(cmt_payloads: &[(&[u8; 4], Vec<u8>)]) -> Vec<u8> {
+        let ftyp = boxed(b"ftyp", b"crx \0\0\0\0crx isom");
+        let mut uuid_payload = CANON_CMT_UUID.to_vec();
+        for (kind, payload) in cmt_payloads {
+            uuid_payload.extend_from_slice(&boxed(kind, payload));
+        }
+        let uuid = boxed(b"uuid", &uuid_payload);
+        let moov = boxed(b"moov", &uuid);
+        [ftyp, moov].concat()
+    }
+
+    /// Smallest legal TIFF carrying a single ASCII Make entry.
+    fn tiff_with_make_ascii(make: &str) -> Vec<u8> {
+        let mut bytes = Vec::new();
+        bytes.extend_from_slice(b"II*\0");
+        bytes.extend_from_slice(&8u32.to_le_bytes()); // IFD0 at offset 8
+        bytes.extend_from_slice(&1u16.to_le_bytes()); // one entry
+        bytes.extend_from_slice(&0x010Fu16.to_le_bytes()); // Make
+        bytes.extend_from_slice(&2u16.to_le_bytes()); // ASCII
+        let mut value = make.as_bytes().to_vec();
+        value.push(0);
+        let count = value.len() as u32;
+        bytes.extend_from_slice(&count.to_le_bytes());
+        if value.len() <= 4 {
+            let mut padded = [0u8; 4];
+            padded[..value.len()].copy_from_slice(&value);
+            bytes.extend_from_slice(&padded);
+            bytes.extend_from_slice(&0u32.to_le_bytes()); // next IFD = 0
+        } else {
+            let value_offset = 26u32;
+            bytes.extend_from_slice(&value_offset.to_le_bytes());
+            bytes.extend_from_slice(&0u32.to_le_bytes());
+            bytes.extend_from_slice(&value);
+        }
+        bytes
+    }
+
+    #[test]
+    fn parses_minimal_cr3_with_cmt1_payload() {
+        let bytes = cr3_with_cmt(&[(b"CMT1", tiff_with_make_ascii("Canon"))]);
+        let parsed = parse_bytes(&bytes, 0).unwrap();
+        assert_eq!(&parsed.major_brand, b"crx ");
+        let cmt1: Vec<_> = parsed
+            .exif_payloads()
+            .filter(|p| p.tag.as_deref() == Some("CMT1"))
+            .collect();
+        assert_eq!(cmt1.len(), 1, "expected one CMT1 exif payload");
+        let payload = cmt1[0];
+        // Slice the surfaced byte range and assert it round-trips to the
+        // TIFF header — proves data_offset/data_length point at real bytes.
+        let slice = &bytes
+            [payload.data_offset as usize..(payload.data_offset + payload.data_length) as usize];
+        assert!(slice.starts_with(b"II*\0"));
+    }
+
+    #[test]
+    fn parses_minimal_cr3_with_cmt2_payload() {
+        let bytes = cr3_with_cmt(&[
+            (b"CMT1", tiff_with_make_ascii("Canon")),
+            (b"CMT2", tiff_with_make_ascii("Canon")),
+        ]);
+        let parsed = parse_bytes(&bytes, 0).unwrap();
+        let cmt2: Vec<_> = parsed
+            .canon_cmt_payloads()
+            .filter(|p| p.tag.as_deref() == Some("CMT2"))
+            .collect();
+        assert_eq!(cmt2.len(), 1, "expected one CMT2 canon-cmt payload");
+        // CMT1 still arrives via the exif channel, not the canon-cmt channel.
+        assert_eq!(parsed.canon_cmt_payloads().count(), 1);
+        assert_eq!(
+            parsed
+                .exif_payloads()
+                .filter(|p| p.tag.as_deref() == Some("CMT1"))
+                .count(),
+            1
+        );
+    }
+
+    #[test]
+    fn ignores_unknown_uuid_box() {
+        // Non-Canon UUID payload must be skipped without raising a parse
+        // error and must surface only an `isobmff_structure_recognized_uninterpreted`
+        // info issue.
+        let mut uuid_payload = vec![0u8; 16]; // all-zero UUID, definitely not Canon CMT
+        uuid_payload.extend_from_slice(b"opaque-bytes");
+        let uuid = boxed(b"uuid", &uuid_payload);
+        let bytes = [boxed(b"ftyp", b"isom\0\0\0\0mp42"), boxed(b"moov", &uuid)].concat();
+
+        let parsed = parse_bytes(&bytes, 0).unwrap();
+        assert_eq!(parsed.canon_cmt_payloads().count(), 0);
+        assert_eq!(parsed.exif_payloads().count(), 0);
+        assert!(parsed.issues.iter().any(|issue| issue.code
+            == "isobmff_structure_recognized_uninterpreted"
+            && issue.context.as_deref() == Some("moov/uuid")));
     }
 
     #[test]

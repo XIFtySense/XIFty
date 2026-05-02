@@ -804,6 +804,35 @@ def build_heif_with_iptc(iim_payload):
     return ftyp + mdat + meta
 
 
+# Canon CR3 maker-note UUID (per ExifTool `lib/Image/ExifTool/Canon.pm`).
+CANON_CMT_UUID = bytes(
+    [0x85, 0xC0, 0xB6, 0x87, 0x82, 0x0F, 0x11, 0xE0, 0x81, 0x11, 0xF4, 0xCE, 0x46, 0x2B, 0x6A, 0x48]
+)
+
+
+def build_canon_cr3(cmt1_tiff, cmt2_tiff=None):
+    """Build a synthetic Canon CR3.
+
+    Layout: ftyp(major=`crx ` compat=[`crx `, `isom`]) + moov{ uuid(Canon CMT
+    UUID + CMT1(<tiff>) [+ CMT2(<tiff>)]) }. Each CMT* sub-box is a 4-byte
+    big-endian size + FourCC header followed by a TIFF-shaped IFD payload.
+
+    The fixture is the smallest legal CR3 that exercises both the EXIF (CMT1)
+    and the Canon-CMT (CMT2) dispatch paths in `xifty-container-isobmff` and
+    `xifty-cli`.
+    """
+    ftyp_payload = b"crx " + b"\x00\x00\x00\x00" + b"crx " + b"isom"
+    ftyp = iso_box(b"ftyp", ftyp_payload)
+
+    cmt_boxes = iso_box(b"CMT1", cmt1_tiff)
+    if cmt2_tiff is not None:
+        cmt_boxes += iso_box(b"CMT2", cmt2_tiff)
+    uuid_payload = CANON_CMT_UUID + cmt_boxes
+    uuid = iso_box(b"uuid", uuid_payload)
+    moov = iso_box(b"moov", uuid)
+    return ftyp + moov
+
+
 def build_avif(exif_payload=None):
     """Build a minimal AVIF still: ftyp(major=avif) + meta { iprp{ipco{ispe,pixi,colr nclx,cicp},ipma}, pitm } + (optional) Exif item.
 
@@ -1806,6 +1835,10 @@ def main():
         "no_exif.tiff": build_tiff(no_exif=True),
         "happy.dng": build_tiff(gps=False, dng=True),
         "happy.cr2": build_tiff(gps=False, cr2=True, make="Canon", canon_makernote=True),
+        "happy.cr3": build_canon_cr3(
+            build_tiff(gps=False, make="Canon", canon_makernote=True),
+            build_tiff(gps=False, make="Canon", canon_makernote=True),
+        ),
         "happy.arw": build_tiff(gps=False, make="SONY"),
         "happy.raf": build_raf(build_tiff(gps=False, make="FUJIFILM", fuji_makernote=True)),
         "happy.orf": build_tiff(gps=False, make="OLYMPUS", olympus_makernote=True, orf=True),

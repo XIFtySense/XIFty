@@ -290,6 +290,12 @@
         "canon": "planned"
       }
     },
+    "cr3": {
+      "namespaces": {
+        "exif": "bounded",
+        "canon": "planned"
+      }
+    },
     "arw": {
       "namespaces": {
         "exif": "bounded",
