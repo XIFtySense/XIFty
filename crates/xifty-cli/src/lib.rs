@@ -2,6 +2,7 @@ use flate2::read::ZlibDecoder;
 use std::{fs, io::Read, path::PathBuf, process::Command, time::SystemTime};
 use xifty_container_aiff::{AiffContainer, parse as parse_aiff};
 use xifty_container_flac::{FlacContainer, parse as parse_flac};
+use xifty_container_id3::{Id3Container, parse as parse_mp3};
 use xifty_container_isobmff::parse as parse_isobmff;
 use xifty_container_jpeg::parse as parse_jpeg;
 use xifty_container_ogg::{OggCodec, OggContainer, parse as parse_ogg};
@@ -16,6 +17,9 @@ use xifty_detect::detect;
 use xifty_meta_apple::decode_from_tiff as decode_apple_from_tiff;
 use xifty_meta_exif::{decode_from_tiff, exif_payload_from_jpeg};
 use xifty_meta_icc::{IccPayload, decode_payload as decode_icc_payload};
+use xifty_meta_id3v2::{
+    Id3v2Payload as Id3v2DecodePayload, decode_payload as decode_id3v2_payload,
+};
 use xifty_meta_iptc::{IptcPayload, decode_payload as decode_iptc_payload};
 use xifty_meta_itunes::{ItunesPayload, decode_payload as decode_itunes_payload};
 use xifty_meta_quicktime::{
@@ -95,6 +99,10 @@ fn probe_source(source: &SourceBytes) -> Result<ProbeOutput, XiftyError> {
         Format::Ogg => {
             let parsed = parse_ogg(&source)?;
             ("ogg".to_string(), parsed.nodes, parsed.issues)
+        }
+        Format::Mp3 => {
+            let parsed = parse_mp3(&source)?;
+            ("mp3".to_string(), parsed.nodes, parsed.issues)
         }
     };
     Ok(ProbeOutput {
@@ -494,6 +502,12 @@ fn extract_source(
             let mut issues = ogg.issues.clone();
             let entries = ogg_entries(&ogg, source.bytes(), &mut issues);
             ("ogg".to_string(), ogg.nodes, entries, issues)
+        }
+        Format::Mp3 => {
+            let mp3 = parse_mp3(&source)?;
+            let issues = mp3.issues.clone();
+            let entries = mp3_entries(&mp3, source.bytes());
+            ("mp3".to_string(), mp3.nodes, entries, issues)
         }
     };
 
@@ -1777,6 +1791,111 @@ fn ogg_scalar_entry_with_notes(
             notes: vec![note.into()],
         },
         notes: extra_notes,
+    }
+}
+
+fn mp3_entries(mp3: &Id3Container, bytes: &[u8]) -> Vec<MetadataEntry> {
+    let mut entries = Vec::new();
+
+    // Synthesize audio scalar entries from the first MPEG frame header.
+    if let Some(frame) = &mp3.first_frame {
+        let frame_offset = Some(frame.offset_start);
+        let frame_end = Some(frame.offset_start + frame.frame_size_bytes as u64);
+        entries.push(mp3_scalar_entry(
+            "AudioSampleRate",
+            TypedValue::Integer(frame.sample_rate_hz as i64),
+            "derived from first MPEG audio frame header",
+            frame_offset,
+            frame_end,
+            Some("mpeg_audio_frame"),
+        ));
+        entries.push(mp3_scalar_entry(
+            "AudioChannels",
+            TypedValue::Integer(frame.channels as i64),
+            "derived from first MPEG audio frame header channel mode",
+            frame_offset,
+            frame_end,
+            Some("mpeg_audio_frame"),
+        ));
+        if let Some(bit_depth) = mp3.bit_depth {
+            entries.push(mp3_scalar_entry(
+                "AudioBitDepth",
+                TypedValue::Integer(bit_depth as i64),
+                "MPEG audio decoder convention; not a tag-derived value",
+                frame_offset,
+                frame_end,
+                Some("mpeg_audio_frame"),
+            ));
+        }
+        entries.push(mp3_scalar_entry(
+            "MpegLayer",
+            TypedValue::String(frame.layer.as_str().into()),
+            "derived from first MPEG audio frame header layer field",
+            frame_offset,
+            frame_end,
+            Some("mpeg_audio_frame"),
+        ));
+        if let Some(duration) = mp3.duration_seconds {
+            let note = if mp3.is_vbr {
+                "derived from VBR header (Xing/VBRI) total_frames * samples_per_frame / sample_rate"
+            } else {
+                "derived from CBR audio_bytes * 8 / bitrate"
+            };
+            entries.push(mp3_scalar_entry(
+                "DurationSeconds",
+                TypedValue::Float(duration),
+                note,
+                frame_offset,
+                frame_end,
+                Some("mpeg_audio_frame"),
+            ));
+        }
+        entries.push(mp3_scalar_entry(
+            "AudioCodec",
+            TypedValue::String("mp3".into()),
+            "MPEG audio codec identified from frame header version+layer",
+            frame_offset,
+            frame_end,
+            Some("mpeg_audio_frame"),
+        ));
+    }
+
+    if let Some(payload) = mp3.id3v2_payload(bytes) {
+        let decoded = decode_id3v2_payload(Id3v2DecodePayload {
+            bytes: payload.bytes,
+            version_major: payload.version_major,
+            container: "mp3",
+            offset_start: payload.offset_start,
+            offset_end: payload.offset_end,
+        });
+        entries.extend(decoded);
+    }
+
+    entries
+}
+
+fn mp3_scalar_entry(
+    tag_name: &str,
+    value: TypedValue,
+    note: &str,
+    offset_start: Option<u64>,
+    offset_end: Option<u64>,
+    path: Option<&str>,
+) -> MetadataEntry {
+    MetadataEntry {
+        namespace: "mp3".into(),
+        tag_id: tag_name.into(),
+        tag_name: tag_name.into(),
+        value,
+        provenance: Provenance {
+            container: "mp3".into(),
+            namespace: "mp3".into(),
+            path: path.map(|p| p.to_string()),
+            offset_start,
+            offset_end,
+            notes: vec![note.into()],
+        },
+        notes: Vec::new(),
     }
 }
 

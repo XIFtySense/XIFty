@@ -2512,6 +2512,109 @@ fn ogg_opus_surfaces_vorbis_comment_tags() {
     );
 }
 
+#[test]
+fn probe_snapshot_happy_mp3() {
+    assert_json_snapshot!("probe_happy_mp3", probe_json("happy.mp3"));
+}
+
+#[test]
+fn extract_snapshot_happy_mp3_normalized() {
+    assert_json_snapshot!(
+        "extract_happy_mp3_normalized",
+        extract_json("happy.mp3", ViewMode::Normalized)
+    );
+}
+
+#[test]
+fn mp3_normalization_includes_audio_fields() {
+    let output = extract_json("happy.mp3", ViewMode::Normalized);
+    let normalized = normalized_map(&output);
+    assert_eq!(
+        normalized
+            .get("audio.sample_rate")
+            .and_then(|v| v["value"].as_i64()),
+        Some(44100)
+    );
+    assert_eq!(
+        normalized
+            .get("audio.channels")
+            .and_then(|v| v["value"].as_i64()),
+        Some(2)
+    );
+    assert_eq!(
+        normalized
+            .get("audio.bit_depth")
+            .and_then(|v| v["value"].as_i64()),
+        Some(16)
+    );
+    assert_eq!(
+        normalized
+            .get("codec.audio")
+            .and_then(|v| v["value"].as_str()),
+        Some("mp3")
+    );
+    // 10 frames * 417 bytes audio_bytes => duration ≈ 0.260625 s
+    let duration = normalized
+        .get("duration")
+        .and_then(|v| v["value"].as_f64())
+        .expect("duration present");
+    assert!((duration - 0.260625).abs() < 1e-6, "got {duration}");
+}
+
+#[test]
+fn mp3_surfaces_id3v2_text_frames() {
+    let output = extract_json("happy.mp3", ViewMode::Interpreted);
+    assert_eq!(
+        interpreted_value(&output, "id3v2", "Title"),
+        Some(Value::String("XIFty MP3 Track".into()))
+    );
+    assert_eq!(
+        interpreted_value(&output, "id3v2", "Artist"),
+        Some(Value::String("XIFty Artist".into()))
+    );
+    assert_eq!(
+        interpreted_value(&output, "id3v2", "Album"),
+        Some(Value::String("XIFty Album".into()))
+    );
+}
+
+#[test]
+fn mp3_xing_vbr_duration_uses_total_frames() {
+    let output = extract_json("vbr_xing.mp3", ViewMode::Normalized);
+    let normalized = normalized_map(&output);
+    // 20 frames * 1152 samples / 44100 ≈ 0.5224 s
+    let duration = normalized
+        .get("duration")
+        .and_then(|v| v["value"].as_f64())
+        .expect("duration present for VBR Xing fixture");
+    let expected = 20.0 * 1152.0 / 44100.0;
+    assert!(
+        (duration - expected).abs() < 1e-6,
+        "got {duration}, expected {expected}"
+    );
+}
+
+#[test]
+fn mp3_vbr_no_xing_emits_duration_unknown_issue() {
+    // The vbr_no_xing fixture alternates frame bitrates without a Xing/Info
+    // or VBRI header. The container parser walks subsequent frames, detects
+    // the bitrate variation, and emits `mp3_vbr_duration_unknown`.
+    let output = extract_json("vbr_no_xing.mp3", ViewMode::Full);
+    assert_eq!(output["input"]["detected_format"].as_str(), Some("mp3"));
+    assert_eq!(output["input"]["container"].as_str(), Some("mp3"));
+
+    let issues = output["report"]["issues"]
+        .as_array()
+        .expect("issues array present");
+    let has_vbr_unknown = issues
+        .iter()
+        .any(|i| i["code"].as_str() == Some("mp3_vbr_duration_unknown"));
+    assert!(
+        has_vbr_unknown,
+        "expected mp3_vbr_duration_unknown in issues, got {issues:?}"
+    );
+}
+
 fn assert_float_close(left: Option<f64>, right: Option<f64>, label: &str) {
     let left = left.expect("missing left float value");
     let right = right.expect("missing right float value");

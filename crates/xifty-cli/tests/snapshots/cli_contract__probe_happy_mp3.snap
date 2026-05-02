@@ -1,6 +1,6 @@
 ---
 source: crates/xifty-cli/tests/cli_contract.rs
-assertion_line: 165
+assertion_line: 2517
 expression: "probe_json(\"happy.mp3\")"
 ---
 {
@@ -8,21 +8,21 @@ expression: "probe_json(\"happy.mp3\")"
     {
       "kind": "container",
       "label": "mp3",
-      "offset_end": 20988,
+      "offset_end": 4267,
       "offset_start": 0
     },
     {
       "kind": "tag",
       "label": "id3v2",
-      "offset_end": 138,
+      "offset_end": 97,
       "offset_start": 0,
       "parent_label": "mp3"
     },
     {
       "kind": "frame",
       "label": "mpeg_audio_frame",
-      "offset_end": 20988,
-      "offset_start": 138,
+      "offset_end": 514,
+      "offset_start": 97,
       "parent_label": "mp3"
     }
   ],

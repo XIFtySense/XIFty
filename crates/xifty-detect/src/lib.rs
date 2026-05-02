@@ -37,6 +37,16 @@ pub fn detect(source: &SourceBytes) -> Result<Format, XiftyError> {
         return Ok(Format::Ogg);
     }
 
+    // ID3v2-prefixed MP3, or a bare MPEG audio frame sync (0xFFEx).
+    // The prefix path matches "ID3" + a plausible major version byte
+    // (ID3v2.2/2.3/2.4 in the wild).
+    if bytes.len() >= 4 && &bytes[0..3] == b"ID3" && matches!(bytes[3], 2 | 3 | 4) {
+        return Ok(Format::Mp3);
+    }
+    if bytes.len() >= 2 && bytes[0] == 0xFF && (bytes[1] & 0xE0) == 0xE0 {
+        return Ok(Format::Mp3);
+    }
+
     if bytes.len() >= 16 && &bytes[4..8] == b"ftyp" {
         if is_heif_brand(bytes) {
             return Ok(Format::Heif);
@@ -207,6 +217,8 @@ mod tests {
         let aiff = temp_file("a.aiff", b"FORM\x00\x00\x00\x04AIFF");
         let aifc = temp_file("a.aifc", b"FORM\x00\x00\x00\x04AIFC");
         let ogg = temp_file("a.ogg", b"OggS\x00\x02\x00\x00");
+        let mp3_id3 = temp_file("a.mp3", b"ID3\x03\x00\x00\x00\x00\x00\x00");
+        let mp3_sync = temp_file("b.mp3", &[0xFF, 0xFB, 0x90, 0x04]);
         assert_eq!(
             detect(&SourceBytes::from_path(&jpeg).unwrap()).unwrap(),
             Format::Jpeg
@@ -263,6 +275,16 @@ mod tests {
             detect(&SourceBytes::from_path(&ogg).unwrap()).unwrap(),
             Format::Ogg
         );
+        assert_eq!(
+            detect(&SourceBytes::from_path(&mp3_id3).unwrap()).unwrap(),
+            Format::Mp3
+        );
+        assert_eq!(
+            detect(&SourceBytes::from_path(&mp3_sync).unwrap()).unwrap(),
+            Format::Mp3
+        );
+        let _ = fs::remove_file(mp3_id3);
+        let _ = fs::remove_file(mp3_sync);
         let _ = fs::remove_file(jpeg);
         let _ = fs::remove_file(tiff);
         let _ = fs::remove_file(png);
