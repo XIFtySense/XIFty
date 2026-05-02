@@ -1194,6 +1194,95 @@ def build_ogg_opus(
     return bytes(pages)
 
 
+def build_id3v2_3_text_frames(title="XIFty MP3 Track", artist="XIFty Artist", album="XIFty Album"):
+    """Build a synthetic ID3v2.3 tag carrying TIT2/TPE1/TALB.
+
+    Each text frame is `frame_id (4) + size_be (4) + flags (2) + encoding (1) + ascii_bytes`.
+    Encoding 0 = ISO-8859-1.
+    """
+    def frame(frame_id, text):
+        body = b"\x00" + text.encode("ascii")
+        return frame_id + struct.pack(">I", len(body)) + b"\x00\x00" + body
+
+    frames = (
+        frame(b"TIT2", title)
+        + frame(b"TPE1", artist)
+        + frame(b"TALB", album)
+    )
+    # Pad with zeros so the frame walker stops cleanly.
+    frames += b"\x00" * 16
+
+    size = len(frames)
+    # Syncsafe size encoding (4 x 7-bit big-endian groups).
+    size_bytes = bytes([
+        (size >> 21) & 0x7F,
+        (size >> 14) & 0x7F,
+        (size >> 7) & 0x7F,
+        size & 0x7F,
+    ])
+    header = b"ID3" + bytes([3, 0, 0]) + size_bytes
+    return header + frames
+
+
+def build_mp3_cbr_frame(padding=False):
+    """Single 128 kbps / 44.1 kHz / stereo MPEG-1 Layer III frame, 417 bytes."""
+    pad_bit = 0x02 if padding else 0x00
+    header = bytes([0xFF, 0xFB, 0x90 | pad_bit, 0x04])
+    body_size = 417 - 4
+    return header + b"\x00" * body_size
+
+
+def build_mp3(frame_count=10, with_id3v2=True):
+    """CBR MP3 with optional ID3v2.3 prefix carrying TIT2/TPE1/TALB."""
+    out = bytearray()
+    if with_id3v2:
+        out.extend(build_id3v2_3_text_frames())
+    for _ in range(frame_count):
+        out.extend(build_mp3_cbr_frame())
+    return bytes(out)
+
+
+def build_mp3_xing_vbr(frame_count=20):
+    """VBR MP3 advertising a Xing header that reports `frame_count` total frames.
+
+    The first frame carries the Xing magic at the documented side-info offset
+    (32 bytes after the header for MPEG-1 stereo). Subsequent frames are CBR-
+    shaped placeholders so the file is structurally valid.
+    """
+    first = bytearray(build_mp3_cbr_frame())
+    # Side-info region for MPEG-1 stereo is 32 bytes. Replace with Xing.
+    side_info_start = 4
+    side_info_end = side_info_start + 32
+    xing_magic = b"Xing"
+    xing_flags = struct.pack(">I", 0x0001)  # frames present
+    xing_frames = struct.pack(">I", frame_count)
+    payload = xing_magic + xing_flags + xing_frames
+    # Place payload immediately after side-info; pad to keep frame size 417.
+    insert_pos = side_info_end
+    for i, byte in enumerate(payload):
+        first[insert_pos + i] = byte
+
+    out = bytearray(build_id3v2_3_text_frames())
+    out.extend(first)
+    for _ in range(frame_count - 1):
+        out.extend(build_mp3_cbr_frame())
+    return bytes(out)
+
+
+def build_mp3_vbr_no_xing(frame_count=8):
+    """VBR-shaped MP3 with no Xing/Info or VBRI header.
+
+    Synthetic: every frame is CBR-shaped but the file is intended for the
+    container parser to recognize as "VBR with unknown duration" via test
+    assertions that explicitly invoke the helper. The file itself parses as
+    a regular CBR stream from the container's perspective.
+    """
+    out = bytearray(build_id3v2_3_text_frames())
+    for _ in range(frame_count):
+        out.extend(build_mp3_cbr_frame())
+    return bytes(out)
+
+
 def main():
     ROOT.mkdir(parents=True, exist_ok=True)
     xmp = build_xmp()
@@ -1280,6 +1369,9 @@ def main():
         "happy.opus": build_ogg_opus(),
         "happy.aiff": build_aiff("aiff"),
         "happy.aifc": build_aiff("aifc"),
+        "happy.mp3": build_mp3(),
+        "vbr_xing.mp3": build_mp3_xing_vbr(),
+        "vbr_no_xing.mp3": build_mp3_vbr_no_xing(),
     }
 
     for name, data in files.items():

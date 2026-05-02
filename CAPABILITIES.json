@@ -78,6 +78,25 @@
         "OpusInputSampleRate"
       ]
     },
+    "id3v2": {
+      "status": "bounded",
+      "supported_tags": [
+        "TIT2",
+        "TPE1",
+        "TALB"
+      ]
+    },
+    "mp3": {
+      "status": "bounded",
+      "supported_tags": [
+        "AudioSampleRate",
+        "AudioChannels",
+        "AudioBitDepth",
+        "AudioCodec",
+        "DurationSeconds",
+        "MpegLayer"
+      ]
+    },
     "itunes": {
       "status": "bounded",
       "supported_tags": [
@@ -183,6 +202,12 @@
       "namespaces": {
         "ogg": "bounded",
         "vorbis_comment": "bounded"
+      }
+    },
+    "mp3": {
+      "namespaces": {
+        "mp3": "bounded",
+        "id3v2": "bounded"
       }
     }
   },

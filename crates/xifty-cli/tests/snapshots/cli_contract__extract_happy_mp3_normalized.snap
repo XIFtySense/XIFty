@@ -1,6 +1,6 @@
 ---
 source: crates/xifty-cli/tests/cli_contract.rs
-assertion_line: 919
+assertion_line: 2522
 expression: "extract_json(\"happy.mp3\", ViewMode::Normalized)"
 ---
 {
@@ -19,14 +19,36 @@ expression: "extract_json(\"happy.mp3\", ViewMode::Normalized)"
             "container": "mp3",
             "namespace": "mp3",
             "notes": [
-              "derived from MPEG frame count and sample rate"
+              "derived from CBR audio_bytes * 8 / bitrate"
             ],
+            "offset_end": 514,
+            "offset_start": 97,
             "path": "mpeg_audio_frame"
           }
         ],
         "value": {
           "kind": "float",
-          "value": 1.303125
+          "value": 0.260625
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
+        "field": "codec.audio",
+        "sources": [
+          {
+            "container": "mp3",
+            "namespace": "mp3",
+            "notes": [
+              "MPEG audio codec identified from frame header version+layer"
+            ],
+            "offset_end": 514,
+            "offset_start": 97,
+            "path": "mpeg_audio_frame"
+          }
+        ],
+        "value": {
+          "kind": "string",
+          "value": "mp3"
         }
       },
       {
@@ -37,8 +59,10 @@ expression: "extract_json(\"happy.mp3\", ViewMode::Normalized)"
             "container": "mp3",
             "namespace": "mp3",
             "notes": [
-              "derived from MPEG audio frame header"
+              "derived from first MPEG audio frame header channel mode"
             ],
+            "offset_end": 514,
+            "offset_start": 97,
             "path": "mpeg_audio_frame"
           }
         ],
@@ -55,8 +79,10 @@ expression: "extract_json(\"happy.mp3\", ViewMode::Normalized)"
             "container": "mp3",
             "namespace": "mp3",
             "notes": [
-              "derived from MPEG audio frame header"
+              "derived from first MPEG audio frame header"
             ],
+            "offset_end": 514,
+            "offset_start": 97,
             "path": "mpeg_audio_frame"
           }
         ],
@@ -73,8 +99,10 @@ expression: "extract_json(\"happy.mp3\", ViewMode::Normalized)"
             "container": "mp3",
             "namespace": "mp3",
             "notes": [
-              "fixed 16-bit per MPEG audio decoder output convention (not tag-derived)"
+              "MPEG audio decoder convention; not a tag-derived value"
             ],
+            "offset_end": 514,
+            "offset_start": 97,
             "path": "mpeg_audio_frame"
           }
         ],

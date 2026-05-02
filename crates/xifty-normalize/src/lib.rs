@@ -458,6 +458,32 @@ mod tests {
     }
 
     #[test]
+    fn surfaces_audio_bit_depth_from_audio_bit_depth_entry() {
+        let prov = Provenance {
+            container: "mp3".into(),
+            namespace: "mp3".into(),
+            path: None,
+            offset_start: None,
+            offset_end: None,
+            notes: Vec::new(),
+        };
+        let entries = vec![MetadataEntry {
+            namespace: "mp3".into(),
+            tag_id: "AudioBitDepth".into(),
+            tag_name: "AudioBitDepth".into(),
+            value: TypedValue::Integer(16),
+            provenance: prov,
+            notes: Vec::new(),
+        }];
+        let fields = normalize(&entries);
+        let bit_depth = fields
+            .iter()
+            .find(|field| field.field == "audio.bit_depth")
+            .expect("audio.bit_depth surfaced");
+        assert_eq!(bit_depth.value, TypedValue::Integer(16));
+    }
+
+    #[test]
     fn uses_exif_dimensions_as_fallback() {
         let entries = vec![
             MetadataEntry {
