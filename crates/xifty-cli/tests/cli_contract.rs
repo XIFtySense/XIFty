@@ -1,6 +1,6 @@
 use insta::assert_json_snapshot;
 use serde_json::Value;
-use std::{path::Path, process::Command, sync::OnceLock};
+use std::{fs, path::Path, process::Command, sync::OnceLock};
 use xifty_core::ViewMode;
 
 static EXIFTOOL_AVAILABLE: OnceLock<bool> = OnceLock::new();
@@ -256,6 +256,77 @@ fn png_time_chunk_normalizes_to_captured_at() {
             "value": "2024-05-02T03:04:05Z"
         })
     );
+}
+
+#[test]
+fn apple_screenshot_png_uses_preserved_modified_time_when_birthtime_is_copy_time() {
+    if !cfg!(target_os = "macos") {
+        eprintln!("skipping macOS screenshot metadata test on non-macOS host");
+        return;
+    }
+
+    let fixture_path = fixture("macos_screenshot_small.png");
+    let temp_path = std::env::temp_dir().join(format!(
+        "xifty-macos-screenshot-copy-{}-{}.png",
+        std::process::id(),
+        chrono_like_test_suffix()
+    ));
+    fs::copy(&fixture_path, &temp_path).unwrap();
+
+    let xattr_status = Command::new("xattr")
+        .arg("-w")
+        .arg("com.apple.metadata:kMDItemIsScreenCapture")
+        .arg("bplist00")
+        .arg(&temp_path)
+        .status()
+        .unwrap();
+    assert!(
+        xattr_status.success(),
+        "failed to mark temp file as screenshot"
+    );
+
+    let touch_status = Command::new("touch")
+        .env("TZ", "UTC")
+        .arg("-t")
+        .arg("202503242109.11")
+        .arg(&temp_path)
+        .status()
+        .unwrap();
+    assert!(
+        touch_status.success(),
+        "failed to set preserved screenshot mtime"
+    );
+
+    let output = serde_json::to_value(
+        xifty_cli::extract_path(temp_path.clone(), ViewMode::Normalized).unwrap(),
+    )
+    .unwrap();
+    let output = normalized_map(&output);
+    assert_eq!(
+        output["captured_at"],
+        serde_json::json!({
+            "kind": "timestamp",
+            "value": "2025-03-24T21:09:11Z"
+        })
+    );
+    assert_eq!(
+        output["created_at"],
+        serde_json::json!({
+            "kind": "timestamp",
+            "value": "2025-03-24T21:09:11Z"
+        })
+    );
+
+    let _ = fs::remove_file(temp_path);
+}
+
+fn chrono_like_test_suffix() -> String {
+    use std::time::{SystemTime, UNIX_EPOCH};
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_nanos()
+        .to_string()
 }
 
 #[test]

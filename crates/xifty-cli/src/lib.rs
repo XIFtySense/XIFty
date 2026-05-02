@@ -653,16 +653,48 @@ fn add_filesystem_timestamp_fallbacks(
         .iter()
         .any(|entry| matches!(entry.tag_name.as_str(), "DateTimeOriginal" | "CreateDate"));
     if !has_captured_candidate {
-        if let Ok(created) = metadata.created() {
-            if let Some(value) = system_time_to_utc_timestamp(created) {
-                entries.push(filesystem_timestamp_entry(
-                    path,
-                    "FileCreateDate",
-                    "CreateDate",
+        if let Some((tag_id, value, note)) = apple_content_creation_timestamp(path)
+            .map(|value| {
+                (
+                    "AppleContentCreationDate",
                     value,
-                    "filesystem creation time used because no embedded capture timestamp was decoded",
-                ));
-            }
+                    "Apple content creation date used because no embedded capture timestamp was decoded",
+                )
+            })
+            .or_else(|| {
+                metadata
+                    .modified()
+                    .ok()
+                    .and_then(system_time_to_utc_timestamp)
+                    .map(|value| {
+                        (
+                            "FileModifyDate",
+                            value,
+                            "filesystem modified time used because no embedded capture timestamp was decoded",
+                        )
+                    })
+            })
+            .or_else(|| {
+                metadata
+                    .created()
+                    .ok()
+                    .and_then(system_time_to_utc_timestamp)
+                    .map(|value| {
+                        (
+                            "FileCreateDate",
+                            value,
+                            "filesystem creation time used because no embedded capture timestamp was decoded",
+                        )
+                    })
+            })
+        {
+            entries.push(filesystem_timestamp_entry(
+                path,
+                tag_id,
+                "CreateDate",
+                value,
+                note,
+            ));
         }
     }
 }
@@ -675,6 +707,32 @@ fn is_apple_screen_capture(path: &std::path::Path) -> bool {
         .output()
         .map(|output| output.status.success() && output.stdout.starts_with(b"bplist00"))
         .unwrap_or(false)
+}
+
+fn apple_content_creation_timestamp(path: &std::path::Path) -> Option<String> {
+    let output = Command::new("mdls")
+        .arg("-raw")
+        .arg("-name")
+        .arg("kMDItemContentCreationDate")
+        .arg(path)
+        .output()
+        .ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    parse_mdls_utc_timestamp(std::str::from_utf8(&output.stdout).ok()?.trim())
+}
+
+fn parse_mdls_utc_timestamp(value: &str) -> Option<String> {
+    if value == "(null)" {
+        return None;
+    }
+    let (date, rest) = value.split_once(' ')?;
+    let (time, offset) = rest.split_once(' ')?;
+    if offset != "+0000" {
+        return None;
+    }
+    Some(format!("{date}T{time}Z"))
 }
 
 fn filesystem_timestamp_entry(
