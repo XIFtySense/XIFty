@@ -1,0 +1,353 @@
+---
+source: crates/xifty-cli/tests/cli_contract.rs
+expression: "extract_json(\"happy.cr3\", ViewMode::Interpreted)"
+---
+{
+  "input": {
+    "container": "cr3",
+    "detected_format": "cr3",
+    "path": "happy.cr3"
+  },
+  "interpreted": {
+    "metadata": [
+      {
+        "namespace": "exif",
+        "provenance": {
+          "container": "cr3",
+          "namespace": "exif",
+          "offset_end": 86,
+          "offset_start": 74,
+          "path": "ifd0"
+        },
+        "tag_id": "0x0100",
+        "tag_name": "ImageWidth",
+        "value": {
+          "kind": "integer",
+          "value": 800
+        }
+      },
+      {
+        "namespace": "exif",
+        "provenance": {
+          "container": "cr3",
+          "namespace": "exif",
+          "offset_end": 98,
+          "offset_start": 86,
+          "path": "ifd0"
+        },
+        "tag_id": "0x0101",
+        "tag_name": "ImageHeight",
+        "value": {
+          "kind": "integer",
+          "value": 600
+        }
+      },
+      {
+        "namespace": "exif",
+        "provenance": {
+          "container": "cr3",
+          "namespace": "exif",
+          "offset_end": 110,
+          "offset_start": 98,
+          "path": "ifd0"
+        },
+        "tag_id": "0x010F",
+        "tag_name": "Make",
+        "value": {
+          "kind": "string",
+          "value": "Canon"
+        }
+      },
+      {
+        "namespace": "exif",
+        "provenance": {
+          "container": "cr3",
+          "namespace": "exif",
+          "offset_end": 122,
+          "offset_start": 110,
+          "path": "ifd0"
+        },
+        "tag_id": "0x0110",
+        "tag_name": "Model",
+        "value": {
+          "kind": "string",
+          "value": "IterationOne"
+        }
+      },
+      {
+        "namespace": "exif",
+        "provenance": {
+          "container": "cr3",
+          "namespace": "exif",
+          "offset_end": 134,
+          "offset_start": 122,
+          "path": "ifd0"
+        },
+        "tag_id": "0x0112",
+        "tag_name": "Orientation",
+        "value": {
+          "kind": "integer",
+          "value": 1
+        }
+      },
+      {
+        "namespace": "exif",
+        "provenance": {
+          "container": "cr3",
+          "namespace": "exif",
+          "offset_end": 146,
+          "offset_start": 134,
+          "path": "ifd0"
+        },
+        "tag_id": "0x0131",
+        "tag_name": "Software",
+        "value": {
+          "kind": "string",
+          "value": "XIFtyTestGen"
+        }
+      },
+      {
+        "namespace": "exif",
+        "provenance": {
+          "container": "cr3",
+          "namespace": "exif",
+          "offset_end": 158,
+          "offset_start": 146,
+          "path": "ifd0"
+        },
+        "tag_id": "0x8769",
+        "tag_name": "ExifOffset",
+        "value": {
+          "kind": "integer",
+          "value": 132
+        }
+      },
+      {
+        "namespace": "exif",
+        "provenance": {
+          "container": "cr3",
+          "namespace": "exif",
+          "offset_end": 210,
+          "offset_start": 198,
+          "path": "exif_ifd"
+        },
+        "tag_id": "0x9003",
+        "tag_name": "DateTimeOriginal",
+        "value": {
+          "kind": "timestamp",
+          "value": "2024:04:16 12:34:56"
+        }
+      },
+      {
+        "namespace": "exif",
+        "provenance": {
+          "container": "cr3",
+          "namespace": "exif",
+          "offset_end": 222,
+          "offset_start": 210,
+          "path": "exif_ifd"
+        },
+        "tag_id": "0x9004",
+        "tag_name": "CreateDate",
+        "value": {
+          "kind": "timestamp",
+          "value": "2024:04:16 12:34:56"
+        }
+      },
+      {
+        "namespace": "exif",
+        "provenance": {
+          "container": "cr3",
+          "namespace": "exif",
+          "offset_end": 234,
+          "offset_start": 222,
+          "path": "exif_ifd"
+        },
+        "tag_id": "0x829A",
+        "tag_name": "ExposureTime",
+        "value": {
+          "kind": "rational",
+          "value": {
+            "denominator": 250,
+            "numerator": 1
+          }
+        }
+      },
+      {
+        "namespace": "exif",
+        "provenance": {
+          "container": "cr3",
+          "namespace": "exif",
+          "offset_end": 246,
+          "offset_start": 234,
+          "path": "exif_ifd"
+        },
+        "tag_id": "0x829D",
+        "tag_name": "FNumber",
+        "value": {
+          "kind": "rational",
+          "value": {
+            "denominator": 10,
+            "numerator": 56
+          }
+        }
+      },
+      {
+        "namespace": "exif",
+        "provenance": {
+          "container": "cr3",
+          "namespace": "exif",
+          "offset_end": 258,
+          "offset_start": 246,
+          "path": "exif_ifd"
+        },
+        "tag_id": "0x8827",
+        "tag_name": "ISO",
+        "value": {
+          "kind": "integer",
+          "value": 200
+        }
+      },
+      {
+        "namespace": "exif",
+        "provenance": {
+          "container": "cr3",
+          "namespace": "exif",
+          "offset_end": 270,
+          "offset_start": 258,
+          "path": "exif_ifd"
+        },
+        "tag_id": "0x920A",
+        "tag_name": "FocalLength",
+        "value": {
+          "kind": "rational",
+          "value": {
+            "denominator": 1,
+            "numerator": 50
+          }
+        }
+      },
+      {
+        "namespace": "exif",
+        "provenance": {
+          "container": "cr3",
+          "namespace": "exif",
+          "offset_end": 282,
+          "offset_start": 270,
+          "path": "exif_ifd"
+        },
+        "tag_id": "0xA433",
+        "tag_name": "LensMake",
+        "value": {
+          "kind": "string",
+          "value": "XIFty Optics"
+        }
+      },
+      {
+        "namespace": "exif",
+        "provenance": {
+          "container": "cr3",
+          "namespace": "exif",
+          "offset_end": 294,
+          "offset_start": 282,
+          "path": "exif_ifd"
+        },
+        "tag_id": "0xA434",
+        "tag_name": "LensModel",
+        "value": {
+          "kind": "string",
+          "value": "XIFty 50mm F2"
+        }
+      },
+      {
+        "namespace": "exif",
+        "provenance": {
+          "container": "cr3",
+          "namespace": "exif",
+          "offset_end": 306,
+          "offset_start": 294,
+          "path": "exif_ifd"
+        },
+        "tag_id": "0x927C",
+        "tag_name": "MakerNote",
+        "value": {
+          "kind": "bytes",
+          "value": [
+            1,
+            0,
+            6,
+            0,
+            2,
+            0,
+            21,
+            0,
+            0,
+            0,
+            100,
+            1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            67,
+            97,
+            110,
+            111,
+            110,
+            32,
+            69,
+            79,
+            83,
+            32,
+            88,
+            73,
+            70,
+            116,
+            121,
+            32,
+            84,
+            101,
+            115,
+            116,
+            0
+          ]
+        }
+      },
+      {
+        "namespace": "canon",
+        "provenance": {
+          "container": "cr3",
+          "namespace": "canon",
+          "path": "canon_makernote"
+        },
+        "tag_id": "0x0006",
+        "tag_name": "CanonImageType",
+        "value": {
+          "kind": "string",
+          "value": "Canon EOS XIFty Test"
+        }
+      },
+      {
+        "namespace": "canon",
+        "provenance": {
+          "container": "cr3-cmt2",
+          "namespace": "canon",
+          "path": "canon_makernote"
+        },
+        "tag_id": "0x0006",
+        "tag_name": "CanonImageType",
+        "value": {
+          "kind": "string",
+          "value": "Canon EOS XIFty Test"
+        }
+      }
+    ]
+  },
+  "report": {
+    "conflicts": [],
+    "issues": []
+  },
+  "schema_version": "0.1.0"
+}

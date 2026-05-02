@@ -116,6 +116,14 @@ pub fn detect(source: &SourceBytes) -> Result<Format, XiftyError> {
         if is_heif_brand(bytes) {
             return Ok(Format::Heif);
         }
+        // Canon CR3 (`crx ` major brand) must be checked BEFORE `is_mp4_brand`
+        // because real-world CR3 ftyp boxes routinely list `isom` as a
+        // compatible brand (matched by `mp4_brand` below). Without this
+        // ordering CR3 would silently misroute through the generic MP4 path
+        // and the Canon `moov/uuid/CMT*` payloads would never surface.
+        if is_cr3_brand(bytes) {
+            return Ok(Format::Cr3);
+        }
         if is_mov_brand(bytes) {
             return Ok(Format::Mov);
         }
@@ -451,6 +459,16 @@ fn is_avif_brand(bytes: &[u8]) -> bool {
 
 fn avif_brand(brand: [u8; 4]) -> bool {
     matches!(&brand, b"avif" | b"avis")
+}
+
+/// Canon CR3 (RAW) is ISOBMFF with the major brand `crx ` (ASCII space at
+/// byte 11). Compatible brands typically include `crx `, `isom`, and
+/// `mif1`; the major-brand check is sufficient to disambiguate from MP4.
+fn is_cr3_brand(bytes: &[u8]) -> bool {
+    let Some(brand_bytes) = bytes.get(8..12) else {
+        return false;
+    };
+    brand_bytes == b"crx "
 }
 
 fn is_mov_brand(bytes: &[u8]) -> bool {
@@ -1015,6 +1033,30 @@ mod tests {
         );
         let _ = fs::remove_file(tiff_path);
         let _ = fs::remove_file(rw2_path);
+    }
+
+    #[test]
+    fn detects_cr3_with_crx_major_brand() {
+        // Canon CR3: ftyp major brand `crx ` (ASCII space at byte 11).
+        let path = temp_file("a.cr3", b"\x00\x00\x00\x18ftypcrx \0\0\0\0crx ");
+        assert_eq!(
+            detect(&SourceBytes::from_path(&path).unwrap()).unwrap(),
+            Format::Cr3
+        );
+        let _ = fs::remove_file(path);
+    }
+
+    #[test]
+    fn detects_cr3_with_isom_compat() {
+        // CR3 ftyp commonly lists `isom` as a compatible brand. The CR3
+        // branch must be checked before `is_mp4_brand` so the file does not
+        // silently misroute to Format::Mp4.
+        let path = temp_file("b.cr3", b"\x00\x00\x00\x1cftypcrx \0\0\0\0crx isom");
+        assert_eq!(
+            detect(&SourceBytes::from_path(&path).unwrap()).unwrap(),
+            Format::Cr3
+        );
+        let _ = fs::remove_file(path);
     }
 
     #[test]

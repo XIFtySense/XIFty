@@ -82,6 +82,10 @@ fn probe_source(source: &SourceBytes) -> Result<ProbeOutput, XiftyError> {
             let parsed = parse_tiff(&source)?;
             ("cr2".to_string(), parsed.nodes, parsed.issues)
         }
+        Format::Cr3 => {
+            let parsed = parse_isobmff(&source)?;
+            ("cr3".to_string(), parsed.nodes, parsed.issues)
+        }
         Format::Arw => {
             let parsed = parse_tiff(&source)?;
             ("arw".to_string(), parsed.nodes, parsed.issues)
@@ -279,6 +283,7 @@ fn extract_source(
         Format::Tiff => tiff_extract(&source, "tiff")?,
         Format::Dng => tiff_extract(&source, "dng")?,
         Format::Cr2 => tiff_extract(&source, "cr2")?,
+        Format::Cr3 => cr3_extract(&source)?,
         Format::Arw => tiff_extract(&source, "arw")?,
         Format::Raf => raf_extract(&source)?,
         Format::Orf => orf_extract(&source)?,
@@ -746,6 +751,109 @@ fn tiff_extract(
         entries.extend(decoded);
     }
     Ok((container_label.to_string(), tiff.nodes, entries, issues))
+}
+
+/// Extraction path for Canon CR3 (ISOBMFF-based RAW).
+///
+/// CR3 stores its EXIF + Canon maker-note IFDs in CMT* sub-boxes inside a
+/// Canon-specific `uuid` box under `moov/uuid`. The container parser
+/// surfaces:
+///
+/// - CMT1 → `IsobmffPayload { kind: "exif", tag: Some("CMT1") }`
+///   (routed through the regular EXIF + Canon pipeline)
+/// - CMT2 / CMT3 / CMT4 → `IsobmffPayload { kind: "canon-cmt", tag: ... }`
+///   (each parsed as a single TIFF and decoded via `xifty-meta-canon` with a
+///   distinct `container_name` so downstream provenance distinguishes the
+///   IFDs).
+///
+/// Per plan-reviewer ruling, no multi-IFD overload is added to
+/// `xifty-meta-canon`; each CMT payload calls the existing
+/// `decode_from_tiff` once with its own container label.
+fn cr3_extract(
+    source: &SourceBytes,
+) -> Result<
+    (
+        String,
+        Vec<xifty_core::ContainerNode>,
+        Vec<MetadataEntry>,
+        Vec<Issue>,
+    ),
+    XiftyError,
+> {
+    let isobmff = parse_isobmff(source)?;
+    let issues = isobmff.issues.clone();
+    let mut entries = Vec::new();
+
+    // CMT1 carries EXIF (Make/Model/DateTimeOriginal/etc.) — flow through
+    // EXIF then Canon, mirroring the JPEG/TIFF pipelines so Make=Canon
+    // gates the Canon decoder consistently.
+    for payload in isobmff.exif_payloads() {
+        let Some(payload_bytes) = payload_slice(
+            source.bytes(),
+            payload.data_offset,
+            payload.data_length as usize,
+        ) else {
+            continue;
+        };
+        if !(payload_bytes.starts_with(b"II") || payload_bytes.starts_with(b"MM")) {
+            continue;
+        }
+        let Ok(tiff) =
+            xifty_container_tiff::parse_bytes(payload_bytes, payload.data_offset, "cr3_exif")
+        else {
+            continue;
+        };
+        let mut exif_entries = decode_from_tiff(payload_bytes, payload.data_offset, "cr3", &tiff);
+        exif_entries.extend(decode_canon_from_tiff(
+            payload_bytes,
+            payload.data_offset,
+            "cr3",
+            &tiff,
+            &exif_entries,
+        ));
+        entries.extend(exif_entries);
+    }
+
+    // Reuse the EXIF entries we already accumulated above so the Canon
+    // decoder's `Make=Canon` gate is satisfied for the CMT2/3/4 IFDs.
+    let exif_entries_for_gate: Vec<MetadataEntry> = entries
+        .iter()
+        .filter(|entry| entry.namespace == "exif")
+        .cloned()
+        .collect();
+
+    for payload in isobmff.canon_cmt_payloads() {
+        let Some(payload_bytes) = payload_slice(
+            source.bytes(),
+            payload.data_offset,
+            payload.data_length as usize,
+        ) else {
+            continue;
+        };
+        if !(payload_bytes.starts_with(b"II") || payload_bytes.starts_with(b"MM")) {
+            continue;
+        }
+        let container_name: &'static str = match payload.tag.as_deref() {
+            Some("CMT2") => "cr3-cmt2",
+            Some("CMT3") => "cr3-cmt3",
+            Some("CMT4") => "cr3-cmt4",
+            _ => "cr3-cmt",
+        };
+        let Ok(tiff) =
+            xifty_container_tiff::parse_bytes(payload_bytes, payload.data_offset, "cr3_canon_cmt")
+        else {
+            continue;
+        };
+        entries.extend(decode_canon_from_tiff(
+            payload_bytes,
+            payload.data_offset,
+            container_name,
+            &tiff,
+            &exif_entries_for_gate,
+        ));
+    }
+
+    Ok(("cr3".to_string(), isobmff.nodes, entries, issues))
 }
 
 /// Extraction path for Fuji RAF.
