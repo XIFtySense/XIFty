@@ -18,6 +18,10 @@ pub fn detect(source: &SourceBytes) -> Result<Format, XiftyError> {
         return Ok(Format::Png);
     }
 
+    if bytes.len() >= 6 && (&bytes[0..6] == b"GIF87a" || &bytes[0..6] == b"GIF89a") {
+        return Ok(Format::Gif);
+    }
+
     if bytes.len() >= 12 && &bytes[0..4] == b"RIFF" && &bytes[8..12] == b"WEBP" {
         return Ok(Format::Webp);
     }
@@ -256,6 +260,8 @@ mod tests {
         let ogg = temp_file("a.ogg", b"OggS\x00\x02\x00\x00");
         let mp3_id3 = temp_file("a.mp3", b"ID3\x03\x00\x00\x00\x00\x00\x00");
         let mp3_sync = temp_file("b.mp3", &[0xFF, 0xFB, 0x90, 0x04]);
+        let gif87 = temp_file("a.gif", b"GIF87a\x01\x00\x01\x00\x00\x00\x00");
+        let gif89 = temp_file("b.gif", b"GIF89a\x01\x00\x01\x00\x00\x00\x00");
         assert_eq!(
             detect(&SourceBytes::from_path(&jpeg).unwrap()).unwrap(),
             Format::Jpeg
@@ -324,8 +330,18 @@ mod tests {
             detect(&SourceBytes::from_path(&mp3_sync).unwrap()).unwrap(),
             Format::Mp3
         );
+        assert_eq!(
+            detect(&SourceBytes::from_path(&gif87).unwrap()).unwrap(),
+            Format::Gif
+        );
+        assert_eq!(
+            detect(&SourceBytes::from_path(&gif89).unwrap()).unwrap(),
+            Format::Gif
+        );
         let _ = fs::remove_file(mp3_id3);
         let _ = fs::remove_file(mp3_sync);
+        let _ = fs::remove_file(gif87);
+        let _ = fs::remove_file(gif89);
         let _ = fs::remove_file(jpeg);
         let _ = fs::remove_file(tiff);
         let _ = fs::remove_file(png);

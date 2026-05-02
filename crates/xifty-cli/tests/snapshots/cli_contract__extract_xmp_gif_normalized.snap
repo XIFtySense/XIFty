@@ -1,0 +1,94 @@
+---
+source: crates/xifty-cli/tests/cli_contract.rs
+expression: "extract_json(\"xmp.gif\", ViewMode::Normalized)"
+---
+{
+  "input": {
+    "container": "gif",
+    "detected_format": "gif",
+    "path": "xmp.gif"
+  },
+  "normalized": {
+    "fields": [
+      {
+        "confidence": 0.949999988079071,
+        "field": "author",
+        "sources": [
+          {
+            "container": "gif",
+            "namespace": "xmp",
+            "offset_end": 627,
+            "offset_start": 27,
+            "path": "xmp_packet"
+          }
+        ],
+        "value": {
+          "kind": "string",
+          "value": "Kai"
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
+        "field": "dimensions.width",
+        "sources": [
+          {
+            "container": "gif",
+            "namespace": "gif",
+            "notes": [
+              "derived from GIF Logical Screen Descriptor"
+            ],
+            "offset_end": 13,
+            "offset_start": 6,
+            "path": "lsd"
+          }
+        ],
+        "value": {
+          "kind": "integer",
+          "value": 1
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
+        "field": "dimensions.height",
+        "sources": [
+          {
+            "container": "gif",
+            "namespace": "gif",
+            "notes": [
+              "derived from GIF Logical Screen Descriptor"
+            ],
+            "offset_end": 13,
+            "offset_start": 6,
+            "path": "lsd"
+          }
+        ],
+        "value": {
+          "kind": "integer",
+          "value": 1
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
+        "field": "animation.frame_count",
+        "sources": [
+          {
+            "container": "gif",
+            "namespace": "gif",
+            "notes": [
+              "count of GIF Image Descriptor blocks"
+            ]
+          }
+        ],
+        "value": {
+          "kind": "integer",
+          "value": 0
+        }
+      }
+    ]
+  },
+  "report": {
+    "conflicts": [],
+    "issues": []
+  },
+  "schema_version": "0.1.0"
+}

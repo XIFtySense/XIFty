@@ -1,0 +1,58 @@
+---
+source: crates/xifty-cli/tests/cli_contract.rs
+expression: "probe_json(\"happy.gif\")"
+---
+{
+  "containers": [
+    {
+      "kind": "container",
+      "label": "gif",
+      "offset_end": 35,
+      "offset_start": 0
+    },
+    {
+      "kind": "block",
+      "label": "lsd",
+      "offset_end": 13,
+      "offset_start": 6,
+      "parent_label": "gif"
+    },
+    {
+      "kind": "block",
+      "label": "gct",
+      "offset_end": 19,
+      "offset_start": 13,
+      "parent_label": "gif"
+    },
+    {
+      "kind": "block",
+      "label": "image_descriptor",
+      "offset_end": 34,
+      "offset_start": 19,
+      "parent_label": "gif"
+    },
+    {
+      "kind": "block",
+      "label": "trailer",
+      "offset_end": 35,
+      "offset_start": 34,
+      "parent_label": "gif"
+    }
+  ],
+  "input": {
+    "container": "gif",
+    "detected_format": "gif",
+    "path": "happy.gif"
+  },
+  "report": {
+    "conflicts": [],
+    "issues": [
+      {
+        "code": "no_metadata_entries",
+        "message": "no supported metadata entries were decoded",
+        "severity": "info"
+      }
+    ]
+  },
+  "schema_version": "0.1.0"
+}
