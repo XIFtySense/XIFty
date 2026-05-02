@@ -59,17 +59,19 @@ CI runs the same test on pull requests via `.github/workflows/pages-demo.yml`.
 
 ## Current Scope
 
-The browser MVP is intentionally narrower than the native/server surface.
+The browser demo runs the full `xifty-wasm` surface — every container the
+native Rust crates support is available in the browser. Practical limits are
+file-size / browser-memory rather than format coverage.
 
-Current intended browser-first formats:
+Currently exercised end-to-end in the demo:
 
-- JPEG
-- TIFF
-- PNG
-- WebP
+- **Still images:** JPEG, TIFF, DNG, PNG, WebP, GIF, HEIF/HEIC, AVIF
+- **Camera RAW:** Canon CR2 / CR3, Nikon NEF, Sony ARW, Fuji RAF, Olympus ORF, Panasonic RW2
+- **Video:** MP4, MOV (including Sony FX/A7-series PROF/USMT video metadata)
+- **Audio:** MP3 (ID3v2), WAV (BWF + iXML), M4A, FLAC, OGG (Vorbis / Opus), AIFF / AIFC
 
-Media-heavy formats such as HEIF and MP4/MOV remain future work for the browser
-path.
+Large RAW and long-form video files may stress browser memory; for production
+batch processing prefer the Node binding on Lambda or the native CLI.
 
 ## Current Presentation Model
 
