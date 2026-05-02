@@ -808,6 +808,7 @@ dependencies = [
  "xifty-container-jpeg",
  "xifty-container-ogg",
  "xifty-container-png",
+ "xifty-container-raf",
  "xifty-container-riff",
  "xifty-container-tiff",
  "xifty-core",
@@ -817,6 +818,7 @@ dependencies = [
  "xifty-meta-bwf",
  "xifty-meta-canon",
  "xifty-meta-exif",
+ "xifty-meta-fuji",
  "xifty-meta-icc",
  "xifty-meta-id3v2",
  "xifty-meta-iptc",
@@ -893,6 +895,15 @@ dependencies = [
 name = "xifty-container-png"
 version = "0.1.11"
 dependencies = [
+ "xifty-core",
+ "xifty-source",
+]
+
+[[package]]
+name = "xifty-container-raf"
+version = "0.1.11"
+dependencies = [
+ "xifty-container-jpeg",
  "xifty-core",
  "xifty-source",
 ]
@@ -977,6 +988,15 @@ name = "xifty-meta-exif"
 version = "0.1.11"
 dependencies = [
  "xifty-container-jpeg",
+ "xifty-container-tiff",
+ "xifty-core",
+ "xifty-source",
+]
+
+[[package]]
+name = "xifty-meta-fuji"
+version = "0.1.11"
+dependencies = [
  "xifty-container-tiff",
  "xifty-core",
  "xifty-source",

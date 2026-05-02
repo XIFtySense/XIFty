@@ -10,6 +10,7 @@ use xifty_container_isobmff::parse as parse_isobmff;
 use xifty_container_jpeg::parse as parse_jpeg;
 use xifty_container_ogg::{OggCodec, OggContainer, parse as parse_ogg};
 use xifty_container_png::parse as parse_png;
+use xifty_container_raf::{embedded_tiff_slice as raf_embedded_tiff_slice, parse as parse_raf};
 use xifty_container_riff::parse as parse_riff;
 use xifty_container_tiff::parse as parse_tiff;
 use xifty_core::{
@@ -21,6 +22,7 @@ use xifty_meta_apple::decode_from_tiff as decode_apple_from_tiff;
 use xifty_meta_bwf::{BwfPayload, decode_payload as decode_bwf_payload};
 use xifty_meta_canon::decode_from_tiff as decode_canon_from_tiff;
 use xifty_meta_exif::{decode_from_tiff, exif_payload_from_jpeg};
+use xifty_meta_fuji::decode_from_tiff as decode_fuji_from_tiff;
 use xifty_meta_icc::{IccPayload, decode_payload as decode_icc_payload};
 use xifty_meta_id3v2::{
     Id3v2Payload as Id3v2DecodePayload, decode_payload as decode_id3v2_payload,
@@ -77,6 +79,10 @@ fn probe_source(source: &SourceBytes) -> Result<ProbeOutput, XiftyError> {
         Format::Arw => {
             let parsed = parse_tiff(&source)?;
             ("arw".to_string(), parsed.nodes, parsed.issues)
+        }
+        Format::Raf => {
+            let parsed = parse_raf(&source)?;
+            ("raf".to_string(), parsed.nodes, parsed.issues)
         }
         Format::Png => {
             let parsed = parse_png(&source)?;
@@ -251,6 +257,7 @@ fn extract_source(
         Format::Dng => tiff_extract(&source, "dng")?,
         Format::Cr2 => tiff_extract(&source, "cr2")?,
         Format::Arw => tiff_extract(&source, "arw")?,
+        Format::Raf => raf_extract(&source)?,
         Format::Png => {
             let png = parse_png(&source)?;
             let mut entries = Vec::new();
@@ -690,6 +697,60 @@ fn tiff_extract(
         entries.extend(decoded);
     }
     Ok((container_label.to_string(), tiff.nodes, entries, issues))
+}
+
+/// Extraction path for Fuji RAF.
+///
+/// RAF is a custom container that wraps an embedded EXIF TIFF inside its JPEG
+/// preview block. The container parser surfaces the byte layout; metadata
+/// decoding delegates to the existing TIFF parser + EXIF decoder + the Fuji
+/// MakerNote decoder, preserving the SRS §3.1 separation between container
+/// parsing and metadata interpretation. Apple's MakerNote decoder is
+/// intentionally not invoked here — it targets Apple JPEG MakerNote, not
+/// Fuji's, and would never match against a Fuji `Make`.
+fn raf_extract(
+    source: &SourceBytes,
+) -> Result<
+    (
+        String,
+        Vec<xifty_core::ContainerNode>,
+        Vec<MetadataEntry>,
+        Vec<Issue>,
+    ),
+    XiftyError,
+> {
+    let raf = parse_raf(source)?;
+    let mut nodes = raf.nodes.clone();
+    let mut issues = raf.issues.clone();
+    let mut entries: Vec<MetadataEntry> = Vec::new();
+
+    if let Some((tiff_offset, tiff_payload)) = raf_embedded_tiff_slice(source.bytes(), &raf) {
+        match xifty_container_tiff::parse_bytes(tiff_payload, tiff_offset, "raf_exif") {
+            Ok(tiff) => {
+                nodes.extend(tiff.nodes.clone());
+                issues.extend(tiff.issues.clone());
+                let exif_entries = decode_from_tiff(tiff_payload, tiff_offset, "raf", &tiff);
+                entries.extend(exif_entries.clone());
+                entries.extend(decode_fuji_from_tiff(
+                    tiff_payload,
+                    tiff_offset,
+                    "raf",
+                    &tiff,
+                    &exif_entries,
+                ));
+            }
+            Err(_) => {
+                issues.push(namespace_issue(
+                    "raf_embedded_tiff_parse_failed",
+                    "embedded EXIF TIFF inside RAF preview could not be parsed",
+                    tiff_offset,
+                    "raf_embedded_tiff",
+                ));
+            }
+        }
+    }
+
+    Ok(("raf".to_string(), nodes, entries, issues))
 }
 
 fn browser_path(file_name: Option<String>) -> PathBuf {

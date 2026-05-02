@@ -7,6 +7,13 @@ pub fn detect(source: &SourceBytes) -> Result<Format, XiftyError> {
         return Ok(Format::Jpeg);
     }
 
+    // Fuji RAF: ASCII magic "FUJIFILMCCD-RAW" at byte 0. Checked before TIFF
+    // because RAF is a custom container, not TIFF-shaped, even though the
+    // embedded EXIF inside it is a TIFF block.
+    if bytes.len() >= 15 && &bytes[0..15] == b"FUJIFILMCCD-RAW" {
+        return Ok(Format::Raf);
+    }
+
     if bytes.len() >= 4 && (&bytes[0..4] == b"II*\0" || &bytes[0..4] == b"MM\0*") {
         // CR2 must be checked BEFORE DNG: both are TIFF-shaped but mutually
         // exclusive (Canon CR2 carries no DNGVersion tag). The Canon
@@ -400,6 +407,7 @@ mod tests {
         let mp3_sync = temp_file("b.mp3", &[0xFF, 0xFB, 0x90, 0x04]);
         let gif87 = temp_file("a.gif", b"GIF87a\x01\x00\x01\x00\x00\x00\x00");
         let gif89 = temp_file("b.gif", b"GIF89a\x01\x00\x01\x00\x00\x00\x00");
+        let raf = temp_file("a.raf", b"FUJIFILMCCD-RAW0201FF129502");
         assert_eq!(
             detect(&SourceBytes::from_path(&jpeg).unwrap()).unwrap(),
             Format::Jpeg
@@ -476,6 +484,11 @@ mod tests {
             detect(&SourceBytes::from_path(&gif89).unwrap()).unwrap(),
             Format::Gif
         );
+        assert_eq!(
+            detect(&SourceBytes::from_path(&raf).unwrap()).unwrap(),
+            Format::Raf
+        );
+        let _ = fs::remove_file(raf);
         let _ = fs::remove_file(mp3_id3);
         let _ = fs::remove_file(mp3_sync);
         let _ = fs::remove_file(gif87);
