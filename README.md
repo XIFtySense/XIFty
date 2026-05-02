@@ -92,14 +92,10 @@ The two core commands are:
 
 Current container coverage:
 
-- JPEG / TIFF / DNG
-- PNG / WebP
-- HEIF / HEIC
-- MP4 / MOV
-- M4A / M4B / M4P
-- FLAC
-- OGG (Vorbis / Opus)
-- AIFF / AIFC
+- **Still images:** JPEG / TIFF / DNG / PNG / WebP / GIF / HEIF / HEIC / AVIF
+- **Camera RAW:** Canon CR2, Canon CR3, Nikon NEF, Sony ARW, Fuji RAF, Olympus ORF, Panasonic RW2
+- **Video:** MP4 / MOV / M4A / M4B / M4P
+- **Audio:** MP3 (ID3v2), WAV (RIFF + BWF + iXML), FLAC, OGG (Vorbis / Opus), AIFF / AIFC
 
 Current namespace coverage:
 
@@ -110,15 +106,16 @@ Current namespace coverage:
 - bounded QuickTime
 - bounded iTunes (`ilst` atoms: Title, Artist, Album, AlbumArtist, Year, Genre, Comment, Composer, Lyrics, Encoder, TrackNumber, DiskNumber, Compilation, BeatsPerMinute, CoverArt)
 - bounded DJI drone telemetry from MP4 `udta` and JPG XMP `drone-dji:*` (flight pitch/yaw/roll, gimbal pitch/yaw/roll, speed XYZ, GPS location, camera model, serial number, plus absolute/relative altitude on JPG — surfaced under `drone.*`, `device.*`, and `location` in the normalized view)
-- selected Sony and Apple vendor metadata paths
+- vendor MakerNote — Apple, Sony (still), Canon, Fuji, Olympus, Panasonic, Nikon (encrypted regions flagged, not decrypted)
+- **Sony video metadata** — PROF/USMT UUID atoms in MP4/MOV (FX/A7-series): codec, bitrate, frame rate, resolution, time zone, software, etc.
+- bounded ID3v2 (MP3, AIFF embedded `ID3 ` chunk)
+- bounded BWF `bext` and iXML (WAV)
 - bounded Vorbis comment (FLAC, OGG)
 - bounded OGG framing (Vorbis + Opus ident headers, last-page granule duration, multiplexed-stream detection)
 - bounded FLAC stream info (sample rate, channels, bit depth, duration, embedded picture)
 - bounded AIFF stream info (sample rate, channels, bit depth, duration from `COMM` chunk)
-
-  Note: AIFF files may contain an embedded `ID3 ` chunk. The chunk offset is
-  located and tracked but the tag payload is not decoded in this release — tag
-  decoding is a follow-up once an ID3v2 decoder crate is available.
+- bounded GIF (logical screen, frame count, animation duration, palette, loop count, XMP App Extension)
+- bounded AVIF HDR color (`color.primaries` / `transfer` / `matrix` / `range` / `bit_depth` from `colr` / `cicp` / `pixi` boxes)
 
 Current product surfaces:
 
