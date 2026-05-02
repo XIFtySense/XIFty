@@ -80,6 +80,10 @@ fn probe_source(source: &SourceBytes) -> Result<ProbeOutput, XiftyError> {
             let parsed = parse_isobmff(&source)?;
             ("isobmff".to_string(), parsed.nodes, parsed.issues)
         }
+        Format::Avif => {
+            let parsed = parse_isobmff(&source)?;
+            ("isobmff".to_string(), parsed.nodes, parsed.issues)
+        }
         Format::Mp4 => {
             let parsed = parse_isobmff(&source)?;
             ("isobmff".to_string(), parsed.nodes, parsed.issues)
@@ -468,6 +472,12 @@ fn extract_source(
             ("webp".to_string(), riff.nodes, entries, issues)
         }
         Format::Heif => {
+            let isobmff = parse_isobmff(&source)?;
+            let mut issues = isobmff.issues.clone();
+            let entries = isobmff_entries(&isobmff, source.bytes(), format.as_str(), &mut issues);
+            ("isobmff".to_string(), isobmff.nodes, entries, issues)
+        }
+        Format::Avif => {
             let isobmff = parse_isobmff(&source)?;
             let mut issues = isobmff.issues.clone();
             let entries = isobmff_entries(&isobmff, source.bytes(), format.as_str(), &mut issues);
@@ -1154,7 +1164,7 @@ fn isobmff_entries(
         if let Some(payload_bytes) =
             payload_slice(bytes, payload.data_offset, payload.data_length as usize)
         {
-            let tiff_view = if format_name == "heif" {
+            let tiff_view = if format_name == "heif" || format_name == "avif" {
                 heif_exif_tiff(payload_bytes, payload.data_offset)
             } else if payload_bytes.starts_with(b"II") || payload_bytes.starts_with(b"MM") {
                 Some((payload.data_offset, payload_bytes))
