@@ -34,6 +34,7 @@ xifty-meta-apple = { path = "../xifty-meta-apple" }
 xifty-meta-bwf = { path = "../xifty-meta-bwf" }
 xifty-meta-ixml = { path = "../xifty-meta-ixml" }
 xifty-meta-sony = { path = "../xifty-meta-sony" }
+xifty-meta-nikon = { path = "../xifty-meta-nikon" }
 xifty-meta-olympus = { path = "../xifty-meta-olympus" }
 xifty-meta-canon = { path = "../xifty-meta-canon" }
 xifty-meta-fuji = { path = "../xifty-meta-fuji" }

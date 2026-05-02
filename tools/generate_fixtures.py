@@ -326,6 +326,106 @@ def build_rw2():
     return bytes(out)
 
 
+def build_nikon_nef():
+    """Build a synthetic Nikon NEF.
+
+    NEF is a TIFF container whose IFD0 carries `Make=NIKON CORPORATION` plus
+    a Nikon-specific MakerNote (EXIF tag 0x927C). The MakerNote uses Nikon's
+    TIFF-in-TIFF v2/v3 layout: the payload starts with the 6-byte signature
+    `Nikon\\x00\\x02`, a 1-byte minor version, two NUL bytes, then a fresh
+    little-endian TIFF header at payload offset +10. All inner-IFD offsets
+    are relative to that inner TIFF header.
+
+    The synthetic MakerNote here contains exactly two entries:
+
+      * `0x0004` Quality (ASCII "FINE\\0") — a plain tag the decoder must
+        surface in the `nikon` namespace.
+      * `0x0091` ShotInfo (UNDEFINED) — a 16-byte synthetic blob whose first
+        two bytes (`0x02 0x04`) emulate a v0204 version preamble. Per the
+        v1 encryption policy this tag MUST be skipped by the decoder and
+        surfaced via a `nikon_makernote_encrypted_region` non-fatal Issue.
+    """
+    p16 = lambda v: struct.pack("<H", v)
+    p32 = lambda v: struct.pack("<I", v)
+
+    # ---- Inner Nikon MakerNote payload ----
+    quality_blob = b"FINE\x00"
+    shot_info_blob = b"\x02\x04abcdefghijklmnop"  # v0204 + 16 bytes of garbage
+    # Inner TIFF header lives at payload offset 10. Inner IFD0 at inner
+    # offset 8 = payload offset 18. count(2) + 2 entries(24) + next(4) = 30
+    # bytes ⇒ payload-relative blob area starts at inner offset 8+30 = 38.
+    inner_quality_off = 38
+    inner_shot_info_off = inner_quality_off + len(quality_blob)
+    payload = bytearray()
+    payload += b"Nikon\x00\x02"
+    payload += b"\x10"  # minor version
+    payload += b"\x00\x00"
+    payload += b"II*\x00"
+    payload += p32(8)
+    payload += p16(2)
+    # 0x0004 Quality, ASCII, count=5, out-of-line.
+    payload += p16(0x0004) + p16(2) + p32(len(quality_blob)) + p32(inner_quality_off)
+    # 0x0091 ShotInfo, UNDEFINED, encrypted, out-of-line.
+    payload += p16(0x0091) + p16(7) + p32(len(shot_info_blob)) + p32(inner_shot_info_off)
+    payload += p32(0)
+    payload += quality_blob
+    payload += shot_info_blob
+
+    # ---- Outer TIFF wrapping the MakerNote ----
+    # IFD0 carries: ImageWidth, ImageLength, Make, Model, ExifIFD pointer
+    # (5 entries). The MakerNote tag (0x927C) lives inside the ExifIFD per
+    # the EXIF spec, so we route it through a tiny ExifIFD that holds just
+    # 0x927C plus the same DateTime/Make conventions other fixtures use.
+    make_blob = b"NIKON CORPORATION\x00"
+    model_blob = b"NIKON D850\x00"
+    dto_blob = b"2024:04:16 12:34:56\x00"
+
+    # IFD0 layout: header(8) + count(2) + 5 entries(60) + next(4) = 74.
+    ifd0_offset = 8
+    ifd0_count = 5
+    ifd0_size = 2 + ifd0_count * 12 + 4
+    data_base = ifd0_offset + ifd0_size  # = 82
+    # Place out-of-line blobs after IFD0: Make, Model.
+    make_off = data_base
+    model_off = make_off + len(make_blob)
+    # ExifIFD lives after the outer blobs.
+    exif_off = model_off + len(model_blob)
+    exif_count = 2  # DateTimeOriginal + MakerNote
+    exif_size = 2 + exif_count * 12 + 4
+    exif_data_base = exif_off + exif_size
+    dto_off = exif_data_base
+    maker_off = dto_off + len(dto_blob)
+
+    out = bytearray()
+    out += b"II*\x00"
+    out += p32(ifd0_offset)
+    # IFD0 entries
+    out += p16(ifd0_count)
+    # 0x0100 ImageWidth
+    out += p16(0x0100) + p16(4) + p32(1) + p32(800)
+    # 0x0101 ImageLength
+    out += p16(0x0101) + p16(4) + p32(1) + p32(600)
+    # 0x010F Make
+    out += p16(0x010F) + p16(2) + p32(len(make_blob)) + p32(make_off)
+    # 0x0110 Model
+    out += p16(0x0110) + p16(2) + p32(len(model_blob)) + p32(model_off)
+    # 0x8769 ExifIFD pointer
+    out += p16(0x8769) + p16(4) + p32(1) + p32(exif_off)
+    out += p32(0)  # next IFD = 0
+    out += make_blob
+    out += model_blob
+    # ExifIFD
+    out += p16(exif_count)
+    # 0x9003 DateTimeOriginal
+    out += p16(0x9003) + p16(2) + p32(len(dto_blob)) + p32(dto_off)
+    # 0x927C MakerNote (UNDEFINED)
+    out += p16(0x927C) + p16(7) + p32(len(payload)) + p32(maker_off)
+    out += p32(0)
+    out += dto_blob
+    out += bytes(payload)
+    return bytes(out)
+
+
 def build_raf(exif_tiff):
     """Build a synthetic Fuji RAF whose preview block is a JFIF JPEG carrying
     the supplied TIFF as its APP1/Exif payload. The RAF header is 148 bytes;
@@ -1710,6 +1810,7 @@ def main():
         "happy.raf": build_raf(build_tiff(gps=False, make="FUJIFILM", fuji_makernote=True)),
         "happy.orf": build_tiff(gps=False, make="OLYMPUS", olympus_makernote=True, orf=True),
         "happy.rw2": build_rw2(),
+        "happy.nef": build_nikon_nef(),
         "happy.png": build_png(build_tiff(gps=False)),
         "icc.png": build_png_with_icc(icc),
         "iptc.png": build_png_with_iptc(build_iptc_iim()),

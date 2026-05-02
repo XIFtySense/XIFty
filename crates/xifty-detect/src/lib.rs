@@ -52,6 +52,13 @@ pub fn detect(source: &SourceBytes) -> Result<Format, XiftyError> {
         if is_arw_tiff(bytes) {
             return Ok(Format::Arw);
         }
+        // NEF (Nikon RAW) is checked AFTER DNG for the same reason: a
+        // Nikon-shot DNG produced via Adobe DNG Converter would carry both
+        // `DNGVersion` and `Make=NIKON CORPORATION`, and DNG is the more
+        // specific normalized superset.
+        if is_nef_tiff(bytes) {
+            return Ok(Format::Nef);
+        }
         return Ok(Format::Tiff);
     }
 
@@ -301,6 +308,101 @@ fn is_arw_tiff(bytes: &[u8]) -> bool {
         }
         let prefix = &trimmed[..4];
         return prefix.eq_ignore_ascii_case(b"SONY");
+    }
+    false
+}
+
+/// Probe IFD0 of a TIFF-shaped byte stream for a Nikon Make tag (0x010F).
+///
+/// Returns true when IFD0 carries a Make entry whose ASCII bytes uppercase
+/// to a value starting with "NIKON" (matches "NIKON", "NIKON CORPORATION",
+/// "Nikon Corporation", etc.). Mirrors the defensiveness of `is_arw_tiff`:
+/// any out-of-bounds read or malformed entry returns `false` so detection
+/// degrades to plain TIFF rather than surfacing a parse error.
+fn is_nef_tiff(bytes: &[u8]) -> bool {
+    if bytes.len() < 8 {
+        return false;
+    }
+    let little_endian = &bytes[0..2] == b"II";
+    let read_u16 = |slice: &[u8]| -> Option<u16> {
+        let arr: [u8; 2] = slice.try_into().ok()?;
+        Some(if little_endian {
+            u16::from_le_bytes(arr)
+        } else {
+            u16::from_be_bytes(arr)
+        })
+    };
+    let read_u32 = |slice: &[u8]| -> Option<u32> {
+        let arr: [u8; 4] = slice.try_into().ok()?;
+        Some(if little_endian {
+            u32::from_le_bytes(arr)
+        } else {
+            u32::from_be_bytes(arr)
+        })
+    };
+
+    let ifd0_offset = match read_u32(&bytes[4..8]) {
+        Some(offset) => offset as usize,
+        None => return false,
+    };
+    let count_slice = match bytes.get(ifd0_offset..ifd0_offset + 2) {
+        Some(slice) => slice,
+        None => return false,
+    };
+    let count = match read_u16(count_slice) {
+        Some(count) => count as usize,
+        None => return false,
+    };
+    let entries_start = ifd0_offset + 2;
+    let entries_end = entries_start + count * 12;
+    let entries = match bytes.get(entries_start..entries_end) {
+        Some(slice) => slice,
+        None => return false,
+    };
+    for entry in entries.chunks_exact(12) {
+        let Some(tag) = read_u16(&entry[0..2]) else {
+            continue;
+        };
+        if tag != 0x010F {
+            continue;
+        }
+        let Some(type_id) = read_u16(&entry[2..4]) else {
+            return false;
+        };
+        if type_id != 2 {
+            return false;
+        }
+        let Some(count) = read_u32(&entry[4..8]) else {
+            return false;
+        };
+        let count = count as usize;
+        let value_bytes: &[u8] = if count <= 4 {
+            &entry[8..8 + count]
+        } else {
+            let Some(offset) = read_u32(&entry[8..12]) else {
+                return false;
+            };
+            let offset = offset as usize;
+            match bytes.get(offset..offset + count) {
+                Some(slice) => slice,
+                None => return false,
+            }
+        };
+        let trimmed = value_bytes
+            .iter()
+            .copied()
+            .take_while(|b| *b != 0)
+            .collect::<Vec<u8>>();
+        let trimmed = trimmed
+            .iter()
+            .copied()
+            .skip_while(|b| b.is_ascii_whitespace())
+            .collect::<Vec<u8>>();
+        if trimmed.len() < 5 {
+            return false;
+        }
+        let prefix = &trimmed[..5];
+        return prefix.eq_ignore_ascii_case(b"NIKON");
     }
     false
 }
@@ -762,6 +864,76 @@ mod tests {
         bytes.extend_from_slice(&0x010Fu16.to_le_bytes());
         bytes.extend_from_slice(&2u16.to_le_bytes()); // ASCII
         bytes.extend_from_slice(&16u32.to_le_bytes()); // count > 4 forces offset path
+        bytes.extend_from_slice(&0xFFFF_FFFFu32.to_le_bytes()); // bogus offset
+        bytes.extend_from_slice(&0u32.to_le_bytes());
+        let path = temp_file("a.tif", &bytes);
+        assert_eq!(
+            detect(&SourceBytes::from_path(&path).unwrap()).unwrap(),
+            Format::Tiff
+        );
+        let _ = fs::remove_file(path);
+    }
+
+    #[test]
+    fn detects_nef_when_make_is_nikon_corporation() {
+        let nef_bytes = tiff_with_make("NIKON CORPORATION");
+        let path = temp_file("a.nef", &nef_bytes);
+        assert_eq!(
+            detect(&SourceBytes::from_path(&path).unwrap()).unwrap(),
+            Format::Nef
+        );
+        let _ = fs::remove_file(path);
+    }
+
+    #[test]
+    fn detects_nef_when_make_is_nikon_short() {
+        let nef_bytes = tiff_with_make("NIKON");
+        let path = temp_file("b.nef", &nef_bytes);
+        assert_eq!(
+            detect(&SourceBytes::from_path(&path).unwrap()).unwrap(),
+            Format::Nef
+        );
+        let _ = fs::remove_file(path);
+    }
+
+    #[test]
+    fn dng_takes_priority_over_nef() {
+        // DNGVersion-bearing TIFF must classify as DNG even with no Nikon
+        // signal — and a hypothetical Nikon-shot DNG (via Adobe DNG Converter)
+        // would also stay DNG via the same branch ordering. The tag-only DNG
+        // fixture suffices because is_nef_tiff is only consulted when
+        // is_dng_tiff returns false.
+        let dng_bytes = tiff_with_tag(0xC612);
+        let path = temp_file("a.dng", &dng_bytes);
+        assert_eq!(
+            detect(&SourceBytes::from_path(&path).unwrap()).unwrap(),
+            Format::Dng
+        );
+        let _ = fs::remove_file(path);
+    }
+
+    #[test]
+    fn does_not_classify_non_nikon_make_as_nef() {
+        let bytes = tiff_with_make("XIFtyCam");
+        let path = temp_file("a.tif", &bytes);
+        assert_eq!(
+            detect(&SourceBytes::from_path(&path).unwrap()).unwrap(),
+            Format::Tiff
+        );
+        let _ = fs::remove_file(path);
+    }
+
+    #[test]
+    fn malformed_nef_make_offset_falls_back_to_tiff() {
+        // ASCII Make (0x010F) entry whose count is 32 but whose offset points
+        // past the buffer — must not panic and must not classify as NEF.
+        let mut bytes = Vec::new();
+        bytes.extend_from_slice(b"II*\0");
+        bytes.extend_from_slice(&8u32.to_le_bytes());
+        bytes.extend_from_slice(&1u16.to_le_bytes());
+        bytes.extend_from_slice(&0x010Fu16.to_le_bytes());
+        bytes.extend_from_slice(&2u16.to_le_bytes()); // ASCII
+        bytes.extend_from_slice(&32u32.to_le_bytes()); // count > 4 forces offset path
         bytes.extend_from_slice(&0xFFFF_FFFFu32.to_le_bytes()); // bogus offset
         bytes.extend_from_slice(&0u32.to_le_bytes());
         let path = temp_file("a.tif", &bytes);

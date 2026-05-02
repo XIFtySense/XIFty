@@ -23,6 +23,7 @@ members = [
   "crates/xifty-meta-bwf",
   "crates/xifty-meta-ixml",
   "crates/xifty-meta-sony",
+  "crates/xifty-meta-nikon",
   "crates/xifty-meta-olympus",
   "crates/xifty-meta-canon",
   "crates/xifty-meta-fuji",
