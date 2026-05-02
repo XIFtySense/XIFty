@@ -831,6 +831,7 @@ dependencies = [
  "xifty-meta-quicktime",
  "xifty-meta-rtmd",
  "xifty-meta-sony",
+ "xifty-meta-sony-video",
  "xifty-meta-vorbis-comment",
  "xifty-meta-xmp",
  "xifty-normalize",
@@ -1095,6 +1096,14 @@ name = "xifty-meta-sony"
 version = "0.1.11"
 dependencies = [
  "xifty-container-tiff",
+ "xifty-core",
+ "xifty-source",
+]
+
+[[package]]
+name = "xifty-meta-sony-video"
+version = "0.1.11"
+dependencies = [
  "xifty-core",
  "xifty-source",
 ]

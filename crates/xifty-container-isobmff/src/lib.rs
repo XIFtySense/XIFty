@@ -28,9 +28,20 @@ const CANON_CMT_UUID: [u8; 16] = [
     0x85, 0xc0, 0xb6, 0x87, 0x82, 0x0f, 0x11, 0xe0, 0x81, 0x11, 0xf4, 0xce, 0x46, 0x2b, 0x6a, 0x48,
 ];
 
+/// Sony "User Data Atom UUID" tail. The full 16-byte usertype is
+/// `<atom-name (4 ASCII bytes)> + SONY_USERDATA_UUID_TAIL`. Atom names seen
+/// in the wild include `PROF`, `USMT`, `PRPF`, `AOLY`, `MTDT`. Source:
+/// ExifTool `lib/Image/ExifTool/QuickTime.pm` (`UUID-PROF` at line ~711-718,
+/// `UUID-USMT` at line ~1223-1231 and ~1449-1457).
+const SONY_USERDATA_UUID_TAIL: [u8; 12] = [
+    0x21, 0xd2, 0x4f, 0xce, 0xbb, 0x88, 0x69, 0x5c, 0xfa, 0xc9, 0xc7, 0x40,
+];
+
 /// Recognised payload `kind` discriminants:
 /// `"exif"`, `"xmp"`, `"icc"`, `"iptc"`, `"quicktime"`, `"quicktime-udta"`,
-/// `"itunes"`, and `"canon-cmt"` (Canon CR3 CMT2/CMT3/CMT4 maker-note IFDs).
+/// `"itunes"`, `"canon-cmt"` (Canon CR3 CMT2/CMT3/CMT4 maker-note IFDs), and
+/// `"sony-video-atom"` (Sony PROF/USMT/etc. user-data UUID atoms — `tag`
+/// holds the 4-character ASCII atom name from the usertype prefix).
 #[derive(Debug, Clone)]
 pub struct IsobmffPayload {
     pub kind: &'static str,
@@ -151,6 +162,17 @@ impl IsobmffContainer {
         self.payloads
             .iter()
             .filter(|payload| payload.kind == "canon-cmt")
+    }
+
+    /// Sony video user-data atoms surfaced from `uuid` boxes whose 16-byte
+    /// usertype matches `<atom-name (4 ASCII)> + SONY_USERDATA_UUID_TAIL`.
+    /// `payload.tag` holds the atom name (`"PROF"`, `"USMT"`, `"PRPF"`, ...).
+    /// `payload.data_offset`/`data_length` cover the bytes that follow the
+    /// 16-byte usertype — i.e. the slice that decoders consume directly.
+    pub fn sony_video_atoms(&self) -> impl Iterator<Item = &IsobmffPayload> {
+        self.payloads
+            .iter()
+            .filter(|payload| payload.kind == "sony-video-atom")
     }
 
     pub fn is_heif_still_image(&self) -> bool {
@@ -1843,10 +1865,36 @@ fn parse_uuid(
     usertype.copy_from_slice(usertype_slice);
     let inner_start = parsed.data_offset + 16;
     if usertype != CANON_CMT_UUID {
+        // Sony "User Data Atom UUID family": usertype tail bytes 4..16 match
+        // SONY_USERDATA_UUID_TAIL and bytes 0..4 carry the atom name in
+        // ASCII (PROF/USMT/PRPF/AOLY/MTDT/...). Surface as a single payload
+        // per atom; downstream `xifty-meta-sony-video` dispatches by tag.
+        if usertype[4..16] == SONY_USERDATA_UUID_TAIL
+            && usertype[0..4]
+                .iter()
+                .all(|b| b.is_ascii_alphanumeric() || *b == b' ')
+        {
+            let name_bytes = [usertype[0], usertype[1], usertype[2], usertype[3]];
+            let atom_name = fourcc(name_bytes);
+            payloads.push(IsobmffPayload {
+                kind: "sony-video-atom",
+                tag: Some(atom_name.clone()),
+                offset_start: cursor.absolute_offset(parsed.start),
+                offset_end: cursor.absolute_offset(parsed.end),
+                data_offset: cursor.absolute_offset(inner_start),
+                data_length: (parsed.end - inner_start) as u64,
+                path: format!("{}/{}", parsed.path, atom_name),
+            });
+            return;
+        }
+        let usertype_hex = usertype
+            .iter()
+            .map(|b| format!("{b:02x}"))
+            .collect::<String>();
         issues.push(Issue {
             severity: Severity::Info,
             code: "isobmff_structure_recognized_uninterpreted".into(),
-            message: "recognized uuid box but the usertype is not handled".into(),
+            message: format!("recognized uuid box but the usertype {usertype_hex} is not handled"),
             offset: Some(cursor.absolute_offset(parsed.start)),
             context: Some(parsed.path.clone()),
         });
@@ -2212,9 +2260,56 @@ mod tests {
         let parsed = parse_bytes(&bytes, 0).unwrap();
         assert_eq!(parsed.canon_cmt_payloads().count(), 0);
         assert_eq!(parsed.exif_payloads().count(), 0);
-        assert!(parsed.issues.iter().any(|issue| issue.code
-            == "isobmff_structure_recognized_uninterpreted"
-            && issue.context.as_deref() == Some("moov/uuid")));
+        assert_eq!(parsed.sony_video_atoms().count(), 0);
+        let issue = parsed
+            .issues
+            .iter()
+            .find(|issue| {
+                issue.code == "isobmff_structure_recognized_uninterpreted"
+                    && issue.context.as_deref() == Some("moov/uuid")
+            })
+            .expect("uninterpreted-uuid issue");
+        // Issue body now carries the lowercase-hex usertype so future unknown
+        // families are actionable from the issue stream alone.
+        assert!(
+            issue.message.contains("00000000000000000000000000000000"),
+            "expected hex in {}",
+            issue.message,
+        );
+    }
+
+    #[test]
+    fn recognizes_sony_userdata_uuid_family() {
+        // Synthetic Sony-PROF UUID box. Usertype = "PROF" + Sony tail; payload
+        // body is opaque (the decoder lives in xifty-meta-sony-video).
+        let mut uuid_payload = Vec::new();
+        uuid_payload.extend_from_slice(b"PROF");
+        uuid_payload.extend_from_slice(&[
+            0x21, 0xd2, 0x4f, 0xce, 0xbb, 0x88, 0x69, 0x5c, 0xfa, 0xc9, 0xc7, 0x40,
+        ]);
+        uuid_payload.extend_from_slice(b"opaque-prof-bytes");
+        let uuid = boxed(b"uuid", &uuid_payload);
+        let bytes = [boxed(b"ftyp", b"isom\0\0\0\0mp42"), boxed(b"moov", &uuid)].concat();
+
+        let parsed = parse_bytes(&bytes, 0).unwrap();
+        let atoms: Vec<_> = parsed.sony_video_atoms().collect();
+        assert_eq!(atoms.len(), 1, "expected one sony-video-atom payload");
+        let atom = atoms[0];
+        assert_eq!(atom.tag.as_deref(), Some("PROF"));
+        assert_eq!(atom.kind, "sony-video-atom");
+        // data_offset/data_length must skip the 16-byte usertype.
+        assert_eq!(atom.data_length, b"opaque-prof-bytes".len() as u64);
+        // No uninterpreted info-issue for a known Sony family.
+        assert!(
+            !parsed.issues.iter().any(|issue| issue.code
+                == "isobmff_structure_recognized_uninterpreted"
+                && issue
+                    .context
+                    .as_deref()
+                    .is_some_and(|ctx| ctx.contains("uuid"))),
+            "Sony-PROF UUID should not produce an uninterpreted info issue: {:?}",
+            parsed.issues,
+        );
     }
 
     #[test]
