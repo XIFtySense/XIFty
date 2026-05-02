@@ -31,6 +31,9 @@ use xifty_meta_id3v2::{
 use xifty_meta_iptc::{IptcPayload, decode_payload as decode_iptc_payload};
 use xifty_meta_itunes::{ItunesPayload, decode_payload as decode_itunes_payload};
 use xifty_meta_ixml::{IxmlPayload, decode_payload as decode_ixml_payload};
+use xifty_meta_nikon::{
+    decode_from_tiff as decode_nikon_from_tiff, encrypted_regions as nikon_encrypted_regions,
+};
 use xifty_meta_olympus::decode_from_tiff as decode_olympus_from_tiff;
 use xifty_meta_panasonic::decode_from_rw2;
 use xifty_meta_quicktime::{
@@ -99,6 +102,10 @@ fn probe_source(source: &SourceBytes) -> Result<ProbeOutput, XiftyError> {
         Format::Rw2 => {
             let parsed = parse_rw2(&source)?;
             ("rw2".to_string(), parsed.nodes, parsed.issues)
+        }
+        Format::Nef => {
+            let parsed = parse_tiff(&source)?;
+            ("nef".to_string(), parsed.nodes, parsed.issues)
         }
         Format::Png => {
             let parsed = parse_png(&source)?;
@@ -276,6 +283,7 @@ fn extract_source(
         Format::Raf => raf_extract(&source)?,
         Format::Orf => orf_extract(&source)?,
         Format::Rw2 => rw2_extract(&source)?,
+        Format::Nef => tiff_extract(&source, "nef")?,
         Format::Png => {
             let png = parse_png(&source)?;
             let mut entries = Vec::new();
@@ -658,6 +666,29 @@ fn tiff_extract(
         &tiff,
         &entries,
     ));
+    entries.extend(decode_nikon_from_tiff(
+        source.bytes(),
+        0,
+        container_label,
+        &tiff,
+        &entries,
+    ));
+    // Surface Nikon encrypted MakerNote regions as non-fatal Issues. The
+    // decoder above intentionally skips them (XIFty does not attempt
+    // decryption at v1); this loop turns each skipped region into a
+    // discoverable Warning so downstream consumers know the data is
+    // present-but-opaque rather than missing.
+    for region in nikon_encrypted_regions(source.bytes(), 0, &tiff) {
+        issues.push(namespace_issue(
+            "nikon_makernote_encrypted_region",
+            &format!(
+                "Nikon MakerNote tag 0x{:04X} is encrypted; skipping per v1 policy",
+                region.tag_id
+            ),
+            region.absolute_offset,
+            "ifd0_makernote",
+        ));
+    }
     if let Some((offset_start, payload)) = xifty_container_tiff::xmp_payload(source.bytes(), &tiff)
     {
         let decoded = decode_packet(XmpPacket {

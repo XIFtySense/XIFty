@@ -1,0 +1,226 @@
+---
+source: crates/xifty-cli/tests/cli_contract.rs
+expression: "extract_json(\"happy.nef\", ViewMode::Interpreted)"
+---
+{
+  "input": {
+    "container": "nef",
+    "detected_format": "nef",
+    "path": "happy.nef"
+  },
+  "interpreted": {
+    "metadata": [
+      {
+        "namespace": "exif",
+        "provenance": {
+          "container": "nef",
+          "namespace": "exif",
+          "offset_end": 22,
+          "offset_start": 10,
+          "path": "ifd0"
+        },
+        "tag_id": "0x0100",
+        "tag_name": "ImageWidth",
+        "value": {
+          "kind": "integer",
+          "value": 800
+        }
+      },
+      {
+        "namespace": "exif",
+        "provenance": {
+          "container": "nef",
+          "namespace": "exif",
+          "offset_end": 34,
+          "offset_start": 22,
+          "path": "ifd0"
+        },
+        "tag_id": "0x0101",
+        "tag_name": "ImageHeight",
+        "value": {
+          "kind": "integer",
+          "value": 600
+        }
+      },
+      {
+        "namespace": "exif",
+        "provenance": {
+          "container": "nef",
+          "namespace": "exif",
+          "offset_end": 46,
+          "offset_start": 34,
+          "path": "ifd0"
+        },
+        "tag_id": "0x010F",
+        "tag_name": "Make",
+        "value": {
+          "kind": "string",
+          "value": "NIKON CORPORATION"
+        }
+      },
+      {
+        "namespace": "exif",
+        "provenance": {
+          "container": "nef",
+          "namespace": "exif",
+          "offset_end": 58,
+          "offset_start": 46,
+          "path": "ifd0"
+        },
+        "tag_id": "0x0110",
+        "tag_name": "Model",
+        "value": {
+          "kind": "string",
+          "value": "NIKON D850"
+        }
+      },
+      {
+        "namespace": "exif",
+        "provenance": {
+          "container": "nef",
+          "namespace": "exif",
+          "offset_end": 70,
+          "offset_start": 58,
+          "path": "ifd0"
+        },
+        "tag_id": "0x8769",
+        "tag_name": "ExifOffset",
+        "value": {
+          "kind": "integer",
+          "value": 103
+        }
+      },
+      {
+        "namespace": "exif",
+        "provenance": {
+          "container": "nef",
+          "namespace": "exif",
+          "offset_end": 117,
+          "offset_start": 105,
+          "path": "exif_ifd"
+        },
+        "tag_id": "0x9003",
+        "tag_name": "DateTimeOriginal",
+        "value": {
+          "kind": "timestamp",
+          "value": "2024:04:16 12:34:56"
+        }
+      },
+      {
+        "namespace": "exif",
+        "provenance": {
+          "container": "nef",
+          "namespace": "exif",
+          "offset_end": 129,
+          "offset_start": 117,
+          "path": "exif_ifd"
+        },
+        "tag_id": "0x927C",
+        "tag_name": "MakerNote",
+        "value": {
+          "kind": "bytes",
+          "value": [
+            78,
+            105,
+            107,
+            111,
+            110,
+            0,
+            2,
+            16,
+            0,
+            0,
+            73,
+            73,
+            42,
+            0,
+            8,
+            0,
+            0,
+            0,
+            2,
+            0,
+            4,
+            0,
+            2,
+            0,
+            5,
+            0,
+            0,
+            0,
+            38,
+            0,
+            0,
+            0,
+            145,
+            0,
+            7,
+            0,
+            18,
+            0,
+            0,
+            0,
+            43,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            70,
+            73,
+            78,
+            69,
+            0,
+            2,
+            4,
+            97,
+            98,
+            99,
+            100,
+            101,
+            102,
+            103,
+            104,
+            105,
+            106,
+            107,
+            108,
+            109,
+            110,
+            111,
+            112
+          ]
+        }
+      },
+      {
+        "namespace": "nikon",
+        "provenance": {
+          "container": "nef",
+          "namespace": "nikon",
+          "path": "ifd0_makernote"
+        },
+        "tag_id": "0x0004",
+        "tag_name": "Quality",
+        "value": {
+          "kind": "string",
+          "value": "FINE"
+        }
+      }
+    ]
+  },
+  "report": {
+    "conflicts": [],
+    "issues": [
+      {
+        "code": "nikon_makernote_encrypted_region",
+        "context": "ifd0_makernote",
+        "message": "Nikon MakerNote tag 0x0091 is encrypted; skipping per v1 policy",
+        "offset": 206,
+        "severity": "warning"
+      }
+    ]
+  },
+  "schema_version": "0.1.0"
+}

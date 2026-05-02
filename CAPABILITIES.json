@@ -222,6 +222,18 @@
         "JpgFromRaw"
       ]
     },
+    "nikon": {
+      "status": "partial",
+      "supported_tags": [
+        "Quality",
+        "WhiteBalance",
+        "Sharpness",
+        "FocusMode",
+        "FlashSetting",
+        "LensType"
+      ],
+      "notes": "Nikon MakerNote decoder surfaces a small set of plain ASCII tags. Encrypted regions (currently 0x0091 ShotInfo, and 0x0097 LensData when version >= 0x02) are NOT decrypted at v1; they are surfaced as non-fatal `nikon_makernote_encrypted_region` Issues with the outer-file absolute byte offset of the encrypted payload."
+    },
     "olympus_makernote": {
       "status": "bounded",
       "supported_tags": [
@@ -302,6 +314,15 @@
     "rw2": {
       "namespaces": {
         "panasonic": "bounded"
+      }
+    },
+    "nef": {
+      "namespaces": {
+        "exif": "bounded",
+        "xmp": "bounded",
+        "icc": "bounded",
+        "iptc": "bounded",
+        "nikon": "partial"
       }
     },
     "png": {

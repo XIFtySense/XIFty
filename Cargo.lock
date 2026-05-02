@@ -825,6 +825,7 @@ dependencies = [
  "xifty-meta-iptc",
  "xifty-meta-itunes",
  "xifty-meta-ixml",
+ "xifty-meta-nikon",
  "xifty-meta-olympus",
  "xifty-meta-panasonic",
  "xifty-meta-quicktime",
@@ -1046,6 +1047,15 @@ name = "xifty-meta-ixml"
 version = "0.1.11"
 dependencies = [
  "xifty-core",
+]
+
+[[package]]
+name = "xifty-meta-nikon"
+version = "0.1.11"
+dependencies = [
+ "xifty-container-tiff",
+ "xifty-core",
+ "xifty-source",
 ]
 
 [[package]]

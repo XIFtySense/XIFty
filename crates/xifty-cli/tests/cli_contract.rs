@@ -641,6 +641,54 @@ fn extract_snapshot_happy_orf_normalized() {
 }
 
 #[test]
+fn probe_snapshot_happy_nef() {
+    assert_json_snapshot!("probe_happy_nef", probe_json("happy.nef"));
+}
+
+#[test]
+fn extract_snapshot_happy_nef_interpreted() {
+    assert_json_snapshot!(
+        "extract_happy_nef_interpreted",
+        extract_json("happy.nef", ViewMode::Interpreted)
+    );
+}
+
+/// Encrypted-region surfacing regression: the synthetic NEF embeds a
+/// 0x0091 ShotInfo block with a v0204 version preamble. The decoder must
+/// (1) NOT include 0x0091 in `nikon` entries and (2) the report must carry
+/// exactly one `nikon_makernote_encrypted_region` Issue pointing at the
+/// outer-file absolute byte offset of the encrypted blob.
+#[test]
+fn nef_encrypted_makernote_region_surfaces_as_issue() {
+    let analysis = xifty_cli::extract_path(fixture("happy.nef"), ViewMode::Interpreted).unwrap();
+    let interpreted = analysis.interpreted.expect("interpreted view present");
+    assert!(
+        !interpreted
+            .metadata
+            .iter()
+            .any(|e| e.namespace == "nikon" && e.tag_id == "0x0091"),
+        "encrypted ShotInfo (0x0091) must NOT appear in `nikon` entries: {:?}",
+        interpreted.metadata
+    );
+    let encrypted_issues: Vec<_> = analysis
+        .report
+        .issues
+        .iter()
+        .filter(|i| i.code == "nikon_makernote_encrypted_region")
+        .collect();
+    assert_eq!(
+        encrypted_issues.len(),
+        1,
+        "expected exactly one encrypted-region issue, got {}: {:?}",
+        encrypted_issues.len(),
+        analysis.report.issues
+    );
+    // The synthetic fixture lays the encrypted blob at outer-file byte 206.
+    // If the fixture layout changes, update this constant alongside it.
+    assert_eq!(encrypted_issues[0].offset, Some(206));
+}
+
+#[test]
 fn probe_snapshot_panasonic_rw2() {
     assert_json_snapshot!("probe_panasonic_rw2", probe_json("happy.rw2"));
 }
