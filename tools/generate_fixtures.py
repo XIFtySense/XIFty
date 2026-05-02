@@ -1300,6 +1300,61 @@ def build_mp3_vbr_no_xing(frame_count=8):
     return bytes(out)
 
 
+def build_wav(extra_chunks=None):
+    """Minimal RIFF/WAVE with `fmt ` (PCM 44.1k/16-bit/1ch) and `data`.
+
+    `extra_chunks` is an optional list of `(b"id  ", payload_bytes)` tuples
+    inserted between `fmt ` and `data`. Each chunk is automatically padded
+    to an even length per the RIFF spec.
+    """
+    extra_chunks = extra_chunks or []
+    payload = bytearray(b"WAVE")
+
+    def append_chunk(out, chunk_id, data):
+        out.extend(chunk_id)
+        out.extend(struct.pack("<I", len(data)))
+        out.extend(data)
+        if len(data) % 2 == 1:
+            out.append(0)
+
+    fmt_payload = struct.pack("<HHIIHH",
+        1,        # format_tag PCM
+        1,        # channels
+        44100,    # sample_rate
+        88200,    # byte_rate
+        2,        # block_align
+        16,       # bits_per_sample
+    )
+    append_chunk(payload, b"fmt ", fmt_payload)
+    for chunk_id, data in extra_chunks:
+        append_chunk(payload, chunk_id, data)
+    # Synthetic data block of 88200 bytes => 1.0 second at the parameters above.
+    append_chunk(payload, b"data", bytes(88200))
+
+    out = bytearray(b"RIFF")
+    out.extend(struct.pack("<I", len(payload)))
+    out.extend(payload)
+    return bytes(out)
+
+
+def build_bext_chunk(description=b"XIFty BWF fixture", originator=b"XIFty", time_reference=0):
+    """EBU Tech 3285 v2 `bext` payload — 602 bytes (no CodingHistory)."""
+    payload = bytearray(602)
+    desc = description[:256]
+    payload[:len(desc)] = desc
+    orig = originator[:32]
+    payload[256:256 + len(orig)] = orig
+    payload[320:330] = b"2026-04-20"
+    payload[330:338] = b"10:00:00"
+    payload[338:346] = struct.pack("<Q", time_reference)
+    payload[346:348] = struct.pack("<H", 1)
+    return bytes(payload)
+
+
+def build_ixml_chunk(project=b"xifty", scene=b"test"):
+    return b"<BWFXML><PROJECT>" + project + b"</PROJECT><SCENE>" + scene + b"</SCENE></BWFXML>"
+
+
 def main():
     ROOT.mkdir(parents=True, exist_ok=True)
     xmp = build_xmp()
@@ -1389,6 +1444,11 @@ def main():
         "happy.mp3": build_mp3(),
         "vbr_xing.mp3": build_mp3_xing_vbr(),
         "vbr_no_xing.mp3": build_mp3_vbr_no_xing(),
+        "happy.wav": build_wav(),
+        "bext.wav": build_wav(extra_chunks=[
+            (b"bext", build_bext_chunk()),
+            (b"iXML", build_ixml_chunk()),
+        ]),
     }
 
     for name, data in files.items():

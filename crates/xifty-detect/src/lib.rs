@@ -22,6 +22,10 @@ pub fn detect(source: &SourceBytes) -> Result<Format, XiftyError> {
         return Ok(Format::Webp);
     }
 
+    if bytes.len() >= 12 && &bytes[0..4] == b"RIFF" && &bytes[8..12] == b"WAVE" {
+        return Ok(Format::Wav);
+    }
+
     if bytes.len() >= 12
         && &bytes[0..4] == b"FORM"
         && (&bytes[8..12] == b"AIFF" || &bytes[8..12] == b"AIFC")
@@ -207,6 +211,7 @@ mod tests {
         let tiff = temp_file("a.tif", b"II*\0\x08\0\0\0");
         let png = temp_file("a.png", b"\x89PNG\r\n\x1a\n");
         let webp = temp_file("a.webp", b"RIFF\x00\x00\x00\x00WEBP");
+        let wav = temp_file("a.wav", b"RIFF\x00\x00\x00\x00WAVE");
         let heif = temp_file("a.heic", b"\x00\x00\x00\x18ftypheic\0\0\0\0mif1");
         let mp4 = temp_file("a.mp4", b"\x00\x00\x00\x18ftypisom\0\0\0\0mp42");
         let mov = temp_file("a.mov", b"\x00\x00\x00\x14ftypqt  \0\0\0\0");
@@ -234,6 +239,10 @@ mod tests {
         assert_eq!(
             detect(&SourceBytes::from_path(&webp).unwrap()).unwrap(),
             Format::Webp
+        );
+        assert_eq!(
+            detect(&SourceBytes::from_path(&wav).unwrap()).unwrap(),
+            Format::Wav
         );
         assert_eq!(
             detect(&SourceBytes::from_path(&heif).unwrap()).unwrap(),
@@ -289,6 +298,7 @@ mod tests {
         let _ = fs::remove_file(tiff);
         let _ = fs::remove_file(png);
         let _ = fs::remove_file(webp);
+        let _ = fs::remove_file(wav);
         let _ = fs::remove_file(heif);
         let _ = fs::remove_file(mp4);
         let _ = fs::remove_file(mov);

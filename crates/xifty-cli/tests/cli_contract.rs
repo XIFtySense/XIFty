@@ -2720,6 +2720,97 @@ fn mp3_vbr_no_xing_emits_duration_unknown_issue() {
     );
 }
 
+#[test]
+fn probe_snapshot_happy_wav() {
+    assert_json_snapshot!("probe_happy_wav", probe_json("happy.wav"));
+}
+
+#[test]
+fn extract_snapshot_happy_wav_normalized() {
+    assert_json_snapshot!(
+        "extract_happy_wav_normalized",
+        extract_json("happy.wav", ViewMode::Normalized)
+    );
+}
+
+#[test]
+fn extract_snapshot_bext_wav_interpreted() {
+    assert_json_snapshot!(
+        "extract_bext_wav_interpreted",
+        extract_json("bext.wav", ViewMode::Interpreted)
+    );
+}
+
+#[test]
+fn wav_normalization_includes_audio_fields() {
+    let output = extract_json("happy.wav", ViewMode::Normalized);
+    let normalized = normalized_map(&output);
+    assert_eq!(
+        normalized
+            .get("audio.sample_rate")
+            .and_then(|v| v["value"].as_i64()),
+        Some(44100)
+    );
+    assert_eq!(
+        normalized
+            .get("audio.channels")
+            .and_then(|v| v["value"].as_i64()),
+        Some(1)
+    );
+    assert_eq!(
+        normalized
+            .get("audio.bit_depth")
+            .and_then(|v| v["value"].as_i64()),
+        Some(16)
+    );
+    assert_eq!(
+        normalized
+            .get("codec.audio")
+            .and_then(|v| v["value"].as_str()),
+        Some("pcm")
+    );
+    let duration = normalized
+        .get("duration")
+        .and_then(|v| v["value"].as_f64())
+        .expect("duration present");
+    assert!((duration - 1.0).abs() < 1e-6, "got {duration}");
+}
+
+#[test]
+fn wav_surfaces_bext_and_ixml() {
+    let output = extract_json("bext.wav", ViewMode::Interpreted);
+    assert_eq!(
+        interpreted_value(&output, "bwf", "Description"),
+        Some(Value::String("XIFty BWF fixture".into()))
+    );
+    assert_eq!(
+        interpreted_value(&output, "bwf", "Originator"),
+        Some(Value::String("XIFty".into()))
+    );
+    assert_eq!(
+        interpreted_value(&output, "ixml", "PROJECT"),
+        Some(Value::String("xifty".into()))
+    );
+    assert_eq!(
+        interpreted_value(&output, "ixml", "SCENE"),
+        Some(Value::String("test".into()))
+    );
+}
+
+#[test]
+fn wav_does_not_emit_riff_non_webp_form_issue() {
+    let output = extract_json("happy.wav", ViewMode::Full);
+    assert_eq!(output["input"]["detected_format"].as_str(), Some("wav"));
+    assert_eq!(output["input"]["container"].as_str(), Some("wav"));
+    let issues = output["report"]["issues"].as_array().unwrap();
+    assert!(
+        !issues
+            .iter()
+            .any(|i| i["code"].as_str() == Some("riff_non_webp_form")),
+        "WAV should not emit riff_non_webp_form, got {issues:?}"
+    );
+}
+
 fn assert_float_close(left: Option<f64>, right: Option<f64>, label: &str) {
     let left = left.expect("missing left float value");
     let right = right.expect("missing right float value");

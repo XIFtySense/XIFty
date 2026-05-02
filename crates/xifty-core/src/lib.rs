@@ -19,6 +19,7 @@ pub enum Format {
     Aiff,
     Ogg,
     Mp3,
+    Wav,
 }
 
 impl Format {
@@ -37,6 +38,7 @@ impl Format {
             Self::Aiff => "aiff",
             Self::Ogg => "ogg",
             Self::Mp3 => "mp3",
+            Self::Wav => "wav",
         }
     }
 }

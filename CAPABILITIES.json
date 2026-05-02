@@ -100,6 +100,43 @@
         "MpegLayer"
       ]
     },
+    "wav": {
+      "status": "bounded",
+      "supported_tags": [
+        "AudioSampleRate",
+        "AudioChannels",
+        "AudioBitDepth",
+        "AudioCodec",
+        "AudioFormat",
+        "DurationSeconds"
+      ]
+    },
+    "bwf": {
+      "status": "bounded",
+      "supported_tags": [
+        "Description",
+        "Originator",
+        "OriginatorReference",
+        "OriginationDate",
+        "OriginationTime",
+        "TimeReference",
+        "Version",
+        "Umid",
+        "CodingHistory"
+      ]
+    },
+    "ixml": {
+      "status": "bounded",
+      "supported_tags": [
+        "RawXml",
+        "PROJECT",
+        "SCENE",
+        "TAKE",
+        "TAPE",
+        "CIRCLED",
+        "NOTE"
+      ]
+    },
     "itunes": {
       "status": "bounded",
       "supported_tags": [
@@ -212,6 +249,13 @@
       "namespaces": {
         "mp3": "bounded",
         "id3v2": "bounded"
+      }
+    },
+    "wav": {
+      "namespaces": {
+        "wav": "bounded",
+        "bwf": "bounded",
+        "ixml": "bounded"
       }
     }
   },

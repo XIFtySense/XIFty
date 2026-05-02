@@ -1,0 +1,45 @@
+---
+source: crates/xifty-cli/tests/cli_contract.rs
+assertion_line: 2725
+expression: "probe_json(\"happy.wav\")"
+---
+{
+  "containers": [
+    {
+      "kind": "container",
+      "label": "wav",
+      "offset_end": 88244,
+      "offset_start": 0
+    },
+    {
+      "kind": "chunk",
+      "label": "fmt ",
+      "offset_end": 36,
+      "offset_start": 12,
+      "parent_label": "wav"
+    },
+    {
+      "kind": "chunk",
+      "label": "data",
+      "offset_end": 88244,
+      "offset_start": 36,
+      "parent_label": "wav"
+    }
+  ],
+  "input": {
+    "container": "wav",
+    "detected_format": "wav",
+    "path": "happy.wav"
+  },
+  "report": {
+    "conflicts": [],
+    "issues": [
+      {
+        "code": "no_metadata_entries",
+        "message": "no supported metadata entries were decoded",
+        "severity": "info"
+      }
+    ]
+  },
+  "schema_version": "0.1.0"
+}

@@ -17,6 +17,8 @@ members = [
   "crates/xifty-meta-iptc",
   "crates/xifty-meta-id3v2",
   "crates/xifty-meta-apple",
+  "crates/xifty-meta-bwf",
+  "crates/xifty-meta-ixml",
   "crates/xifty-meta-sony",
   "crates/xifty-meta-xmp",
   "crates/xifty-meta-quicktime",

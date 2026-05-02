@@ -813,11 +813,13 @@ dependencies = [
  "xifty-detect",
  "xifty-json",
  "xifty-meta-apple",
+ "xifty-meta-bwf",
  "xifty-meta-exif",
  "xifty-meta-icc",
  "xifty-meta-id3v2",
  "xifty-meta-iptc",
  "xifty-meta-itunes",
+ "xifty-meta-ixml",
  "xifty-meta-quicktime",
  "xifty-meta-rtmd",
  "xifty-meta-sony",
@@ -945,6 +947,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "xifty-meta-bwf"
+version = "0.1.11"
+dependencies = [
+ "xifty-core",
+]
+
+[[package]]
 name = "xifty-meta-exif"
 version = "0.1.11"
 dependencies = [
@@ -977,6 +986,13 @@ dependencies = [
 
 [[package]]
 name = "xifty-meta-itunes"
+version = "0.1.11"
+dependencies = [
+ "xifty-core",
+]
+
+[[package]]
+name = "xifty-meta-ixml"
 version = "0.1.11"
 dependencies = [
  "xifty-core",

@@ -1,0 +1,306 @@
+---
+source: crates/xifty-cli/tests/cli_contract.rs
+assertion_line: 2738
+expression: "extract_json(\"bext.wav\", ViewMode::Interpreted)"
+---
+{
+  "input": {
+    "container": "wav",
+    "detected_format": "wav",
+    "path": "bext.wav"
+  },
+  "interpreted": {
+    "metadata": [
+      {
+        "namespace": "wav",
+        "provenance": {
+          "container": "wav",
+          "namespace": "wav",
+          "notes": [
+            "derived from WAVE fmt chunk"
+          ],
+          "offset_end": 36,
+          "offset_start": 12,
+          "path": "wav_fmt"
+        },
+        "tag_id": "AudioSampleRate",
+        "tag_name": "AudioSampleRate",
+        "value": {
+          "kind": "integer",
+          "value": 44100
+        }
+      },
+      {
+        "namespace": "wav",
+        "provenance": {
+          "container": "wav",
+          "namespace": "wav",
+          "notes": [
+            "derived from WAVE fmt chunk"
+          ],
+          "offset_end": 36,
+          "offset_start": 12,
+          "path": "wav_fmt"
+        },
+        "tag_id": "AudioChannels",
+        "tag_name": "AudioChannels",
+        "value": {
+          "kind": "integer",
+          "value": 1
+        }
+      },
+      {
+        "namespace": "wav",
+        "provenance": {
+          "container": "wav",
+          "namespace": "wav",
+          "notes": [
+            "derived from WAVE fmt chunk"
+          ],
+          "offset_end": 36,
+          "offset_start": 12,
+          "path": "wav_fmt"
+        },
+        "tag_id": "AudioBitDepth",
+        "tag_name": "AudioBitDepth",
+        "value": {
+          "kind": "integer",
+          "value": 16
+        }
+      },
+      {
+        "namespace": "wav",
+        "provenance": {
+          "container": "wav",
+          "namespace": "wav",
+          "notes": [
+            "WAVE format tag (1=PCM, 3=IEEE float, 0xFFFE=extensible)"
+          ],
+          "offset_end": 36,
+          "offset_start": 12,
+          "path": "wav_fmt"
+        },
+        "tag_id": "AudioFormat",
+        "tag_name": "AudioFormat",
+        "value": {
+          "kind": "integer",
+          "value": 1
+        }
+      },
+      {
+        "namespace": "wav",
+        "provenance": {
+          "container": "wav",
+          "namespace": "wav",
+          "notes": [
+            "derived from WAVE fmt chunk format tag"
+          ],
+          "offset_end": 36,
+          "offset_start": 12,
+          "path": "wav_fmt"
+        },
+        "tag_id": "AudioCodec",
+        "tag_name": "AudioCodec",
+        "value": {
+          "kind": "string",
+          "value": "pcm"
+        }
+      },
+      {
+        "namespace": "wav",
+        "provenance": {
+          "container": "wav",
+          "namespace": "wav",
+          "notes": [
+            "derived from WAVE data chunk byte length / byte_rate"
+          ],
+          "offset_end": 88922,
+          "offset_start": 714,
+          "path": "wav_data"
+        },
+        "tag_id": "DurationSeconds",
+        "tag_name": "DurationSeconds",
+        "value": {
+          "kind": "float",
+          "value": 1.0
+        }
+      },
+      {
+        "namespace": "bwf",
+        "notes": [
+          "decoded from BWF bext chunk"
+        ],
+        "provenance": {
+          "container": "wav",
+          "namespace": "bwf",
+          "offset_end": 646,
+          "offset_start": 36,
+          "path": "bext"
+        },
+        "tag_id": "Description",
+        "tag_name": "Description",
+        "value": {
+          "kind": "string",
+          "value": "XIFty BWF fixture"
+        }
+      },
+      {
+        "namespace": "bwf",
+        "notes": [
+          "decoded from BWF bext chunk"
+        ],
+        "provenance": {
+          "container": "wav",
+          "namespace": "bwf",
+          "offset_end": 646,
+          "offset_start": 36,
+          "path": "bext"
+        },
+        "tag_id": "Originator",
+        "tag_name": "Originator",
+        "value": {
+          "kind": "string",
+          "value": "XIFty"
+        }
+      },
+      {
+        "namespace": "bwf",
+        "notes": [
+          "decoded from BWF bext chunk"
+        ],
+        "provenance": {
+          "container": "wav",
+          "namespace": "bwf",
+          "offset_end": 646,
+          "offset_start": 36,
+          "path": "bext"
+        },
+        "tag_id": "OriginationDate",
+        "tag_name": "OriginationDate",
+        "value": {
+          "kind": "string",
+          "value": "2026-04-20"
+        }
+      },
+      {
+        "namespace": "bwf",
+        "notes": [
+          "decoded from BWF bext chunk"
+        ],
+        "provenance": {
+          "container": "wav",
+          "namespace": "bwf",
+          "offset_end": 646,
+          "offset_start": 36,
+          "path": "bext"
+        },
+        "tag_id": "OriginationTime",
+        "tag_name": "OriginationTime",
+        "value": {
+          "kind": "string",
+          "value": "10:00:00"
+        }
+      },
+      {
+        "namespace": "bwf",
+        "notes": [
+          "low+high 32-bit time reference, in samples"
+        ],
+        "provenance": {
+          "container": "wav",
+          "namespace": "bwf",
+          "offset_end": 646,
+          "offset_start": 36,
+          "path": "bext"
+        },
+        "tag_id": "TimeReference",
+        "tag_name": "TimeReference",
+        "value": {
+          "kind": "integer",
+          "value": 0
+        }
+      },
+      {
+        "namespace": "bwf",
+        "notes": [
+          "BWF version (0=raw, 1=UMID, 2+=loudness)"
+        ],
+        "provenance": {
+          "container": "wav",
+          "namespace": "bwf",
+          "offset_end": 646,
+          "offset_start": 36,
+          "path": "bext"
+        },
+        "tag_id": "Version",
+        "tag_name": "Version",
+        "value": {
+          "kind": "integer",
+          "value": 1
+        }
+      },
+      {
+        "namespace": "ixml",
+        "notes": [
+          "raw iXML payload"
+        ],
+        "provenance": {
+          "container": "wav",
+          "namespace": "ixml",
+          "offset_end": 714,
+          "offset_start": 646,
+          "path": "iXML"
+        },
+        "tag_id": "RawXml",
+        "tag_name": "RawXml",
+        "value": {
+          "kind": "string",
+          "value": "<BWFXML><PROJECT>xifty</PROJECT><SCENE>test</SCENE></BWFXML>"
+        }
+      },
+      {
+        "namespace": "ixml",
+        "notes": [
+          "decoded from iXML element"
+        ],
+        "provenance": {
+          "container": "wav",
+          "namespace": "ixml",
+          "offset_end": 714,
+          "offset_start": 646,
+          "path": "iXML"
+        },
+        "tag_id": "PROJECT",
+        "tag_name": "PROJECT",
+        "value": {
+          "kind": "string",
+          "value": "xifty"
+        }
+      },
+      {
+        "namespace": "ixml",
+        "notes": [
+          "decoded from iXML element"
+        ],
+        "provenance": {
+          "container": "wav",
+          "namespace": "ixml",
+          "offset_end": 714,
+          "offset_start": 646,
+          "path": "iXML"
+        },
+        "tag_id": "SCENE",
+        "tag_name": "SCENE",
+        "value": {
+          "kind": "string",
+          "value": "test"
+        }
+      }
+    ]
+  },
+  "report": {
+    "conflicts": [],
+    "issues": []
+  },
+  "schema_version": "0.1.0"
+}
