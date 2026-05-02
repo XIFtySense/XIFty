@@ -1,0 +1,163 @@
+---
+source: crates/xifty-cli/tests/cli_contract.rs
+assertion_line: 223
+expression: "extract_json(\"happy_sequence.avif\", ViewMode::Normalized)"
+---
+{
+  "input": {
+    "container": "isobmff",
+    "detected_format": "avif",
+    "path": "happy_sequence.avif"
+  },
+  "normalized": {
+    "fields": [
+      {
+        "confidence": 0.949999988079071,
+        "field": "captured_at",
+        "sources": [
+          {
+            "container": "avif",
+            "namespace": "quicktime",
+            "notes": [
+              "derived from movie header creation time"
+            ]
+          }
+        ],
+        "value": {
+          "kind": "timestamp",
+          "value": "2024-04-16T12:00:00"
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
+        "field": "created_at",
+        "sources": [
+          {
+            "container": "avif",
+            "namespace": "quicktime",
+            "notes": [
+              "derived from movie header creation time"
+            ]
+          }
+        ],
+        "value": {
+          "kind": "timestamp",
+          "value": "2024-04-16T12:00:00"
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
+        "field": "modified_at",
+        "sources": [
+          {
+            "container": "avif",
+            "namespace": "quicktime",
+            "notes": [
+              "derived from movie header modification time"
+            ]
+          }
+        ],
+        "value": {
+          "kind": "timestamp",
+          "value": "2024-04-16T12:01:00"
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
+        "field": "dimensions.width",
+        "sources": [
+          {
+            "container": "avif",
+            "namespace": "quicktime",
+            "notes": [
+              "derived from visual track header"
+            ],
+            "offset_end": 0,
+            "offset_start": 0,
+            "path": "moov/trak@144/tkhd"
+          }
+        ],
+        "value": {
+          "kind": "integer",
+          "value": 100
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
+        "field": "dimensions.height",
+        "sources": [
+          {
+            "container": "avif",
+            "namespace": "quicktime",
+            "notes": [
+              "derived from visual track header"
+            ],
+            "offset_end": 0,
+            "offset_start": 0,
+            "path": "moov/trak@144/tkhd"
+          }
+        ],
+        "value": {
+          "kind": "integer",
+          "value": 80
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
+        "field": "duration",
+        "sources": [
+          {
+            "container": "avif",
+            "namespace": "quicktime",
+            "notes": [
+              "derived from mvhd or media track timing"
+            ]
+          }
+        ],
+        "value": {
+          "kind": "float",
+          "value": 12.0
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
+        "field": "video.framerate",
+        "sources": [
+          {
+            "container": "avif",
+            "namespace": "quicktime",
+            "notes": [
+              "derived from video track timing"
+            ]
+          }
+        ],
+        "value": {
+          "kind": "float",
+          "value": 0.999000999000999
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
+        "field": "codec.video",
+        "sources": [
+          {
+            "container": "avif",
+            "namespace": "quicktime",
+            "notes": [
+              "derived from video track sample description"
+            ]
+          }
+        ],
+        "value": {
+          "kind": "string",
+          "value": "av01"
+        }
+      }
+    ]
+  },
+  "report": {
+    "conflicts": [],
+    "issues": []
+  },
+  "schema_version": "0.1.0"
+}

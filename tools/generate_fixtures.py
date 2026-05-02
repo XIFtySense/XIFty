@@ -534,6 +534,144 @@ def build_heif_with_iptc(iim_payload):
     return ftyp + mdat + meta
 
 
+def build_avif(exif_payload=None):
+    """Build a minimal AVIF still: ftyp(major=avif) + meta { iprp{ipco{ispe,pixi,colr nclx,cicp},ipma}, pitm } + (optional) Exif item.
+
+    The fixture exercises ipco-inner property dispatch (`cicp` and `pixi`
+    must be recognised as siblings of `colr`) and the EXIF-via-item path
+    using the HEIC-style 4-byte ItemOffset preamble.
+    """
+    ftyp_payload = b"avif" + b"\x00\x00\x00\x00" + b"avif" + b"mif1"
+    ftyp = iso_box(b"ftyp", ftyp_payload)
+
+    # ipco children: ispe(1), pixi(2), colr nclx(3), cicp(4)
+    ispe_payload = struct.pack(">II", 100, 80)
+    ispe = full_box(b"ispe", ispe_payload)
+
+    pixi_payload = bytes([3, 10, 10, 10])  # 3 channels, 10-bit each
+    pixi = full_box(b"pixi", pixi_payload)
+
+    # colr nclx: type='nclx' + primaries=9 + transfer=16 + matrix=9 + range=0x80
+    colr_payload = b"nclx" + struct.pack(">HHH", 9, 16, 9) + bytes([0x80])
+    colr = iso_box(b"colr", colr_payload)
+
+    # cicp: 4-byte version+flags + primaries + transfer + matrix + range
+    cicp_payload = bytes([9, 16, 9, 0x80])
+    cicp = full_box(b"cicp", cicp_payload)
+
+    ipco = iso_box(b"ipco", ispe + pixi + colr + cicp)
+
+    # ipma: associate item_id=1 with all four properties
+    ipma_payload = (
+        struct.pack(">I", 1)        # entry_count
+        + struct.pack(">H", 1)      # item_id (v=0 -> u16)
+        + bytes([4])                # association_count
+        + bytes([1, 2, 3, 4])       # property indexes (essential bit cleared)
+    )
+    ipma = full_box(b"ipma", ipma_payload)
+    iprp = iso_box(b"iprp", ipco + ipma)
+
+    pitm = full_box(b"pitm", struct.pack(">H", 1))
+
+    # iinf+iloc for an EXIF item, when an exif payload is supplied. Lay
+    # the file out so the EXIF bytes live in an mdat that comes BEFORE
+    # the meta box, then point the iloc extent at that absolute offset.
+    if exif_payload is not None:
+        # AVIF EXIF item carries the same 4-byte ItemOffset preamble as
+        # HEIC: 4-byte big-endian offset (0 = TIFF starts immediately
+        # after the preamble) + TIFF.
+        item_payload = b"\x00\x00\x00\x00" + exif_payload
+        mdat = iso_box(b"mdat", item_payload)
+        item_absolute_offset = len(ftyp) + 8  # past mdat's 8-byte header
+
+        # infe v2: item_id(2) + protection(2) + type(4) + name(nul)
+        infe_payload = struct.pack(">H", 1) + struct.pack(">H", 0) + b"Exif" + b"\x00"
+        infe = full_box(b"infe", infe_payload, version=2)
+        iinf_payload = struct.pack(">H", 1) + infe
+        iinf = full_box(b"iinf", iinf_payload)
+
+        iloc_payload = bytearray()
+        iloc_payload.append(0x44)  # offset_size=4, length_size=4
+        iloc_payload.append(0x00)  # base_offset_size=0, index_size=0
+        iloc_payload += struct.pack(">H", 1)  # item_count
+        iloc_payload += struct.pack(">H", 1)  # item_id
+        iloc_payload += struct.pack(">H", 0)  # construction_method=0 (file offset)
+        iloc_payload += struct.pack(">H", 0)  # data_reference_index
+        iloc_payload += struct.pack(">H", 1)  # extent_count
+        iloc_payload += struct.pack(">I", item_absolute_offset)
+        iloc_payload += struct.pack(">I", len(item_payload))
+        iloc = full_box(b"iloc", bytes(iloc_payload), version=1)
+
+        # The EXIF item must use a different item_id than the primary
+        # image — but the primary-image iinf entry isn't strictly
+        # required for the parser to surface EXIF. Keep meta minimal:
+        # iinf carries only the EXIF item.
+        meta_children = pitm + iprp + iinf + iloc
+        meta = full_box(b"meta", meta_children)
+        return ftyp + mdat + meta
+
+    meta = full_box(b"meta", pitm + iprp)
+    return ftyp + meta
+
+
+def build_avif_sequence():
+    """Build a minimal AVIS sequence: ftyp(major=avis) + moov{mvhd, trak(vide)}.
+
+    The sequence fixture exercises the AVIS routing path for image
+    sequences with timed frames; mvhd carries duration/timescale so the
+    container surfaces a DurationSeconds entry.
+    """
+    ftyp_payload = b"avis" + b"\x00\x00\x00\x00" + b"avis" + b"msf1" + b"avif"
+    ftyp = iso_box(b"ftyp", ftyp_payload)
+
+    # mvhd v0 payload: created(4) + modified(4) + timescale(4) + duration(4) +
+    # rate(4) + volume(2) + reserved(10) + matrix(36) + pre_defined(24) + next_track(4)
+    created = qt_epoch_seconds(2024, 4, 16, 12, 0, 0)
+    modified = created + 60
+    mvhd_payload = (
+        struct.pack(">I", created)
+        + struct.pack(">I", modified)
+        + struct.pack(">I", 1000)        # timescale
+        + struct.pack(">I", 12_000)      # duration -> 12.0s
+        + b"\x00" * 80                   # remaining mvhd v0 fields
+    )
+    mvhd = full_box(b"mvhd", mvhd_payload)
+
+    # Reuse the simplest possible track via inline boxes. Visual sample
+    # description carries the 'av01' codec (AVIF spec) with placeholder
+    # width/height to keep the parser path exercised.
+    tkhd_payload = bytearray(b"\x00" * 72)
+    tkhd_payload += struct.pack(">I", 100 << 16)  # width 16.16
+    tkhd_payload += struct.pack(">I", 80 << 16)   # height 16.16
+    tkhd = full_box(b"tkhd", bytes(tkhd_payload))
+
+    mdhd_payload = (
+        struct.pack(">I", created)
+        + struct.pack(">I", modified)
+        + struct.pack(">I", 1000)
+        + struct.pack(">I", 12_000)
+        + b"\x00\x00\x00\x00"
+    )
+    mdhd = full_box(b"mdhd", mdhd_payload)
+
+    hdlr_payload = b"\x00\x00\x00\x00" + b"vide" + b"\x00" * 12
+    hdlr = full_box(b"hdlr", hdlr_payload)
+
+    # av01 visual sample entry with empty extension data
+    sample_entry = iso_box(b"av01", b"\x00" * 78)
+    stsd_payload = struct.pack(">I", 1) + sample_entry
+    stsd = full_box(b"stsd", stsd_payload)
+    stts = full_box(b"stts", struct.pack(">III", 1, 24, 1001))
+    stsz = full_box(b"stsz", struct.pack(">II", 0, 0))
+    stbl = iso_box(b"stbl", stsd + stts + stsz)
+    minf = iso_box(b"minf", stbl)
+    mdia = iso_box(b"mdia", mdhd + hdlr + minf)
+    trak = iso_box(b"trak", tkhd + mdia)
+
+    moov = iso_box(b"moov", mvhd + trak)
+    return ftyp + moov
+
+
 def qt_epoch_seconds(year, month, day, hour=0, minute=0, second=0):
     unix = datetime(year, month, day, hour, minute, second, tzinfo=timezone.utc).timestamp()
     return int(unix + 2082844800)
@@ -1427,6 +1565,8 @@ def main():
         "no_exif.heic": build_heif(None),
         "unsupported.heic": build_heif(build_tiff(gps=False), xmp_with_location, unsupported=True),
         "malformed_box.heic": build_heif(build_tiff(gps=False), malformed=True),
+        "happy.avif": build_avif(build_tiff(gps=False)),
+        "happy_sequence.avif": build_avif_sequence(),
         "happy.mp4": build_mp4(),
         "video_only.mp4": build_video_only_mp4(),
         "unsupported.mp4": build_unsupported_mp4(),

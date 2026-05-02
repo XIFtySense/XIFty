@@ -1120,16 +1120,17 @@ fn heif_exif_tiff(payload: &[u8], absolute_offset: u64) -> Option<(u64, &[u8])> 
     None
 }
 
-fn avif_color_entries(
-    color: &xifty_container_isobmff::IsobmffColorInfo,
-) -> Vec<MetadataEntry> {
+fn avif_color_entries(color: &xifty_container_isobmff::IsobmffColorInfo) -> Vec<MetadataEntry> {
     let provenance = Provenance {
         container: "avif".into(),
         namespace: "avif".into(),
         path: Some(color.path.clone()),
         offset_start: Some(color.offset_start),
         offset_end: Some(color.offset_end),
-        notes: vec![format!("derived from {} property for primary item", color.source)],
+        notes: vec![format!(
+            "derived from {} property for primary item",
+            color.source
+        )],
     };
     let mut entries = Vec::new();
     if let Some(primaries) = color.primaries {
@@ -1175,9 +1176,7 @@ fn avif_color_entries(
     entries
 }
 
-fn avif_pixi_entries(
-    pixel: &xifty_container_isobmff::IsobmffPixelInfo,
-) -> Vec<MetadataEntry> {
+fn avif_pixi_entries(pixel: &xifty_container_isobmff::IsobmffPixelInfo) -> Vec<MetadataEntry> {
     // Use the first channel's bit depth as the canonical "BitDepth"; AVIF
     // images are typically uniform across channels. Per-channel data is
     // preserved via the synthesized PixelBitDepths string entry.
@@ -1389,7 +1388,11 @@ fn isobmff_entries(
     }
 
     if let Some(dimensions) = &container.primary_item_dimensions {
-        let namespace = if format_name == "avif" { "avif" } else { "heif" };
+        let namespace = if format_name == "avif" {
+            "avif"
+        } else {
+            "heif"
+        };
         entries.extend(item_dimension_entries(dimensions, namespace));
     }
     if format_name == "avif" {

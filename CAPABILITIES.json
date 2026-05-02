@@ -156,6 +156,19 @@
         "BeatsPerMinute",
         "CoverArt"
       ]
+    },
+    "avif": {
+      "status": "bounded",
+      "supported_tags": [
+        "ImageWidth",
+        "ImageHeight",
+        "ColorPrimaries",
+        "TransferCharacteristics",
+        "MatrixCoefficients",
+        "FullRangeFlag",
+        "BitDepth",
+        "PixelBitDepths"
+      ]
     }
   },
   "containers": {
@@ -208,6 +221,16 @@
         "icc": "bounded",
         "iptc": "bounded",
         "heif": "supported"
+      }
+    },
+    "avif": {
+      "namespaces": {
+        "exif": "supported",
+        "xmp": "supported",
+        "icc": "bounded",
+        "iptc": "bounded",
+        "avif": "bounded",
+        "quicktime": "bounded"
       }
     },
     "mp4": {
@@ -291,7 +314,12 @@
     "codec.audio",
     "audio.channels",
     "audio.sample_rate",
-    "audio.bit_depth"
+    "audio.bit_depth",
+    "color.primaries",
+    "color.transfer",
+    "color.matrix",
+    "color.range",
+    "color.bit_depth"
   ],
   "surfaces": {
     "cli": {

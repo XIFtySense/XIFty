@@ -1,0 +1,120 @@
+---
+source: crates/xifty-cli/tests/cli_contract.rs
+assertion_line: 210
+expression: "probe_json(\"happy.avif\")"
+---
+{
+  "containers": [
+    {
+      "kind": "box",
+      "label": "ftyp",
+      "offset_end": 24,
+      "offset_start": 0
+    },
+    {
+      "kind": "box",
+      "label": "mdat",
+      "offset_end": 366,
+      "offset_start": 24
+    },
+    {
+      "kind": "box",
+      "label": "meta",
+      "offset_end": 569,
+      "offset_start": 366
+    },
+    {
+      "kind": "box",
+      "label": "meta/pitm",
+      "offset_end": 392,
+      "offset_start": 378,
+      "parent_label": "meta"
+    },
+    {
+      "kind": "box",
+      "label": "meta/iprp",
+      "offset_end": 502,
+      "offset_start": 392,
+      "parent_label": "meta"
+    },
+    {
+      "kind": "box",
+      "label": "meta/iprp/ipco",
+      "offset_end": 479,
+      "offset_start": 400,
+      "parent_label": "meta/iprp"
+    },
+    {
+      "kind": "box",
+      "label": "meta/iprp/ipco/ispe",
+      "offset_end": 428,
+      "offset_start": 408,
+      "parent_label": "meta/iprp/ipco"
+    },
+    {
+      "kind": "box",
+      "label": "meta/iprp/ipco/pixi",
+      "offset_end": 444,
+      "offset_start": 428,
+      "parent_label": "meta/iprp/ipco"
+    },
+    {
+      "kind": "box",
+      "label": "meta/iprp/ipco/colr",
+      "offset_end": 463,
+      "offset_start": 444,
+      "parent_label": "meta/iprp/ipco"
+    },
+    {
+      "kind": "box",
+      "label": "meta/iprp/ipco/cicp",
+      "offset_end": 479,
+      "offset_start": 463,
+      "parent_label": "meta/iprp/ipco"
+    },
+    {
+      "kind": "box",
+      "label": "meta/iprp/ipma",
+      "offset_end": 502,
+      "offset_start": 479,
+      "parent_label": "meta/iprp"
+    },
+    {
+      "kind": "box",
+      "label": "meta/iinf",
+      "offset_end": 537,
+      "offset_start": 502,
+      "parent_label": "meta"
+    },
+    {
+      "kind": "box",
+      "label": "meta/iinf/infe",
+      "offset_end": 537,
+      "offset_start": 516,
+      "parent_label": "meta/iinf"
+    },
+    {
+      "kind": "box",
+      "label": "meta/iloc",
+      "offset_end": 569,
+      "offset_start": 537,
+      "parent_label": "meta"
+    }
+  ],
+  "input": {
+    "container": "isobmff",
+    "detected_format": "avif",
+    "path": "happy.avif"
+  },
+  "report": {
+    "conflicts": [],
+    "issues": [
+      {
+        "code": "no_metadata_entries",
+        "message": "no supported metadata entries were decoded",
+        "severity": "info"
+      }
+    ]
+  },
+  "schema_version": "0.1.0"
+}
