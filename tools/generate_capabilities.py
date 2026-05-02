@@ -167,6 +167,10 @@ def _self_test(observed: dict[str, set[str]]) -> None:
     assert {"exif", "xmp", "icc", "iptc"}.issubset(
         observed["heif"]
     ), f"heif must surface exif+xmp+icc+iptc, got {sorted(observed['heif'])}"
+    assert "avif" in observed, "expected 'avif' detected_format from .avif fixtures"
+    assert "avif" in observed["avif"], (
+        f"avif must surface the 'avif' namespace, got {sorted(observed['avif'])}"
+    )
     assert "mp4" in observed, "expected 'mp4' detected_format from .mp4 fixtures"
     assert {"quicktime"}.issubset(
         observed["mp4"]

@@ -206,6 +206,27 @@ fn probe_snapshot_happy_heic() {
 }
 
 #[test]
+fn probe_snapshot_happy_avif() {
+    assert_json_snapshot!("probe_happy_avif", probe_json("happy.avif"));
+}
+
+#[test]
+fn extract_snapshot_happy_avif_normalized() {
+    assert_json_snapshot!(
+        "extract_happy_avif_normalized",
+        extract_json("happy.avif", ViewMode::Normalized)
+    );
+}
+
+#[test]
+fn extract_snapshot_happy_sequence_avif_normalized() {
+    assert_json_snapshot!(
+        "extract_happy_sequence_avif_normalized",
+        extract_json("happy_sequence.avif", ViewMode::Normalized)
+    );
+}
+
+#[test]
 fn probe_snapshot_happy_mp4() {
     assert_json_snapshot!("probe_happy_mp4", probe_json("happy.mp4"));
 }

@@ -23,6 +23,32 @@ pub struct IsobmffDimensions {
     pub path: String,
 }
 
+/// HDR colour information surfaced from `colr` (nclx), `cicp`, or `pixi`
+/// boxes attached to the primary item via the property-association chain.
+///
+/// `source` records which box populated the entry so downstream consumers
+/// can apply a precedence policy (cicp > pixi > colr/nclx).
+#[derive(Debug, Clone)]
+pub struct IsobmffColorInfo {
+    pub primaries: Option<u16>,
+    pub transfer: Option<u16>,
+    pub matrix: Option<u16>,
+    pub full_range: Option<bool>,
+    pub source: &'static str,
+    pub offset_start: u64,
+    pub offset_end: u64,
+    pub path: String,
+}
+
+/// Pixel bit-depth per channel surfaced from `pixi`.
+#[derive(Debug, Clone)]
+pub struct IsobmffPixelInfo {
+    pub bits_per_channel: Vec<u8>,
+    pub offset_start: u64,
+    pub offset_end: u64,
+    pub path: String,
+}
+
 #[derive(Debug, Clone)]
 pub struct IsobmffContainer {
     pub major_brand: [u8; 4],
@@ -41,6 +67,13 @@ pub struct IsobmffContainer {
     pub audio_channels: Option<u16>,
     pub audio_sample_rate: Option<u32>,
     pub primary_visual_dimensions: Option<IsobmffDimensions>,
+    /// HDR colour info attached to the primary item via the property
+    /// association chain. Populated from `colr` (nclx), `cicp`, or `pixi`.
+    /// When multiple sources are present, the precedence policy
+    /// (cicp > pixi > colr/nclx) is left to consumers.
+    pub primary_item_color: Option<IsobmffColorInfo>,
+    /// Pixel bit-depth per channel for the primary item, sourced from `pixi`.
+    pub primary_item_pixel: Option<IsobmffPixelInfo>,
     pub issues: Vec<Issue>,
 }
 
@@ -151,6 +184,13 @@ struct ParseState {
     item_locations: Vec<ItemLocation>,
     property_associations: Vec<PropertyAssociation>,
     property_dimensions: HashMap<u16, IsobmffDimensions>,
+    property_colors: HashMap<u16, IsobmffColorInfo>,
+    property_pixels: HashMap<u16, IsobmffPixelInfo>,
+    /// Monotonic property counter used to assign 1-based ipco property
+    /// indexes regardless of which child box (`ispe`, `colr`, `cicp`,
+    /// `pixi`, …) produced the entry. The `ipco` walk visits children in
+    /// document order, which matches how `ipma` references them.
+    property_count: u16,
     primary_item_id: Option<u32>,
     idat_payloads: Vec<(u64, u64, String)>,
     movie_header: MovieHeader,
@@ -174,6 +214,9 @@ pub fn parse_bytes(bytes: &[u8], base_offset: u64) -> Result<IsobmffContainer, X
         item_locations: Vec::new(),
         property_associations: Vec::new(),
         property_dimensions: HashMap::new(),
+        property_colors: HashMap::new(),
+        property_pixels: HashMap::new(),
+        property_count: 0,
         primary_item_id: None,
         idat_payloads: Vec::new(),
         movie_header: MovieHeader::default(),
@@ -201,6 +244,8 @@ pub fn parse_bytes(bytes: &[u8], base_offset: u64) -> Result<IsobmffContainer, X
 
     payloads.extend(payloads_from_items(&cursor, &state, &mut issues));
     let primary_item_dimensions = primary_item_dimensions(&state);
+    let primary_item_color = primary_item_color(&state);
+    let primary_item_pixel = primary_item_pixel(&state);
     let primary_visual_dimensions = primary_visual_dimensions(&state);
     let video_codec = state
         .tracks
@@ -280,6 +325,8 @@ pub fn parse_bytes(bytes: &[u8], base_offset: u64) -> Result<IsobmffContainer, X
         audio_channels,
         audio_sample_rate,
         primary_visual_dimensions,
+        primary_item_color,
+        primary_item_pixel,
         issues,
     })
 }
@@ -468,7 +515,18 @@ fn parse_children(
                 });
             }
             b"colr" => {
-                parse_colr(cursor, &parsed, payloads, issues);
+                parse_colr(cursor, &parsed, state, payloads, issues);
+            }
+            // `cicp` and `pixi` live as siblings of `colr` inside `ipco`'s
+            // children walk. Dispatching here (NOT under the outer `b"ipco"`
+            // arm) is required: the recursive walk processes ipco's
+            // children at this level, and ipma references those children
+            // by 1-based document-order index.
+            b"cicp" => {
+                parse_cicp(cursor, &parsed, state, issues);
+            }
+            b"pixi" => {
+                parse_pixi(cursor, &parsed, state, issues);
             }
             b"iref" => {
                 issues.push(Issue {
@@ -859,7 +917,8 @@ fn parse_ispe(
     }
     let width = cursor.read_u32(parsed.data_offset + 4, Endian::Big)?;
     let height = cursor.read_u32(parsed.data_offset + 8, Endian::Big)?;
-    let property_index = (state.property_dimensions.len() + 1) as u16;
+    state.property_count += 1;
+    let property_index = state.property_count;
     state.property_dimensions.insert(
         property_index,
         IsobmffDimensions {
@@ -1450,6 +1509,7 @@ fn metadata_item_kind(info: &ItemInfo) -> Option<&'static str> {
 fn parse_colr(
     cursor: &Cursor<'_>,
     parsed: &ParsedBox,
+    state: &mut ParseState,
     payloads: &mut Vec<IsobmffPayload>,
     issues: &mut Vec<Issue>,
 ) {
@@ -1463,6 +1523,10 @@ fn parse_colr(
         });
         return;
     }
+    // `colr` always consumes a property index in `ipco` regardless of payload
+    // type, so `ipma` references stay aligned with document order.
+    state.property_count += 1;
+    let property_index = state.property_count;
     let Ok(colour_type_bytes) = cursor.slice(parsed.data_offset, 4) else {
         return;
     };
@@ -1472,24 +1536,166 @@ fn parse_colr(
         colour_type_bytes[2],
         colour_type_bytes[3],
     ];
-    // Only restricted/unrestricted ICC profile types carry ICC bytes.
-    // nclx/nclc describe coded primaries without ICC data — skip silently.
-    if &colour_type != b"prof" && &colour_type != b"rICC" {
+    if &colour_type == b"prof" || &colour_type == b"rICC" {
+        let icc_offset = parsed.data_offset + 4;
+        if icc_offset >= parsed.end {
+            return;
+        }
+        payloads.push(IsobmffPayload {
+            kind: "icc",
+            tag: None,
+            offset_start: cursor.absolute_offset(parsed.start),
+            offset_end: cursor.absolute_offset(parsed.end),
+            data_offset: cursor.absolute_offset(icc_offset),
+            data_length: (parsed.end - icc_offset) as u64,
+            path: parsed.path.clone(),
+        });
         return;
     }
-    let icc_offset = parsed.data_offset + 4;
-    if icc_offset >= parsed.end {
+    if &colour_type == b"nclx" || &colour_type == b"nclc" {
+        // nclx layout (after 4-byte colour_type):
+        //   colour_primaries (u16) +
+        //   transfer_characteristics (u16) +
+        //   matrix_coefficients (u16) +
+        //   full_range_flag (1 bit, top of next byte) — nclc omits the flag.
+        if parsed.data_offset + 10 > parsed.end {
+            issues.push(Issue {
+                severity: Severity::Warning,
+                code: "isobmff_colr_nclx_truncated".into(),
+                message: "colr nclx/nclc payload is truncated".into(),
+                offset: Some(cursor.absolute_offset(parsed.data_offset)),
+                context: Some(parsed.path.clone()),
+            });
+            return;
+        }
+        let Ok(primaries) = cursor.read_u16(parsed.data_offset + 4, Endian::Big) else {
+            return;
+        };
+        let Ok(transfer) = cursor.read_u16(parsed.data_offset + 6, Endian::Big) else {
+            return;
+        };
+        let Ok(matrix) = cursor.read_u16(parsed.data_offset + 8, Endian::Big) else {
+            return;
+        };
+        let full_range = if &colour_type == b"nclx" {
+            cursor
+                .read_u8(parsed.data_offset + 10)
+                .ok()
+                .map(|byte| (byte & 0x80) != 0)
+        } else {
+            None
+        };
+        state.property_colors.insert(
+            property_index,
+            IsobmffColorInfo {
+                primaries: Some(primaries),
+                transfer: Some(transfer),
+                matrix: Some(matrix),
+                full_range,
+                source: "colr_nclx",
+                offset_start: cursor.absolute_offset(parsed.start),
+                offset_end: cursor.absolute_offset(parsed.end),
+                path: parsed.path.clone(),
+            },
+        );
+    }
+}
+
+fn parse_cicp(
+    cursor: &Cursor<'_>,
+    parsed: &ParsedBox,
+    state: &mut ParseState,
+    issues: &mut Vec<Issue>,
+) {
+    // cicp full-box layout (after 4-byte version+flags):
+    //   colour_primaries (u8) + transfer_characteristics (u8) +
+    //   matrix_coefficients (u8) + full_range_flag (top bit of next byte)
+    state.property_count += 1;
+    let property_index = state.property_count;
+    if parsed.data_offset + 8 > parsed.end {
+        issues.push(Issue {
+            severity: Severity::Warning,
+            code: "isobmff_cicp_truncated".into(),
+            message: "cicp box is truncated".into(),
+            offset: Some(cursor.absolute_offset(parsed.data_offset)),
+            context: Some(parsed.path.clone()),
+        });
         return;
     }
-    payloads.push(IsobmffPayload {
-        kind: "icc",
-        tag: None,
-        offset_start: cursor.absolute_offset(parsed.start),
-        offset_end: cursor.absolute_offset(parsed.end),
-        data_offset: cursor.absolute_offset(icc_offset),
-        data_length: (parsed.end - icc_offset) as u64,
-        path: parsed.path.clone(),
-    });
+    let Ok(primaries) = cursor.read_u8(parsed.data_offset + 4) else {
+        return;
+    };
+    let Ok(transfer) = cursor.read_u8(parsed.data_offset + 5) else {
+        return;
+    };
+    let Ok(matrix) = cursor.read_u8(parsed.data_offset + 6) else {
+        return;
+    };
+    let Ok(range_byte) = cursor.read_u8(parsed.data_offset + 7) else {
+        return;
+    };
+    state.property_colors.insert(
+        property_index,
+        IsobmffColorInfo {
+            primaries: Some(primaries as u16),
+            transfer: Some(transfer as u16),
+            matrix: Some(matrix as u16),
+            full_range: Some((range_byte & 0x80) != 0),
+            source: "cicp",
+            offset_start: cursor.absolute_offset(parsed.start),
+            offset_end: cursor.absolute_offset(parsed.end),
+            path: parsed.path.clone(),
+        },
+    );
+}
+
+fn parse_pixi(
+    cursor: &Cursor<'_>,
+    parsed: &ParsedBox,
+    state: &mut ParseState,
+    issues: &mut Vec<Issue>,
+) {
+    // pixi full-box layout (after 4-byte version+flags):
+    //   num_channels (u8) + bits_per_channel[num_channels] (u8 each)
+    state.property_count += 1;
+    let property_index = state.property_count;
+    if parsed.data_offset + 5 > parsed.end {
+        issues.push(Issue {
+            severity: Severity::Warning,
+            code: "isobmff_pixi_truncated".into(),
+            message: "pixi box is truncated".into(),
+            offset: Some(cursor.absolute_offset(parsed.data_offset)),
+            context: Some(parsed.path.clone()),
+        });
+        return;
+    }
+    let Ok(num_channels) = cursor.read_u8(parsed.data_offset + 4) else {
+        return;
+    };
+    let count = num_channels as usize;
+    let bits_offset = parsed.data_offset + 5;
+    if bits_offset + count > parsed.end {
+        issues.push(Issue {
+            severity: Severity::Warning,
+            code: "isobmff_pixi_truncated".into(),
+            message: "pixi bits_per_channel array is truncated".into(),
+            offset: Some(cursor.absolute_offset(parsed.data_offset)),
+            context: Some(parsed.path.clone()),
+        });
+        return;
+    }
+    let Ok(bits_slice) = cursor.slice(bits_offset, count) else {
+        return;
+    };
+    state.property_pixels.insert(
+        property_index,
+        IsobmffPixelInfo {
+            bits_per_channel: bits_slice.to_vec(),
+            offset_start: cursor.absolute_offset(parsed.start),
+            offset_end: cursor.absolute_offset(parsed.end),
+            path: parsed.path.clone(),
+        },
+    );
 }
 
 fn primary_item_dimensions(state: &ParseState) -> Option<IsobmffDimensions> {
@@ -1501,6 +1707,45 @@ fn primary_item_dimensions(state: &ParseState) -> Option<IsobmffDimensions> {
     for property_index in &associations.property_indexes {
         if let Some(dimensions) = state.property_dimensions.get(property_index) {
             return Some(dimensions.clone());
+        }
+    }
+    None
+}
+
+/// Walk the primary item's property associations and return the most
+/// authoritative colour info entry, applying the cicp > colr/nclx
+/// precedence policy. (Pixi is reported separately via
+/// `primary_item_pixel` because it carries bit depths, not a colour
+/// description.)
+fn primary_item_color(state: &ParseState) -> Option<IsobmffColorInfo> {
+    let item_id = state.primary_item_id?;
+    let associations = state
+        .property_associations
+        .iter()
+        .find(|association| association.item_id == item_id)?;
+    let mut cicp = None;
+    let mut nclx = None;
+    for property_index in &associations.property_indexes {
+        if let Some(info) = state.property_colors.get(property_index) {
+            match info.source {
+                "cicp" if cicp.is_none() => cicp = Some(info.clone()),
+                "colr_nclx" if nclx.is_none() => nclx = Some(info.clone()),
+                _ => {}
+            }
+        }
+    }
+    cicp.or(nclx)
+}
+
+fn primary_item_pixel(state: &ParseState) -> Option<IsobmffPixelInfo> {
+    let item_id = state.primary_item_id?;
+    let associations = state
+        .property_associations
+        .iter()
+        .find(|association| association.item_id == item_id)?;
+    for property_index in &associations.property_indexes {
+        if let Some(pixel) = state.property_pixels.get(property_index) {
+            return Some(pixel.clone());
         }
     }
     None
@@ -1788,6 +2033,123 @@ mod tests {
         let icc_bytes = &bytes
             [payload.data_offset as usize..(payload.data_offset + payload.data_length) as usize];
         assert_eq!(icc_bytes, b"ICCBYTES");
+    }
+
+    /// Build a synthetic AVIF-shaped fixture pairing the primary item with
+    /// `ispe`, `pixi`, `colr nclx`, and `cicp` properties via `ipma`.
+    /// Used to verify that `cicp`/`pixi` dispatch lives at the correct
+    /// nesting level (siblings of `colr` inside `ipco`'s children walk).
+    fn avif_with_color_properties() -> Vec<u8> {
+        // ispe: reserved(4) + width(4) + height(4)
+        let ispe = full_box(b"ispe", [0, 0, 0, 0], &{
+            let mut payload = Vec::new();
+            payload.extend_from_slice(&100u32.to_be_bytes());
+            payload.extend_from_slice(&80u32.to_be_bytes());
+            payload
+        });
+        // pixi: num_channels=3 + bits[3] = [10, 10, 10]
+        let pixi = full_box(b"pixi", [0, 0, 0, 0], &[3u8, 10, 10, 10]);
+        // colr nclx: type='nclx' + primaries=9 + transfer=16 + matrix=9 + range=0x80
+        let mut colr_payload = b"nclx".to_vec();
+        colr_payload.extend_from_slice(&9u16.to_be_bytes());
+        colr_payload.extend_from_slice(&16u16.to_be_bytes());
+        colr_payload.extend_from_slice(&9u16.to_be_bytes());
+        colr_payload.push(0x80);
+        let colr = boxed(b"colr", &colr_payload);
+        // cicp: full-box + primaries(1) + transfer(1) + matrix(1) + range(0x80)
+        let cicp = full_box(b"cicp", [0, 0, 0, 0], &[9u8, 16, 9, 0x80]);
+
+        let ipco = boxed(
+            b"ipco",
+            &[ispe.clone(), pixi.clone(), colr.clone(), cicp.clone()].concat(),
+        );
+
+        // ipma: entry_count(4) + entry [item_id(2) + assoc_count(1) +
+        //                               4 x property_index(1) + essential bit cleared]
+        let mut ipma_payload = Vec::new();
+        ipma_payload.extend_from_slice(&1u32.to_be_bytes()); // entry_count
+        ipma_payload.extend_from_slice(&1u16.to_be_bytes()); // item_id
+        ipma_payload.push(4); // association_count
+        ipma_payload.extend_from_slice(&[1, 2, 3, 4]); // 1=ispe 2=pixi 3=colr 4=cicp
+        let ipma = full_box(b"ipma", [0, 0, 0, 0], &ipma_payload);
+
+        let iprp = boxed(b"iprp", &[ipco, ipma].concat());
+
+        // pitm v0: reserved(2) + item_id(2)=1
+        let pitm = full_box(b"pitm", [0, 0, 0, 0], &1u16.to_be_bytes());
+
+        let meta = full_box(b"meta", [0, 0, 0, 0], &[pitm, iprp].concat());
+
+        let mut bytes = Vec::new();
+        bytes.extend_from_slice(&boxed(b"ftyp", b"avif\0\0\0\0mif1"));
+        bytes.extend_from_slice(&meta);
+        bytes
+    }
+
+    #[test]
+    fn surfaces_color_and_pixel_for_primary_avif_item() {
+        let bytes = avif_with_color_properties();
+        let parsed = parse_bytes(&bytes, 0).unwrap();
+        let color = parsed
+            .primary_item_color
+            .as_ref()
+            .expect("expected color info");
+        // cicp must win over colr_nclx per the precedence policy.
+        assert_eq!(color.source, "cicp");
+        assert_eq!(color.primaries, Some(9));
+        assert_eq!(color.transfer, Some(16));
+        assert_eq!(color.matrix, Some(9));
+        assert_eq!(color.full_range, Some(true));
+        let pixel = parsed
+            .primary_item_pixel
+            .as_ref()
+            .expect("expected pixel info");
+        assert_eq!(pixel.bits_per_channel, vec![10, 10, 10]);
+        let dimensions = parsed
+            .primary_item_dimensions
+            .as_ref()
+            .expect("expected primary dimensions");
+        assert_eq!((dimensions.width, dimensions.height), (100, 80));
+    }
+
+    #[test]
+    fn parses_colr_nclx_without_cicp() {
+        // No cicp: colr_nclx must be the surfaced color source.
+        let mut colr_payload = b"nclx".to_vec();
+        colr_payload.extend_from_slice(&1u16.to_be_bytes()); // primaries (BT.709)
+        colr_payload.extend_from_slice(&13u16.to_be_bytes()); // transfer (sRGB)
+        colr_payload.extend_from_slice(&1u16.to_be_bytes()); // matrix (BT.709)
+        colr_payload.push(0x00); // narrow-range
+        let colr = boxed(b"colr", &colr_payload);
+        let ispe = full_box(b"ispe", [0, 0, 0, 0], &{
+            let mut payload = Vec::new();
+            payload.extend_from_slice(&64u32.to_be_bytes());
+            payload.extend_from_slice(&64u32.to_be_bytes());
+            payload
+        });
+        let ipco = boxed(b"ipco", &[ispe, colr].concat());
+
+        let mut ipma_payload = Vec::new();
+        ipma_payload.extend_from_slice(&1u32.to_be_bytes());
+        ipma_payload.extend_from_slice(&1u16.to_be_bytes());
+        ipma_payload.push(2);
+        ipma_payload.extend_from_slice(&[1, 2]);
+        let ipma = full_box(b"ipma", [0, 0, 0, 0], &ipma_payload);
+
+        let iprp = boxed(b"iprp", &[ipco, ipma].concat());
+        let pitm = full_box(b"pitm", [0, 0, 0, 0], &1u16.to_be_bytes());
+        let meta = full_box(b"meta", [0, 0, 0, 0], &[pitm, iprp].concat());
+
+        let mut bytes = Vec::new();
+        bytes.extend_from_slice(&boxed(b"ftyp", b"avif\0\0\0\0mif1"));
+        bytes.extend_from_slice(&meta);
+        let parsed = parse_bytes(&bytes, 0).unwrap();
+        let color = parsed.primary_item_color.expect("color expected");
+        assert_eq!(color.source, "colr_nclx");
+        assert_eq!(color.primaries, Some(1));
+        assert_eq!(color.transfer, Some(13));
+        assert_eq!(color.matrix, Some(1));
+        assert_eq!(color.full_range, Some(false));
     }
 
     #[test]

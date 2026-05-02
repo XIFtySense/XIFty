@@ -52,6 +52,15 @@ pub fn detect(source: &SourceBytes) -> Result<Format, XiftyError> {
     }
 
     if bytes.len() >= 16 && &bytes[4..8] == b"ftyp" {
+        // AVIF must be checked BEFORE HEIF: an `avif`/`avis` brand in either
+        // the major position or the compatible-brand list routes to
+        // `Format::Avif` even when paired with a HEIF brand. Real-world
+        // dual-decode files (e.g. `major=heic compat=[avif, mif1]`) thus
+        // surface as AVIF, matching AVIF spec expectations that AVIF
+        // decoders accept such files while HEIF decoders may not.
+        if is_avif_brand(bytes) {
+            return Ok(Format::Avif);
+        }
         if is_heif_brand(bytes) {
             return Ok(Format::Heif);
         }
@@ -142,10 +151,33 @@ fn is_heif_brand(bytes: &[u8]) -> bool {
 }
 
 fn heif_brand(brand: [u8; 4]) -> bool {
+    // Note: `avif`/`avis` are intentionally absent here. They route through
+    // `is_avif_brand` first (see the `ftyp` block above) so AVIF wins on any
+    // AVIF brand even when a HEIF brand also appears.
     matches!(
         &brand,
-        b"mif1" | b"msf1" | b"heic" | b"heix" | b"hevc" | b"heim" | b"heis" | b"avif" | b"avis"
+        b"mif1" | b"msf1" | b"heic" | b"heix" | b"hevc" | b"heim" | b"heis"
     )
+}
+
+fn is_avif_brand(bytes: &[u8]) -> bool {
+    let Some(brand_bytes) = bytes.get(8..16) else {
+        return false;
+    };
+    let major = [
+        brand_bytes[0],
+        brand_bytes[1],
+        brand_bytes[2],
+        brand_bytes[3],
+    ];
+    let compat = bytes[16..]
+        .chunks_exact(4)
+        .map(|chunk| [chunk[0], chunk[1], chunk[2], chunk[3]]);
+    avif_brand(major) || compat.into_iter().any(avif_brand)
+}
+
+fn avif_brand(brand: [u8; 4]) -> bool {
+    matches!(&brand, b"avif" | b"avis")
 }
 
 fn is_mov_brand(bytes: &[u8]) -> bool {
@@ -341,6 +373,59 @@ mod tests {
         );
         let _ = fs::remove_file(dng_path);
         let _ = fs::remove_file(tiff_path);
+    }
+
+    #[test]
+    fn detects_avif_from_major_brand() {
+        let path = temp_file("a.avif", b"\x00\x00\x00\x18ftypavif\0\0\0\0mif1");
+        assert_eq!(
+            detect(&SourceBytes::from_path(&path).unwrap()).unwrap(),
+            Format::Avif
+        );
+        let _ = fs::remove_file(path);
+    }
+
+    #[test]
+    fn detects_avis_from_major_brand() {
+        let path = temp_file("a.avif", b"\x00\x00\x00\x18ftypavis\0\0\0\0msf1");
+        assert_eq!(
+            detect(&SourceBytes::from_path(&path).unwrap()).unwrap(),
+            Format::Avif
+        );
+        let _ = fs::remove_file(path);
+    }
+
+    #[test]
+    fn detects_avif_from_compat_brand() {
+        let path = temp_file("a.avif", b"\x00\x00\x00\x18ftypmif1\0\0\0\0avif");
+        assert_eq!(
+            detect(&SourceBytes::from_path(&path).unwrap()).unwrap(),
+            Format::Avif
+        );
+        let _ = fs::remove_file(path);
+    }
+
+    #[test]
+    fn detects_avif_when_heic_major_but_avif_compat() {
+        // Ordering invariant: AVIF wins on any AVIF brand, even when the
+        // major brand is `heic` and would otherwise classify as HEIF.
+        let path = temp_file("a.avif", b"\x00\x00\x00\x1cftypheic\0\0\0\0avifmif1");
+        assert_eq!(
+            detect(&SourceBytes::from_path(&path).unwrap()).unwrap(),
+            Format::Avif
+        );
+        let _ = fs::remove_file(path);
+    }
+
+    #[test]
+    fn detects_heif_from_pure_heic() {
+        // No AVIF brand anywhere: stays HEIF.
+        let path = temp_file("a.heic", b"\x00\x00\x00\x1cftypheic\0\0\0\0mif1heic");
+        assert_eq!(
+            detect(&SourceBytes::from_path(&path).unwrap()).unwrap(),
+            Format::Heif
+        );
+        let _ = fs::remove_file(path);
     }
 
     #[test]
