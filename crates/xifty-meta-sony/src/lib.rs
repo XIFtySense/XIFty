@@ -1,3 +1,36 @@
+//! Sony MakerNote decoder.
+//!
+//! Runs against any TIFF-shaped container after EXIF decoding has surfaced
+//! `Make`. Triggered when `Make` equals (case-insensitive) `"SONY"`. The
+//! decoder reads MakerNote (EXIF tag `0x927C`) as a Sony sub-IFD and emits
+//! per-tag entries under the `sony` namespace.
+//!
+//! ## Container coverage
+//!
+//! * **JPEG** — Sony writes a `b"SONY DSC \0\0\0"` 12-byte header in front of
+//!   the MakerNote sub-IFD inside `APP1/Exif`. The [`SONY_MAKER_NOTE_HEADER`]
+//!   gate skips that header before parsing the sub-IFD count. This is the
+//!   tested-against shape and the one current snapshots cover.
+//! * **TIFF / DNG** — Sony does not author plain TIFF, but an editor that
+//!   round-trips a Sony JPEG into TIFF can preserve the prefixed MakerNote
+//!   blob; the same gate applies and the decoder works unchanged.
+//! * **ARW** (Sony RAW, TIFF-based) — ARW MakerNotes commonly omit the
+//!   `b"SONY DSC "` prefix and place the sub-IFD count immediately at the
+//!   MakerNote payload start, sometimes using a different/no vendor header.
+//!   The current header gate therefore returns zero entries against many real
+//!   ARW MakerNotes. The plain EXIF surface (`Make`, `Model`, lens, exposure,
+//!   etc.) still decodes via [`xifty_meta_exif`]; only the `sony.*` namespace
+//!   is currently best-effort on ARW. The gate stays unchanged here to avoid
+//!   regressing the JPEG/TIFF path that already snapshots cleanly. Loosening
+//!   the gate is gated on a real-ARW fixture (see `cli_contract.rs`'s
+//!   `skip_missing_local_fixture` pattern).
+//!
+//! ## Cipher table
+//!
+//! [`SONY_DECIPHER_TABLE`] is Sony's published byte-substitution table used
+//! to deobfuscate certain MakerNote sub-IFDs (model-dependent). It is applied
+//! lazily by tag-specific decoders and is not used unconditionally.
+
 use xifty_container_tiff::TiffContainer;
 use xifty_core::{MetadataEntry, Provenance, TypedValue};
 use xifty_source::{Cursor, Endian};

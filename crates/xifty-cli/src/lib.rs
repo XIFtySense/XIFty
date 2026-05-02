@@ -74,6 +74,10 @@ fn probe_source(source: &SourceBytes) -> Result<ProbeOutput, XiftyError> {
             let parsed = parse_tiff(&source)?;
             ("cr2".to_string(), parsed.nodes, parsed.issues)
         }
+        Format::Arw => {
+            let parsed = parse_tiff(&source)?;
+            ("arw".to_string(), parsed.nodes, parsed.issues)
+        }
         Format::Png => {
             let parsed = parse_png(&source)?;
             ("png".to_string(), parsed.nodes, parsed.issues)
@@ -246,6 +250,7 @@ fn extract_source(
         Format::Tiff => tiff_extract(&source, "tiff")?,
         Format::Dng => tiff_extract(&source, "dng")?,
         Format::Cr2 => tiff_extract(&source, "cr2")?,
+        Format::Arw => tiff_extract(&source, "arw")?,
         Format::Png => {
             let png = parse_png(&source)?;
             let mut entries = Vec::new();
@@ -589,7 +594,7 @@ fn extract_source(
     })
 }
 
-/// Shared extraction path for TIFF-shaped containers (TIFF, DNG).
+/// Shared extraction path for TIFF-shaped containers (TIFF, DNG, CR2, ARW).
 ///
 /// Keyed on `container_label` so snapshot output identifies the source
 /// container faithfully while reusing the same parse + namespace decoders.

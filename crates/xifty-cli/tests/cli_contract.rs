@@ -594,6 +594,19 @@ fn extract_snapshot_happy_cr2_interpreted() {
 }
 
 #[test]
+fn probe_snapshot_happy_arw() {
+    assert_json_snapshot!("probe_happy_arw", probe_json("happy.arw"));
+}
+
+#[test]
+fn extract_snapshot_happy_arw_normalized() {
+    assert_json_snapshot!(
+        "extract_happy_arw_normalized",
+        extract_json("happy.arw", ViewMode::Normalized)
+    );
+}
+
+#[test]
 fn extract_snapshot_xmp_tiff_normalized() {
     assert_json_snapshot!(
         "extract_xmp_tiff_normalized",

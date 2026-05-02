@@ -17,6 +17,12 @@ pub fn detect(source: &SourceBytes) -> Result<Format, XiftyError> {
         if is_dng_tiff(bytes) {
             return Ok(Format::Dng);
         }
+        // ARW is checked AFTER DNG so a Sony-shot DNG (which carries both
+        // DNGVersion and Make=SONY) classifies as the normalized DNG superset
+        // rather than the vendor RAW.
+        if is_arw_tiff(bytes) {
+            return Ok(Format::Arw);
+        }
         return Ok(Format::Tiff);
     }
 
@@ -168,6 +174,104 @@ fn is_dng_tiff(bytes: &[u8]) -> bool {
                 return true;
             }
         }
+    }
+    false
+}
+
+/// Probe IFD0 of a TIFF-shaped byte stream for a Sony Make tag (0x010F).
+///
+/// Returns true when IFD0 carries a Make entry whose ASCII bytes uppercase
+/// to a value starting with "SONY" (matches "SONY", "Sony Corporation", etc.).
+/// Mirrors the defensiveness of `is_dng_tiff`: any out-of-bounds read or
+/// malformed entry returns `false` so detection degrades to plain TIFF rather
+/// than surfacing a parse error.
+fn is_arw_tiff(bytes: &[u8]) -> bool {
+    if bytes.len() < 8 {
+        return false;
+    }
+    let little_endian = &bytes[0..2] == b"II";
+    let read_u16 = |slice: &[u8]| -> Option<u16> {
+        let arr: [u8; 2] = slice.try_into().ok()?;
+        Some(if little_endian {
+            u16::from_le_bytes(arr)
+        } else {
+            u16::from_be_bytes(arr)
+        })
+    };
+    let read_u32 = |slice: &[u8]| -> Option<u32> {
+        let arr: [u8; 4] = slice.try_into().ok()?;
+        Some(if little_endian {
+            u32::from_le_bytes(arr)
+        } else {
+            u32::from_be_bytes(arr)
+        })
+    };
+
+    let ifd0_offset = match read_u32(&bytes[4..8]) {
+        Some(offset) => offset as usize,
+        None => return false,
+    };
+    let count_slice = match bytes.get(ifd0_offset..ifd0_offset + 2) {
+        Some(slice) => slice,
+        None => return false,
+    };
+    let count = match read_u16(count_slice) {
+        Some(count) => count as usize,
+        None => return false,
+    };
+    let entries_start = ifd0_offset + 2;
+    let entries_end = entries_start + count * 12;
+    let entries = match bytes.get(entries_start..entries_end) {
+        Some(slice) => slice,
+        None => return false,
+    };
+    for entry in entries.chunks_exact(12) {
+        let Some(tag) = read_u16(&entry[0..2]) else {
+            continue;
+        };
+        if tag != 0x010F {
+            continue;
+        }
+        let Some(type_id) = read_u16(&entry[2..4]) else {
+            return false;
+        };
+        // Tag 0x010F is ASCII (TIFF type 2) in every real-world writer; reject
+        // anything else to avoid misreading binary payloads.
+        if type_id != 2 {
+            return false;
+        }
+        let Some(count) = read_u32(&entry[4..8]) else {
+            return false;
+        };
+        let count = count as usize;
+        let value_bytes: &[u8] = if count <= 4 {
+            &entry[8..8 + count]
+        } else {
+            let Some(offset) = read_u32(&entry[8..12]) else {
+                return false;
+            };
+            let offset = offset as usize;
+            match bytes.get(offset..offset + count) {
+                Some(slice) => slice,
+                None => return false,
+            }
+        };
+        // Strip trailing NULs and whitespace, uppercase-compare against "SONY".
+        let trimmed = value_bytes
+            .iter()
+            .copied()
+            .take_while(|b| *b != 0)
+            .collect::<Vec<u8>>();
+        let trimmed = trimmed
+            .iter()
+            .copied()
+            .skip_while(|b| b.is_ascii_whitespace())
+            .collect::<Vec<u8>>();
+        if trimmed.len() < 4 {
+            return false;
+        }
+        let prefix = &trimmed[..4];
+        return prefix.eq_ignore_ascii_case(b"SONY");
     }
     false
 }
@@ -530,6 +634,105 @@ mod tests {
         assert_eq!(
             detect(&SourceBytes::from_path(&path).unwrap()).unwrap(),
             Format::Heif
+        );
+        let _ = fs::remove_file(path);
+    }
+
+    /// Build a minimal little-endian TIFF whose IFD0 carries a single Make
+    /// (0x010F) ASCII entry equal to `make` (NUL-terminated). Values that fit
+    /// in 4 bytes (incl. the NUL) are stored inline; longer values are placed
+    /// immediately after the IFD0 directory.
+    fn tiff_with_make(make: &str) -> Vec<u8> {
+        let mut bytes = Vec::new();
+        bytes.extend_from_slice(b"II*\0");
+        bytes.extend_from_slice(&8u32.to_le_bytes()); // IFD0 at offset 8
+        bytes.extend_from_slice(&1u16.to_le_bytes()); // one entry
+        bytes.extend_from_slice(&0x010Fu16.to_le_bytes()); // Make
+        bytes.extend_from_slice(&2u16.to_le_bytes()); // type = ASCII
+        let mut value = make.as_bytes().to_vec();
+        value.push(0); // NUL terminator
+        let count = value.len() as u32;
+        bytes.extend_from_slice(&count.to_le_bytes());
+        if value.len() <= 4 {
+            let mut padded = [0u8; 4];
+            padded[..value.len()].copy_from_slice(&value);
+            bytes.extend_from_slice(&padded);
+            bytes.extend_from_slice(&0u32.to_le_bytes()); // next IFD = 0
+        } else {
+            // Value lives after the IFD directory: header(8) + count(2) + entry(12) + next(4) = 26.
+            let value_offset = 26u32;
+            bytes.extend_from_slice(&value_offset.to_le_bytes());
+            bytes.extend_from_slice(&0u32.to_le_bytes()); // next IFD = 0
+            bytes.extend_from_slice(&value);
+        }
+        bytes
+    }
+
+    #[test]
+    fn detects_arw_when_make_is_sony() {
+        let arw_bytes = tiff_with_make("SONY");
+        let path = temp_file("a.arw", &arw_bytes);
+        assert_eq!(
+            detect(&SourceBytes::from_path(&path).unwrap()).unwrap(),
+            Format::Arw
+        );
+        let _ = fs::remove_file(path);
+    }
+
+    #[test]
+    fn detects_arw_when_make_is_sony_corporation() {
+        let arw_bytes = tiff_with_make("Sony Corporation");
+        let path = temp_file("a.arw", &arw_bytes);
+        assert_eq!(
+            detect(&SourceBytes::from_path(&path).unwrap()).unwrap(),
+            Format::Arw
+        );
+        let _ = fs::remove_file(path);
+    }
+
+    #[test]
+    fn dng_takes_priority_over_arw() {
+        // DNGVersion-bearing TIFF must classify as DNG even with no Sony
+        // signal — and a hypothetical Sony-shot DNG would also stay DNG via
+        // the same branch ordering. The tag-only DNG fixture suffices because
+        // is_arw_tiff is only consulted when is_dng_tiff returns false.
+        let dng_bytes = tiff_with_tag(0xC612);
+        let path = temp_file("a.dng", &dng_bytes);
+        assert_eq!(
+            detect(&SourceBytes::from_path(&path).unwrap()).unwrap(),
+            Format::Dng
+        );
+        let _ = fs::remove_file(path);
+    }
+
+    #[test]
+    fn does_not_classify_non_sony_make_as_arw() {
+        let bytes = tiff_with_make("XIFtyCam");
+        let path = temp_file("a.tif", &bytes);
+        assert_eq!(
+            detect(&SourceBytes::from_path(&path).unwrap()).unwrap(),
+            Format::Tiff
+        );
+        let _ = fs::remove_file(path);
+    }
+
+    #[test]
+    fn malformed_arw_make_offset_falls_back_to_tiff() {
+        // ASCII Make (0x010F) entry whose count is 16 but whose offset points
+        // past the buffer — must not panic and must not classify as ARW.
+        let mut bytes = Vec::new();
+        bytes.extend_from_slice(b"II*\0");
+        bytes.extend_from_slice(&8u32.to_le_bytes());
+        bytes.extend_from_slice(&1u16.to_le_bytes());
+        bytes.extend_from_slice(&0x010Fu16.to_le_bytes());
+        bytes.extend_from_slice(&2u16.to_le_bytes()); // ASCII
+        bytes.extend_from_slice(&16u32.to_le_bytes()); // count > 4 forces offset path
+        bytes.extend_from_slice(&0xFFFF_FFFFu32.to_le_bytes()); // bogus offset
+        bytes.extend_from_slice(&0u32.to_le_bytes());
+        let path = temp_file("a.tif", &bytes);
+        assert_eq!(
+            detect(&SourceBytes::from_path(&path).unwrap()).unwrap(),
+            Format::Tiff
         );
         let _ = fs::remove_file(path);
     }

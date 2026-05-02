@@ -1572,6 +1572,7 @@ def main():
         "no_exif.tiff": build_tiff(no_exif=True),
         "happy.dng": build_tiff(gps=False, dng=True),
         "happy.cr2": build_tiff(gps=False, cr2=True, make="Canon", canon_makernote=True),
+        "happy.arw": build_tiff(gps=False, make="SONY"),
         "happy.png": build_png(build_tiff(gps=False)),
         "icc.png": build_png_with_icc(icc),
         "iptc.png": build_png_with_iptc(build_iptc_iim()),
