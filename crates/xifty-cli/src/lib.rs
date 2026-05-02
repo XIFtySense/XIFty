@@ -17,6 +17,7 @@ use xifty_core::{
 };
 use xifty_detect::detect;
 use xifty_meta_apple::decode_from_tiff as decode_apple_from_tiff;
+use xifty_meta_bwf::{BwfPayload, decode_payload as decode_bwf_payload};
 use xifty_meta_exif::{decode_from_tiff, exif_payload_from_jpeg};
 use xifty_meta_icc::{IccPayload, decode_payload as decode_icc_payload};
 use xifty_meta_id3v2::{
@@ -24,6 +25,7 @@ use xifty_meta_id3v2::{
 };
 use xifty_meta_iptc::{IptcPayload, decode_payload as decode_iptc_payload};
 use xifty_meta_itunes::{ItunesPayload, decode_payload as decode_itunes_payload};
+use xifty_meta_ixml::{IxmlPayload, decode_payload as decode_ixml_payload};
 use xifty_meta_quicktime::{
     QuickTimePayload, QuickTimeUdtaPayload, decode_payload as decode_quicktime_payload,
     decode_udta_payload,
@@ -105,6 +107,10 @@ fn probe_source(source: &SourceBytes) -> Result<ProbeOutput, XiftyError> {
         Format::Mp3 => {
             let parsed = parse_mp3(&source)?;
             ("mp3".to_string(), parsed.nodes, parsed.issues)
+        }
+        Format::Wav => {
+            let parsed = parse_riff(&source)?;
+            ("wav".to_string(), parsed.nodes, parsed.issues)
         }
     };
     Ok(ProbeOutput {
@@ -510,6 +516,12 @@ fn extract_source(
             let issues = mp3.issues.clone();
             let entries = mp3_entries(&mp3, source.bytes());
             ("mp3".to_string(), mp3.nodes, entries, issues)
+        }
+        Format::Wav => {
+            let riff = parse_riff(&source)?;
+            let mut issues = riff.issues.clone();
+            let entries = wav_entries(&riff, source.bytes(), &mut issues);
+            ("wav".to_string(), riff.nodes, entries, issues)
         }
     };
 
@@ -1899,6 +1911,172 @@ fn mp3_entries(mp3: &Id3Container, bytes: &[u8]) -> Vec<MetadataEntry> {
     }
 
     entries
+}
+
+fn wav_entries(
+    riff: &xifty_container_riff::RiffContainer,
+    bytes: &[u8],
+    issues: &mut Vec<Issue>,
+) -> Vec<MetadataEntry> {
+    let mut entries = Vec::new();
+
+    // Synthesize audio scalar entries from the WAVE `fmt ` chunk.
+    let mut fmt_byte_rate: Option<u32> = None;
+    if let Some(chunk) = riff.fmt_chunk() {
+        if let Some(payload) = payload_slice(bytes, chunk.data_offset, chunk.data_length as usize) {
+            if let Some(format) = xifty_container_riff::parse_wav_format(payload) {
+                fmt_byte_rate = Some(format.byte_rate);
+                let fmt_offset = Some(chunk.offset_start);
+                let fmt_end = Some(chunk.offset_end);
+                let codec = wav_codec_name(format.format_tag);
+                if codec.is_none() {
+                    issues.push(namespace_issue(
+                        "wav_non_pcm_format",
+                        &format!(
+                            "WAVE fmt chunk advertises non-PCM format tag 0x{:04x}; bit depth and duration may be inaccurate",
+                            format.format_tag
+                        ),
+                        chunk.offset_start,
+                        "wav_fmt",
+                    ));
+                }
+                entries.push(wav_scalar_entry(
+                    "AudioSampleRate",
+                    TypedValue::Integer(format.sample_rate as i64),
+                    "derived from WAVE fmt chunk",
+                    fmt_offset,
+                    fmt_end,
+                    Some("wav_fmt"),
+                ));
+                entries.push(wav_scalar_entry(
+                    "AudioChannels",
+                    TypedValue::Integer(format.channels as i64),
+                    "derived from WAVE fmt chunk",
+                    fmt_offset,
+                    fmt_end,
+                    Some("wav_fmt"),
+                ));
+                entries.push(wav_scalar_entry(
+                    "AudioBitDepth",
+                    TypedValue::Integer(format.bits_per_sample as i64),
+                    "derived from WAVE fmt chunk",
+                    fmt_offset,
+                    fmt_end,
+                    Some("wav_fmt"),
+                ));
+                entries.push(wav_scalar_entry(
+                    "AudioFormat",
+                    TypedValue::Integer(format.format_tag as i64),
+                    "WAVE format tag (1=PCM, 3=IEEE float, 0xFFFE=extensible)",
+                    fmt_offset,
+                    fmt_end,
+                    Some("wav_fmt"),
+                ));
+                if let Some(name) = codec {
+                    entries.push(wav_scalar_entry(
+                        "AudioCodec",
+                        TypedValue::String(name.into()),
+                        "derived from WAVE fmt chunk format tag",
+                        fmt_offset,
+                        fmt_end,
+                        Some("wav_fmt"),
+                    ));
+                }
+            } else {
+                issues.push(namespace_issue(
+                    "wav_fmt_unparseable",
+                    "WAVE fmt chunk present but smaller than 16 bytes; cannot decode header",
+                    chunk.offset_start,
+                    "wav_fmt",
+                ));
+            }
+        }
+    }
+
+    if let Some(chunk) = riff.data_chunk() {
+        if let Some(byte_rate) = fmt_byte_rate {
+            if byte_rate > 0 {
+                let duration = chunk.data_length as f64 / byte_rate as f64;
+                entries.push(wav_scalar_entry(
+                    "DurationSeconds",
+                    TypedValue::Float(duration),
+                    "derived from WAVE data chunk byte length / byte_rate",
+                    Some(chunk.offset_start),
+                    Some(chunk.offset_end),
+                    Some("wav_data"),
+                ));
+            }
+        }
+    }
+
+    if let Some(chunk) = riff.bext_chunk() {
+        if let Some(payload) = payload_slice(bytes, chunk.data_offset, chunk.data_length as usize) {
+            entries.extend(decode_bwf_payload(BwfPayload {
+                bytes: payload,
+                container: "wav",
+                offset_start: chunk.offset_start,
+                offset_end: chunk.offset_end,
+            }));
+        }
+    }
+
+    if let Some(chunk) = riff.ixml_chunk() {
+        if let Some(payload) = payload_slice(bytes, chunk.data_offset, chunk.data_length as usize) {
+            let decoded = decode_ixml_payload(IxmlPayload {
+                bytes: payload,
+                container: "wav",
+                offset_start: chunk.offset_start,
+                offset_end: chunk.offset_end,
+            });
+            if decoded.is_empty() {
+                issues.push(namespace_issue(
+                    "wav_ixml_not_xml",
+                    "WAVE iXML chunk present but did not start with <BWFXML or <?xml",
+                    chunk.offset_start,
+                    "iXML",
+                ));
+            }
+            entries.extend(decoded);
+        }
+    }
+
+    entries
+}
+
+fn wav_codec_name(format_tag: u16) -> Option<&'static str> {
+    match format_tag {
+        0x0001 => Some("pcm"),
+        0x0003 => Some("ieee_float"),
+        0x0006 => Some("alaw"),
+        0x0007 => Some("mulaw"),
+        0xFFFE => Some("extensible"),
+        _ => None,
+    }
+}
+
+fn wav_scalar_entry(
+    tag_name: &str,
+    value: TypedValue,
+    note: &str,
+    offset_start: Option<u64>,
+    offset_end: Option<u64>,
+    path: Option<&str>,
+) -> MetadataEntry {
+    MetadataEntry {
+        namespace: "wav".into(),
+        tag_id: tag_name.into(),
+        tag_name: tag_name.into(),
+        value,
+        provenance: Provenance {
+            container: "wav".into(),
+            namespace: "wav".into(),
+            path: path.map(|p| p.to_string()),
+            offset_start,
+            offset_end,
+            notes: vec![note.into()],
+        },
+        notes: Vec::new(),
+    }
 }
 
 fn mp3_scalar_entry(

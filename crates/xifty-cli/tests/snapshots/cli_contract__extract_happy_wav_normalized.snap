@@ -1,0 +1,121 @@
+---
+source: crates/xifty-cli/tests/cli_contract.rs
+assertion_line: 2730
+expression: "extract_json(\"happy.wav\", ViewMode::Normalized)"
+---
+{
+  "input": {
+    "container": "wav",
+    "detected_format": "wav",
+    "path": "happy.wav"
+  },
+  "normalized": {
+    "fields": [
+      {
+        "confidence": 0.949999988079071,
+        "field": "duration",
+        "sources": [
+          {
+            "container": "wav",
+            "namespace": "wav",
+            "notes": [
+              "derived from WAVE data chunk byte length / byte_rate"
+            ],
+            "offset_end": 88244,
+            "offset_start": 36,
+            "path": "wav_data"
+          }
+        ],
+        "value": {
+          "kind": "float",
+          "value": 1.0
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
+        "field": "codec.audio",
+        "sources": [
+          {
+            "container": "wav",
+            "namespace": "wav",
+            "notes": [
+              "derived from WAVE fmt chunk format tag"
+            ],
+            "offset_end": 36,
+            "offset_start": 12,
+            "path": "wav_fmt"
+          }
+        ],
+        "value": {
+          "kind": "string",
+          "value": "pcm"
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
+        "field": "audio.channels",
+        "sources": [
+          {
+            "container": "wav",
+            "namespace": "wav",
+            "notes": [
+              "derived from WAVE fmt chunk"
+            ],
+            "offset_end": 36,
+            "offset_start": 12,
+            "path": "wav_fmt"
+          }
+        ],
+        "value": {
+          "kind": "integer",
+          "value": 1
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
+        "field": "audio.sample_rate",
+        "sources": [
+          {
+            "container": "wav",
+            "namespace": "wav",
+            "notes": [
+              "derived from WAVE fmt chunk"
+            ],
+            "offset_end": 36,
+            "offset_start": 12,
+            "path": "wav_fmt"
+          }
+        ],
+        "value": {
+          "kind": "integer",
+          "value": 44100
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
+        "field": "audio.bit_depth",
+        "sources": [
+          {
+            "container": "wav",
+            "namespace": "wav",
+            "notes": [
+              "derived from WAVE fmt chunk"
+            ],
+            "offset_end": 36,
+            "offset_start": 12,
+            "path": "wav_fmt"
+          }
+        ],
+        "value": {
+          "kind": "integer",
+          "value": 16
+        }
+      }
+    ]
+  },
+  "report": {
+    "conflicts": [],
+    "issues": []
+  },
+  "schema_version": "0.1.0"
+}
