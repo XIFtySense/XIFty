@@ -1120,12 +1120,112 @@ fn heif_exif_tiff(payload: &[u8], absolute_offset: u64) -> Option<(u64, &[u8])> 
     None
 }
 
-fn heif_dimension_entries(
-    dimensions: &xifty_container_isobmff::IsobmffDimensions,
+fn avif_color_entries(
+    color: &xifty_container_isobmff::IsobmffColorInfo,
 ) -> Vec<MetadataEntry> {
     let provenance = Provenance {
-        container: "heif".into(),
-        namespace: "heif".into(),
+        container: "avif".into(),
+        namespace: "avif".into(),
+        path: Some(color.path.clone()),
+        offset_start: Some(color.offset_start),
+        offset_end: Some(color.offset_end),
+        notes: vec![format!("derived from {} property for primary item", color.source)],
+    };
+    let mut entries = Vec::new();
+    if let Some(primaries) = color.primaries {
+        entries.push(MetadataEntry {
+            namespace: "avif".into(),
+            tag_id: "ColorPrimaries".into(),
+            tag_name: "ColorPrimaries".into(),
+            value: TypedValue::Integer(primaries as i64),
+            provenance: provenance.clone(),
+            notes: Vec::new(),
+        });
+    }
+    if let Some(transfer) = color.transfer {
+        entries.push(MetadataEntry {
+            namespace: "avif".into(),
+            tag_id: "TransferCharacteristics".into(),
+            tag_name: "TransferCharacteristics".into(),
+            value: TypedValue::Integer(transfer as i64),
+            provenance: provenance.clone(),
+            notes: Vec::new(),
+        });
+    }
+    if let Some(matrix) = color.matrix {
+        entries.push(MetadataEntry {
+            namespace: "avif".into(),
+            tag_id: "MatrixCoefficients".into(),
+            tag_name: "MatrixCoefficients".into(),
+            value: TypedValue::Integer(matrix as i64),
+            provenance: provenance.clone(),
+            notes: Vec::new(),
+        });
+    }
+    if let Some(range) = color.full_range {
+        entries.push(MetadataEntry {
+            namespace: "avif".into(),
+            tag_id: "FullRangeFlag".into(),
+            tag_name: "FullRangeFlag".into(),
+            value: TypedValue::Integer(if range { 1 } else { 0 }),
+            provenance,
+            notes: Vec::new(),
+        });
+    }
+    entries
+}
+
+fn avif_pixi_entries(
+    pixel: &xifty_container_isobmff::IsobmffPixelInfo,
+) -> Vec<MetadataEntry> {
+    // Use the first channel's bit depth as the canonical "BitDepth"; AVIF
+    // images are typically uniform across channels. Per-channel data is
+    // preserved via the synthesized PixelBitDepths string entry.
+    let provenance = Provenance {
+        container: "avif".into(),
+        namespace: "avif".into(),
+        path: Some(pixel.path.clone()),
+        offset_start: Some(pixel.offset_start),
+        offset_end: Some(pixel.offset_end),
+        notes: vec!["derived from pixi property for primary item".into()],
+    };
+    let mut entries = Vec::new();
+    if let Some(first) = pixel.bits_per_channel.first().copied() {
+        entries.push(MetadataEntry {
+            namespace: "avif".into(),
+            tag_id: "BitDepth".into(),
+            tag_name: "BitDepth".into(),
+            value: TypedValue::Integer(first as i64),
+            provenance: provenance.clone(),
+            notes: Vec::new(),
+        });
+    }
+    if !pixel.bits_per_channel.is_empty() {
+        let joined = pixel
+            .bits_per_channel
+            .iter()
+            .map(|b| b.to_string())
+            .collect::<Vec<_>>()
+            .join(",");
+        entries.push(MetadataEntry {
+            namespace: "avif".into(),
+            tag_id: "PixelBitDepths".into(),
+            tag_name: "PixelBitDepths".into(),
+            value: TypedValue::String(joined),
+            provenance,
+            notes: Vec::new(),
+        });
+    }
+    entries
+}
+
+fn item_dimension_entries(
+    dimensions: &xifty_container_isobmff::IsobmffDimensions,
+    namespace: &str,
+) -> Vec<MetadataEntry> {
+    let provenance = Provenance {
+        container: namespace.into(),
+        namespace: namespace.into(),
         path: Some(dimensions.path.clone()),
         offset_start: Some(dimensions.offset_start),
         offset_end: Some(dimensions.offset_end),
@@ -1134,7 +1234,7 @@ fn heif_dimension_entries(
 
     vec![
         MetadataEntry {
-            namespace: "heif".into(),
+            namespace: namespace.into(),
             tag_id: "ImageWidth".into(),
             tag_name: "ImageWidth".into(),
             value: TypedValue::Integer(dimensions.width as i64),
@@ -1142,7 +1242,7 @@ fn heif_dimension_entries(
             notes: Vec::new(),
         },
         MetadataEntry {
-            namespace: "heif".into(),
+            namespace: namespace.into(),
             tag_id: "ImageHeight".into(),
             tag_name: "ImageHeight".into(),
             value: TypedValue::Integer(dimensions.height as i64),
@@ -1289,7 +1389,16 @@ fn isobmff_entries(
     }
 
     if let Some(dimensions) = &container.primary_item_dimensions {
-        entries.extend(heif_dimension_entries(dimensions));
+        let namespace = if format_name == "avif" { "avif" } else { "heif" };
+        entries.extend(item_dimension_entries(dimensions, namespace));
+    }
+    if format_name == "avif" {
+        if let Some(color) = &container.primary_item_color {
+            entries.extend(avif_color_entries(color));
+        }
+        if let Some(pixel) = &container.primary_item_pixel {
+            entries.extend(avif_pixi_entries(pixel));
+        }
     }
     if let Some(dimensions) = &container.primary_visual_dimensions {
         entries.extend(media_dimension_entries(dimensions, format_name));

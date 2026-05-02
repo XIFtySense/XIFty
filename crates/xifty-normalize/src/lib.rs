@@ -57,6 +57,8 @@ pub fn normalize_with_policy(entries: &[MetadataEntry]) -> PolicyResult {
         });
     }
 
+    derive_avif_color_fields(entries, &mut result.fields);
+
     if let Some((entry, keywords)) = entry_strings(entries, "Keywords") {
         if !result.fields.iter().any(|field| field.field == "keywords") {
             result.fields.push(NormalizedField {
@@ -70,6 +72,49 @@ pub fn normalize_with_policy(entries: &[MetadataEntry]) -> PolicyResult {
     }
 
     result
+}
+
+/// Derive HDR colour fields from AVIF-namespace entries.
+///
+/// `BitDepth` is sourced from `pixi`; `ColorPrimaries`,
+/// `TransferCharacteristics`, `MatrixCoefficients`, and `FullRangeFlag`
+/// come from either `cicp` or `colr` (nclx). The container parser already
+/// applied the `cicp > colr/nclx` precedence policy when populating the
+/// AVIF entries, so this function only mirrors what the AVIF namespace
+/// reports — it does not re-rank sources.
+fn derive_avif_color_fields(entries: &[MetadataEntry], fields: &mut Vec<NormalizedField>) {
+    let avif_entry = |tag: &str| -> Option<&MetadataEntry> {
+        entries
+            .iter()
+            .find(|entry| entry.namespace == "avif" && entry.tag_name == tag)
+    };
+    if let Some(entry) = avif_entry("ColorPrimaries") {
+        if let TypedValue::Integer(value) = entry.value {
+            ensure_field(fields, "color.primaries", value, &entry.provenance);
+        }
+    }
+    if let Some(entry) = avif_entry("TransferCharacteristics") {
+        if let TypedValue::Integer(value) = entry.value {
+            ensure_field(fields, "color.transfer", value, &entry.provenance);
+        }
+    }
+    if let Some(entry) = avif_entry("MatrixCoefficients") {
+        if let TypedValue::Integer(value) = entry.value {
+            ensure_field(fields, "color.matrix", value, &entry.provenance);
+        }
+    }
+    if let Some(entry) = avif_entry("FullRangeFlag") {
+        if let TypedValue::Integer(value) = entry.value {
+            // FullRangeFlag is a boolean (0/1); ensure_field stores i64
+            // unchanged, which preserves the underlying flag value.
+            ensure_field(fields, "color.range", value, &entry.provenance);
+        }
+    }
+    if let Some(entry) = avif_entry("BitDepth") {
+        if let TypedValue::Integer(value) = entry.value {
+            ensure_field(fields, "color.bit_depth", value, &entry.provenance);
+        }
+    }
 }
 
 fn enrich_exif_timestamps(entries: &[MetadataEntry], fields: &mut [NormalizedField]) {
@@ -481,6 +526,47 @@ mod tests {
             .find(|field| field.field == "audio.bit_depth")
             .expect("audio.bit_depth surfaced");
         assert_eq!(bit_depth.value, TypedValue::Integer(16));
+    }
+
+    #[test]
+    fn derives_avif_color_fields_from_avif_namespace() {
+        let prov = Provenance {
+            container: "avif".into(),
+            namespace: "avif".into(),
+            path: None,
+            offset_start: None,
+            offset_end: None,
+            notes: Vec::new(),
+        };
+        let entry = |tag: &str, value: i64| MetadataEntry {
+            namespace: "avif".into(),
+            tag_id: tag.into(),
+            tag_name: tag.into(),
+            value: TypedValue::Integer(value),
+            provenance: prov.clone(),
+            notes: Vec::new(),
+        };
+        let entries = vec![
+            entry("ColorPrimaries", 9),
+            entry("TransferCharacteristics", 16),
+            entry("MatrixCoefficients", 9),
+            entry("FullRangeFlag", 1),
+            entry("BitDepth", 10),
+        ];
+        let fields = normalize(&entries);
+        let by_name = |name: &str| {
+            fields
+                .iter()
+                .find(|f| f.field == name)
+                .unwrap_or_else(|| panic!("missing {name}"))
+                .value
+                .clone()
+        };
+        assert_eq!(by_name("color.primaries"), TypedValue::Integer(9));
+        assert_eq!(by_name("color.transfer"), TypedValue::Integer(16));
+        assert_eq!(by_name("color.matrix"), TypedValue::Integer(9));
+        assert_eq!(by_name("color.range"), TypedValue::Integer(1));
+        assert_eq!(by_name("color.bit_depth"), TypedValue::Integer(10));
     }
 
     #[test]
