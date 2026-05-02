@@ -25,6 +25,20 @@ pub fn parse_bytes(
     base_offset: u64,
     root_label: &str,
 ) -> Result<TiffContainer, XiftyError> {
+    parse_bytes_accepting(bytes, base_offset, root_label, &[42])
+}
+
+/// Parse a TIFF byte slice while accepting any of the supplied 16-bit magic
+/// values after the endianness marker. Existing strict callers continue to
+/// route through [`parse_bytes`], which only accepts the canonical decimal
+/// 42 magic. ORF and other TIFF-shaped containers with vendor magics use
+/// this entry point.
+pub fn parse_bytes_accepting(
+    bytes: &[u8],
+    base_offset: u64,
+    root_label: &str,
+    accepted_magics: &[u16],
+) -> Result<TiffContainer, XiftyError> {
     let cursor = Cursor::new(bytes, base_offset);
     if cursor.len() < 8 {
         return Err(XiftyError::Parse {
@@ -41,7 +55,7 @@ pub fn parse_bytes(
         }
     };
     let magic = cursor.read_u16(2, endian)?;
-    if magic != 42 {
+    if !accepted_magics.contains(&magic) {
         return Err(XiftyError::Parse {
             message: format!("unexpected tiff magic {magic}"),
         });
@@ -334,6 +348,56 @@ mod tests {
         assert!(xmp_payload(&bytes, &tiff).is_none());
         assert!(icc_payload(&bytes, &tiff).is_none());
         assert!(iptc_payload(&bytes, &tiff).is_none());
+    }
+
+    /// Build a minimal TIFF body with a custom 16-bit magic instead of 42.
+    /// IFD0 lives at offset 8 with zero entries.
+    fn build_tiff_with_magic(endian: Endian, magic: u16) -> Vec<u8> {
+        let (marker, pack16, pack32): ([u8; 2], fn(u16) -> [u8; 2], fn(u32) -> [u8; 4]) =
+            match endian {
+                Endian::Little => ([b'I', b'I'], |v| v.to_le_bytes(), |v| v.to_le_bytes()),
+                Endian::Big => ([b'M', b'M'], |v| v.to_be_bytes(), |v| v.to_be_bytes()),
+            };
+        let mut out = Vec::new();
+        out.extend_from_slice(&marker);
+        out.extend_from_slice(&pack16(magic));
+        out.extend_from_slice(&pack32(8));
+        out.extend_from_slice(&pack16(0));
+        out.extend_from_slice(&pack32(0));
+        out
+    }
+
+    #[test]
+    fn parse_bytes_accepting_handles_orf_iiro_magic() {
+        // IIRO little-endian: bytes 2..4 = "RO" -> u16 LE = 0x4F52
+        let bytes = build_tiff_with_magic(Endian::Little, 0x4F52);
+        assert_eq!(&bytes[0..4], b"IIRO");
+        let parsed =
+            parse_bytes_accepting(&bytes, 0, "orf", &[0x4F52, 0x5352]).expect("orf parses");
+        assert!(!parsed.nodes.is_empty());
+    }
+
+    #[test]
+    fn parse_bytes_accepting_handles_orf_iirs_magic() {
+        // IIRS little-endian: bytes 2..4 = "RS" -> u16 LE = 0x5352
+        let bytes = build_tiff_with_magic(Endian::Little, 0x5352);
+        assert_eq!(&bytes[0..4], b"IIRS");
+        parse_bytes_accepting(&bytes, 0, "orf", &[0x4F52, 0x5352]).expect("orf parses");
+    }
+
+    #[test]
+    fn parse_bytes_accepting_handles_orf_mmor_magic() {
+        // MMOR big-endian: bytes 2..4 = "OR" -> u16 BE = 0x4F52
+        let bytes = build_tiff_with_magic(Endian::Big, 0x4F52);
+        assert_eq!(&bytes[0..4], b"MMOR");
+        parse_bytes_accepting(&bytes, 0, "orf", &[0x4F52, 0x5352]).expect("orf parses");
+    }
+
+    #[test]
+    fn strict_parse_bytes_still_rejects_orf_magic() {
+        // Strict callers must not accept the ORF magics.
+        let bytes = build_tiff_with_magic(Endian::Little, 0x4F52);
+        assert!(parse_bytes(&bytes, 0, "tiff").is_err());
     }
 
     #[test]

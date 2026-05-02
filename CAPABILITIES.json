@@ -202,6 +202,27 @@
         "DynamicRange",
         "FilmMode"
       ]
+    },
+    "olympus_makernote": {
+      "status": "bounded",
+      "supported_tags": [
+        "MakerNoteVersion",
+        "Quality",
+        "Macro",
+        "BWMode",
+        "DigitalZoom",
+        "CameraType",
+        "CameraID",
+        "ShutterSpeed",
+        "ISO",
+        "Aperture",
+        "Brightness",
+        "FlashMode",
+        "FocusMode",
+        "FocusDistance",
+        "Zoom",
+        "SerialNumber"
+      ]
     }
   },
   "containers": {
@@ -251,6 +272,12 @@
       "namespaces": {
         "exif": "bounded",
         "fuji": "bounded"
+      }
+    },
+    "orf": {
+      "namespaces": {
+        "exif": "bounded",
+        "olympus_makernote": "bounded"
       }
     },
     "png": {

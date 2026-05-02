@@ -628,6 +628,19 @@ fn extract_snapshot_happy_raf_interpreted() {
 }
 
 #[test]
+fn probe_snapshot_happy_orf() {
+    assert_json_snapshot!("probe_happy_orf", probe_json("happy.orf"));
+}
+
+#[test]
+fn extract_snapshot_happy_orf_normalized() {
+    assert_json_snapshot!(
+        "extract_happy_orf_normalized",
+        extract_json("happy.orf", ViewMode::Normalized)
+    );
+}
+
+#[test]
 fn extract_snapshot_xmp_tiff_normalized() {
     assert_json_snapshot!(
         "extract_xmp_tiff_normalized",

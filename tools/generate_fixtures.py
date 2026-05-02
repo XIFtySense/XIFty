@@ -50,6 +50,8 @@ def build_tiff(
     cr2=False,
     canon_makernote=False,
     fuji_makernote=False,
+    olympus_makernote=False,
+    orf=False,
 ):
     b = TiffBuilder(endian)
     p16, p32 = b.pack16, b.pack32
@@ -119,7 +121,7 @@ def build_tiff(
         exposure_time = p32(1) + p32(250)
         f_number = p32(56) + p32(10)
         focal_length = p32(50) + p32(1)
-        exif_count = 8 + (1 if canon_makernote else 0) + (1 if fuji_makernote else 0)
+        exif_count = 8 + (1 if canon_makernote else 0) + (1 if fuji_makernote else 0) + (1 if olympus_makernote else 0)
         exif_data_base = exif_off + 2 + exif_count * 12 + 4
         dto1_off = exif_data_base
         dto2_off = exif_data_base + len(dto) + (len(dto) % 2)
@@ -184,6 +186,28 @@ def build_tiff(
             exif_entries.append(
                 (0x927C, 7, len(fuji_makernote_blob), p32(fuji_makernote_off))
             )
+        # Olympus MakerNote: legacy 8-byte header `OLYMP\0\x01\0` + sub-IFD
+        # with two LONG entries (Quality=2, fall-through 0x1234=99). Sub-IFD
+        # value offsets in this header variant are MakerNote-relative; both
+        # values are inline (count=1, type=4 LONG) so no out-of-line slots.
+        olympus_makernote_blob = b""
+        olympus_makernote_off = (
+            focal_length_off
+            + len(focal_length)
+            + len(canon_makernote_blob)
+            + len(fuji_makernote_blob)
+        )
+        if olympus_makernote:
+            olympus_sub_ifd = (
+                p16(2)
+                + p16(0x0201) + p16(4) + p32(1) + p32(2)
+                + p16(0x1234) + p16(4) + p32(1) + p32(99)
+                + p32(0)
+            )
+            olympus_makernote_blob = b"OLYMP\x00\x01\x00" + olympus_sub_ifd
+            exif_entries.append(
+                (0x927C, 7, len(olympus_makernote_blob), p32(olympus_makernote_off))
+            )
         exif_ifd = bytearray(b.ifd_bytes(exif_entries))
         exif_ifd += dto
         if len(dto) % 2:
@@ -202,6 +226,7 @@ def build_tiff(
         exif_ifd += focal_length
         exif_ifd += canon_makernote_blob
         exif_ifd += fuji_makernote_blob
+        exif_ifd += olympus_makernote_blob
 
         if gps:
             gps_off = exif_off + len(exif_ifd)
@@ -244,6 +269,14 @@ def build_tiff(
     out += b.data
     out += exif_ifd
     out += gps_ifd
+    if orf:
+        # Olympus ORF replaces the standard TIFF magic (decimal 42, "*\0" LE)
+        # with the vendor magic "RO" (LE u16 = 0x4F52). Endianness marker and
+        # IFD0 offset stay TIFF-shaped so the embedded TIFF parser can walk
+        # the IFD chain unchanged.
+        if not b.le:
+            raise ValueError("ORF synth currently only supports little-endian builds")
+        out[2:4] = b"RO"
     return bytes(out)
 
 
@@ -1629,6 +1662,7 @@ def main():
         "happy.cr2": build_tiff(gps=False, cr2=True, make="Canon", canon_makernote=True),
         "happy.arw": build_tiff(gps=False, make="SONY"),
         "happy.raf": build_raf(build_tiff(gps=False, make="FUJIFILM", fuji_makernote=True)),
+        "happy.orf": build_tiff(gps=False, make="OLYMPUS", olympus_makernote=True, orf=True),
         "happy.png": build_png(build_tiff(gps=False)),
         "icc.png": build_png_with_icc(icc),
         "iptc.png": build_png_with_iptc(build_iptc_iim()),
