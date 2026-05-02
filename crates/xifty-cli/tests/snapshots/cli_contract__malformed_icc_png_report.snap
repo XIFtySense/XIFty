@@ -17,11 +17,6 @@ expression: "extract_json(\"malformed_icc.png\", ViewMode::Report)"
         "message": "PNG iCCP payload could not be decompressed",
         "offset": 33,
         "severity": "warning"
-      },
-      {
-        "code": "no_metadata_entries",
-        "message": "no supported metadata entries were decoded",
-        "severity": "info"
       }
     ]
   },

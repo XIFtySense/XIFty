@@ -36,6 +36,61 @@ fn scrub_path(value: &mut Value) {
             value["input"]["path"] = Value::String(name);
         }
     }
+    scrub_filesystem_fallback_fields(value);
+}
+
+/// Redact filesystem-derived fallback fields so snapshots stay deterministic
+/// across hosts. Filesystem `mtime`/`birthtime` values vary per checkout, and
+/// the source `path` is an absolute path. We replace the timestamp value with
+/// `<filesystem>` and the source path with the file name, but only for
+/// entries whose source namespace is `filesystem` — embedded metadata is left
+/// untouched.
+fn scrub_filesystem_fallback_fields(value: &mut Value) {
+    let Some(fields) = value
+        .get_mut("normalized")
+        .and_then(|normalized| normalized.get_mut("fields"))
+        .and_then(|fields| fields.as_array_mut())
+    else {
+        return;
+    };
+    for field in fields {
+        let from_filesystem = field
+            .get("sources")
+            .and_then(|s| s.as_array())
+            .map(|sources| {
+                !sources.is_empty()
+                    && sources.iter().all(|source| {
+                        source.get("namespace").and_then(|n| n.as_str()) == Some("filesystem")
+                    })
+            })
+            .unwrap_or(false);
+        if !from_filesystem {
+            continue;
+        }
+        if let Some(sources) = field
+            .get_mut("sources")
+            .and_then(|sources| sources.as_array_mut())
+        {
+            for source in sources {
+                if let Some(path_value) = source.get_mut("path") {
+                    if let Some(path) = path_value.as_str().map(str::to_string) {
+                        let name = Path::new(&path)
+                            .file_name()
+                            .map(|n| n.to_string_lossy().into_owned())
+                            .unwrap_or(path);
+                        *path_value = Value::String(name);
+                    }
+                }
+            }
+        }
+        if let Some(value_obj) = field.get_mut("value") {
+            if value_obj.get("kind").and_then(|k| k.as_str()) == Some("timestamp") {
+                if let Some(v) = value_obj.get_mut("value") {
+                    *v = Value::String("<filesystem>".into());
+                }
+            }
+        }
+    }
 }
 
 fn extract_json(name: &str, view: ViewMode) -> Value {
@@ -315,6 +370,56 @@ fn apple_screenshot_png_uses_preserved_modified_time_when_birthtime_is_copy_time
             "kind": "timestamp",
             "value": "2025-03-24T21:09:11Z"
         })
+    );
+
+    let _ = fs::remove_file(temp_path);
+}
+
+#[test]
+fn png_without_embedded_datetime_falls_back_to_filesystem_mtime() {
+    use std::time::{Duration, SystemTime};
+
+    let fixture_path = fixture("no_exif.png");
+    let temp_path = std::env::temp_dir().join(format!(
+        "xifty-mtime-fallback-{}-{}.png",
+        std::process::id(),
+        chrono_like_test_suffix()
+    ));
+    fs::copy(&fixture_path, &temp_path).unwrap();
+
+    // Whole-second epoch so the formatted ISO-8601 string is stable across
+    // filesystems with second-resolution mtimes.
+    let target_unix_seconds: u64 = 1_705_320_000; // 2024-01-15T12:00:00Z
+    let target = SystemTime::UNIX_EPOCH + Duration::from_secs(target_unix_seconds);
+    let expected = "2024-01-15T12:00:00Z";
+
+    let file = fs::File::options().write(true).open(&temp_path).unwrap();
+    file.set_modified(target).unwrap();
+    drop(file);
+
+    let output = serde_json::to_value(
+        xifty_cli::extract_path(temp_path.clone(), ViewMode::Normalized).unwrap(),
+    )
+    .unwrap();
+    let output = normalized_map(&output);
+
+    assert_eq!(
+        output["captured_at"],
+        serde_json::json!({
+            "kind": "timestamp",
+            "value": expected,
+        }),
+        "captured_at should be sourced from filesystem mtime when no embedded \
+         capture timestamp is present"
+    );
+    assert_eq!(
+        output["created_at"],
+        serde_json::json!({
+            "kind": "timestamp",
+            "value": expected,
+        }),
+        "created_at should be sourced from filesystem mtime when no embedded \
+         capture timestamp is present"
     );
 
     let _ = fs::remove_file(temp_path);

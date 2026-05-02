@@ -1,6 +1,5 @@
 ---
 source: crates/xifty-cli/tests/cli_contract.rs
-assertion_line: 333
 expression: "extract_json(\"iptc.png\", ViewMode::Normalized)"
 ---
 {
@@ -11,6 +10,36 @@ expression: "extract_json(\"iptc.png\", ViewMode::Normalized)"
   },
   "normalized": {
     "fields": [
+      {
+        "confidence": 0.949999988079071,
+        "field": "captured_at",
+        "sources": [
+          {
+            "container": "source",
+            "namespace": "filesystem",
+            "path": "iptc.png"
+          }
+        ],
+        "value": {
+          "kind": "timestamp",
+          "value": "<filesystem>"
+        }
+      },
+      {
+        "confidence": 0.949999988079071,
+        "field": "created_at",
+        "sources": [
+          {
+            "container": "source",
+            "namespace": "filesystem",
+            "path": "iptc.png"
+          }
+        ],
+        "value": {
+          "kind": "timestamp",
+          "value": "<filesystem>"
+        }
+      },
       {
         "confidence": 0.949999988079071,
         "field": "author",

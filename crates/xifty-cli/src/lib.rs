@@ -1,5 +1,7 @@
 use flate2::read::ZlibDecoder;
-use std::{fs, io::Read, path::PathBuf, process::Command, time::SystemTime};
+#[cfg(target_os = "macos")]
+use std::process::Command;
+use std::{fs, io::Read, path::PathBuf, time::SystemTime};
 use xifty_container_aiff::{AiffContainer, parse as parse_aiff};
 use xifty_container_flac::{FlacContainer, parse as parse_flac};
 use xifty_container_id3::{Id3Container, parse as parse_mp3};
@@ -651,6 +653,18 @@ fn payload_slice(bytes: &[u8], absolute_offset: u64, len: usize) -> Option<&[u8]
     bytes.get(start..start + len)
 }
 
+/// Emit a filesystem-derived capture timestamp when a PNG carries no embedded
+/// `DateTimeOriginal` / `CreateDate`.
+///
+/// Two-tier precedence:
+/// 1. **Universal (all platforms):** filesystem `mtime` then `birthtime`/`ctime`.
+///    Runs whenever a PNG decode produced no capture-date candidate, so Linux,
+///    Windows, and macOS hosts all surface the host filesystem fallback.
+/// 2. **macOS Apple-screencap enrichment:** if the file is tagged as an Apple
+///    screen capture (via `xattr com.apple.metadata:kMDItemIsScreenCapture`)
+///    we prefer Spotlight's `kMDItemContentCreationDate` over the filesystem
+///    times. This branch is gated to `target_os = "macos"` because it shells
+///    out to macOS-only tools (`xattr`, `mdls`).
 fn add_filesystem_timestamp_fallbacks(
     entries: &mut Vec<MetadataEntry>,
     path: &std::path::Path,
@@ -660,59 +674,70 @@ fn add_filesystem_timestamp_fallbacks(
     let Some(metadata) = metadata else {
         return;
     };
-    if !matches!(format, Format::Png) || !is_apple_screen_capture(path) {
+    if !matches!(format, Format::Png) {
         return;
     }
     let has_captured_candidate = entries
         .iter()
         .any(|entry| matches!(entry.tag_name.as_str(), "DateTimeOriginal" | "CreateDate"));
-    if !has_captured_candidate {
-        if let Some((tag_id, value, note)) = apple_content_creation_timestamp(path)
-            .map(|value| {
-                (
-                    "AppleContentCreationDate",
-                    value,
-                    "Apple content creation date used because no embedded capture timestamp was decoded",
-                )
-            })
-            .or_else(|| {
-                metadata
-                    .modified()
-                    .ok()
-                    .and_then(system_time_to_utc_timestamp)
-                    .map(|value| {
-                        (
-                            "FileModifyDate",
-                            value,
-                            "filesystem modified time used because no embedded capture timestamp was decoded",
-                        )
-                    })
-            })
-            .or_else(|| {
-                metadata
-                    .created()
-                    .ok()
-                    .and_then(system_time_to_utc_timestamp)
-                    .map(|value| {
-                        (
-                            "FileCreateDate",
-                            value,
-                            "filesystem creation time used because no embedded capture timestamp was decoded",
-                        )
-                    })
-            })
-        {
-            entries.push(filesystem_timestamp_entry(
-                path,
-                tag_id,
-                "CreateDate",
+    if has_captured_candidate {
+        return;
+    }
+
+    #[cfg(target_os = "macos")]
+    let apple_candidate = if is_apple_screen_capture(path) {
+        apple_content_creation_timestamp(path).map(|value| {
+            (
+                "AppleContentCreationDate",
                 value,
-                note,
-            ));
-        }
+                "Apple content creation date used because no embedded capture timestamp was decoded",
+            )
+        })
+    } else {
+        None
+    };
+    #[cfg(not(target_os = "macos"))]
+    let apple_candidate: Option<(&'static str, String, &'static str)> = None;
+
+    if let Some((tag_id, value, note)) = apple_candidate
+        .or_else(|| {
+            metadata
+                .modified()
+                .ok()
+                .and_then(system_time_to_utc_timestamp)
+                .map(|value| {
+                    (
+                        "FileModifyDate",
+                        value,
+                        "filesystem modified time used because no embedded capture timestamp was decoded",
+                    )
+                })
+        })
+        .or_else(|| {
+            metadata
+                .created()
+                .ok()
+                .and_then(system_time_to_utc_timestamp)
+                .map(|value| {
+                    (
+                        "FileCreateDate",
+                        value,
+                        "filesystem creation time used because no embedded capture timestamp was decoded",
+                    )
+                })
+        })
+    {
+        entries.push(filesystem_timestamp_entry(
+            path,
+            tag_id,
+            "CreateDate",
+            value,
+            note,
+        ));
     }
 }
 
+#[cfg(target_os = "macos")]
 fn is_apple_screen_capture(path: &std::path::Path) -> bool {
     Command::new("xattr")
         .arg("-p")
@@ -723,6 +748,7 @@ fn is_apple_screen_capture(path: &std::path::Path) -> bool {
         .unwrap_or(false)
 }
 
+#[cfg(target_os = "macos")]
 fn apple_content_creation_timestamp(path: &std::path::Path) -> Option<String> {
     let output = Command::new("mdls")
         .arg("-raw")
@@ -737,6 +763,7 @@ fn apple_content_creation_timestamp(path: &std::path::Path) -> Option<String> {
     parse_mdls_utc_timestamp(std::str::from_utf8(&output.stdout).ok()?.trim())
 }
 
+#[cfg(target_os = "macos")]
 fn parse_mdls_utc_timestamp(value: &str) -> Option<String> {
     if value == "(null)" {
         return None;

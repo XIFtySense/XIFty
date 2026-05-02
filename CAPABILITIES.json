@@ -152,7 +152,8 @@
         "xmp": "supported",
         "icc": "supported",
         "iptc": "bounded",
-        "png": "bounded"
+        "png": "bounded",
+        "filesystem": "supported"
       }
     },
     "webp": {
