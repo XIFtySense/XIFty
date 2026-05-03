@@ -18,6 +18,10 @@ use xifty_core::{
     Provenance, RawView, SCHEMA_VERSION, Severity, TypedValue, ViewMode, XiftyError,
 };
 use xifty_detect::detect;
+use xifty_meta_ai_gen::{
+    AiGenPayload, classify_keyword as classify_ai_gen_keyword,
+    decode_payload as decode_ai_gen_payload,
+};
 use xifty_meta_apple::decode_from_tiff as decode_apple_from_tiff;
 use xifty_meta_bwf::{BwfPayload, decode_payload as decode_bwf_payload};
 use xifty_meta_canon::decode_from_tiff as decode_canon_from_tiff;
@@ -434,6 +438,30 @@ fn extract_source(
                 else {
                     continue;
                 };
+
+                // AI-gen prompt namespace (Tier S, issue #137). Runs before the
+                // IPTC and `Raw profile type *` classifiers so that AI keywords
+                // (`parameters`, `prompt`, `workflow`, `invokeai_metadata`,
+                // `Description`, `Comment`) take priority.
+                if let Some(shape) = classify_ai_gen_keyword(&keyword) {
+                    let path_label = ai_gen_path(&keyword);
+                    let (decoded, ai_issues) = decode_ai_gen_payload(AiGenPayload {
+                        shape,
+                        keyword: &keyword,
+                        body: &body,
+                        container: "png",
+                        path: &path_label,
+                        offset_start: chunk.offset_start,
+                        offset_end: chunk.offset_end,
+                    });
+                    if !decoded.is_empty() || !ai_issues.is_empty() {
+                        entries.extend(decoded);
+                        issues.extend(ai_issues);
+                        continue;
+                    }
+                    // Empty decode (e.g. generic `Description` with no MJ
+                    // signal) — fall through so other classifiers can try.
+                }
 
                 // Direct IPTC keywords (no `Raw profile type *` framing): the
                 // body is already an IIM stream or a `Photoshop 3.0` IRB.
@@ -1487,6 +1515,10 @@ fn raw_profile_keyword_suffix(kind: RawProfileKind) -> &'static str {
         RawProfileKind::App13 => "APP13",
         RawProfileKind::EightBim => "8bim",
     }
+}
+
+fn ai_gen_path(keyword: &str) -> String {
+    format!("png_text:{keyword}")
 }
 
 fn chunk_type_label(chunk_type: &[u8; 4]) -> String {

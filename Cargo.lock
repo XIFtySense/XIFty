@@ -815,6 +815,7 @@ dependencies = [
  "xifty-core",
  "xifty-detect",
  "xifty-json",
+ "xifty-meta-ai-gen",
  "xifty-meta-apple",
  "xifty-meta-bwf",
  "xifty-meta-canon",
@@ -969,6 +970,14 @@ dependencies = [
 
 [[package]]
 name = "xifty-json"
+version = "0.1.14"
+dependencies = [
+ "serde_json",
+ "xifty-core",
+]
+
+[[package]]
+name = "xifty-meta-ai-gen"
 version = "0.1.14"
 dependencies = [
  "serde_json",
