@@ -3211,3 +3211,131 @@ fn sony_nrt_sidecar_synthetic_minimal_fixture_lifts_fields() {
         );
     }
 }
+
+// ---------------------------------------------------------------------------
+// Sidecar (subtitles) integration tests — issue #131.
+// ---------------------------------------------------------------------------
+
+#[test]
+fn subtitles_sidecar_synthetic_fixture_lifts_per_sidecar_entries() {
+    // Synthetic-fixture test: spin up a tempdir with a fake `clip.mp4`
+    // (4 magic bytes — the sidecar layer never decodes it, only uses its
+    // path as the discovery anchor) plus two real subtitle siblings —
+    // `clip.en.srt` and `clip.es.vtt`. Verify both surface as separate
+    // entry groups indexed `subtitles.0.*` (each comes from its own
+    // discovery hit; the registry walks the adapter once per sidecar).
+    let dir = std::env::temp_dir().join("xifty-cli-subtitles-synthetic");
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let mp4 = dir.join("clip.mp4");
+    // Just enough bytes to keep the detector from short-circuiting on a
+    // zero-byte read; the sidecar layer doesn't care what's here. We set
+    // up a minimal isobmff `ftyp` so detection succeeds.
+    let ftyp_bytes: Vec<u8> = [
+        0x00, 0x00, 0x00, 0x18, b'f', b't', b'y', b'p', b'm', b'p', b'4', b'2', 0x00, 0x00, 0x00,
+        0x00, b'm', b'p', b'4', b'2', b'i', b's', b'o', b'm',
+    ]
+    .into();
+    std::fs::write(&mp4, &ftyp_bytes).unwrap();
+    std::fs::write(
+        dir.join("clip.en.srt"),
+        "1\n00:00:01,000 --> 00:00:04,000\nHello in English\n",
+    )
+    .unwrap();
+    std::fs::write(
+        dir.join("clip.es.vtt"),
+        "WEBVTT\n\n00:00:01.000 --> 00:00:04.000\nHola en espanol\n",
+    )
+    .unwrap();
+
+    let output = extract_with_sidecars(mp4.clone(), ViewMode::Full);
+    let interpreted = output["interpreted"]["metadata"]
+        .as_array()
+        .expect("interpreted view present");
+    let subtitle_entries: Vec<&Value> = interpreted
+        .iter()
+        .filter(|e| e["namespace"] == "subtitles")
+        .collect();
+    assert!(
+        !subtitle_entries.is_empty(),
+        "expected subtitle entries to surface from sibling sidecars"
+    );
+
+    // Each adapter `parse` call emits its own `subtitles.0.*` group,
+    // distinguished by `provenance.path`. Group entries by the path
+    // suffix so we can assert per-sidecar shape.
+    let mut by_path: std::collections::BTreeMap<String, Vec<&Value>> =
+        std::collections::BTreeMap::new();
+    for entry in &subtitle_entries {
+        let path = entry["provenance"]["path"]
+            .as_str()
+            .unwrap_or("")
+            .to_string();
+        by_path.entry(path).or_default().push(entry);
+    }
+    assert_eq!(
+        by_path.len(),
+        2,
+        "expected one entry-group per sidecar, got {by_path:?}"
+    );
+
+    // Verify each sidecar surfaces its core fields.
+    for entries in by_path.values() {
+        let format = entries
+            .iter()
+            .find(|e| e["tag_name"] == "subtitles.0.format")
+            .expect("format entry present");
+        let language = entries
+            .iter()
+            .find(|e| e["tag_name"] == "subtitles.0.language")
+            .expect("language entry present");
+        let format_str = format["value"]["value"].as_str().unwrap();
+        let language_str = language["value"]["value"].as_str().unwrap();
+        assert!(
+            (format_str == "srt" && language_str == "en")
+                || (format_str == "vtt" && language_str == "es"),
+            "unexpected (format, language) pair: ({format_str}, {language_str})"
+        );
+    }
+
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn subtitles_sidecar_is_off_by_default() {
+    // Without `enable_sidecars: true`, even when subtitle siblings are on
+    // disk, no `subtitles` namespace entries surface.
+    let dir = std::env::temp_dir().join("xifty-cli-subtitles-default-off");
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let mp4 = dir.join("clip.mp4");
+    let ftyp_bytes: Vec<u8> = [
+        0x00, 0x00, 0x00, 0x18, b'f', b't', b'y', b'p', b'm', b'p', b'4', b'2', 0x00, 0x00, 0x00,
+        0x00, b'm', b'p', b'4', b'2', b'i', b's', b'o', b'm',
+    ]
+    .into();
+    std::fs::write(&mp4, &ftyp_bytes).unwrap();
+    std::fs::write(
+        dir.join("clip.en.srt"),
+        "1\n00:00:01,000 --> 00:00:04,000\nHello\n",
+    )
+    .unwrap();
+
+    let mut value =
+        serde_json::to_value(xifty_cli::extract_path(mp4.clone(), ViewMode::Interpreted).unwrap())
+            .unwrap();
+    scrub_path(&mut value);
+    // Interpreted view may be omitted entirely if the primary file has no
+    // recognized metadata. Treat absence as "no subtitle entries", which is
+    // exactly what we want to assert.
+    let subtitle_count = value["interpreted"]["metadata"]
+        .as_array()
+        .map(|m| m.iter().filter(|e| e["namespace"] == "subtitles").count())
+        .unwrap_or(0);
+    assert_eq!(
+        subtitle_count, 0,
+        "default extract_path must not surface subtitles entries (sidecars are opt-in)"
+    );
+
+    let _ = std::fs::remove_dir_all(&dir);
+}

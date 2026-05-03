@@ -110,7 +110,12 @@ XIFty can fold metadata from co-located vendor sidecar files (e.g. Sony NRT
 for those entries is:
 
 - `MetadataEntry::namespace` and `Provenance::namespace` carry the adapter
-  name (currently `sony_nrt` only). Existing namespaces keep their identity.
+  name (registered adapters: `sony_nrt`, `subtitles`). Existing namespaces
+  keep their identity. The `subtitles` adapter discovers `.srt`/`.vtt`/
+  `.ass`/`.ssa` siblings of a primary video and emits flat
+  `subtitles.<i>.<field>` entries (`format`, `language`, `cue_count`,
+  `duration_seconds`, `path`, `first_cue_text`, plus `style_count` for ASS).
+  Adding a new adapter namespace is additive — no `SCHEMA_VERSION` bump.
 - `Provenance::container` is the literal string `sidecar` so consumers can
   cheaply distinguish embedded vs sidecar-derived entries.
 - `Provenance::path` points at the sidecar file (not the primary asset).
