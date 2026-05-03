@@ -1850,12 +1850,14 @@ def build_gopro_sidecar_triplet():
     timescale = 1000
     duration_s = 3.0
     movie_duration = int(duration_s * timescale)
+    # mvhd v0 payload: created(4) + modified(4) + timescale(4) + duration(4) +
+    # rate(4) + volume(2) + reserved(10) + matrix(36) + pre_defined(24) + next_track(4) = 96 bytes.
     mvhd_payload = (
         struct.pack(">I", qt_epoch_seconds(2024, 4, 16, 12, 34, 56))
         + struct.pack(">I", qt_epoch_seconds(2024, 4, 16, 13, 0, 0))
         + struct.pack(">I", timescale)
         + struct.pack(">I", movie_duration)
-        + b"\x00" * 8
+        + b"\x00" * 80
     )
     mvhd = full_box(b"mvhd", mvhd_payload)
     video_timescale = 24000
