@@ -3580,3 +3580,219 @@ fn c2pa_notebooklm_png_real_fixture() {
         Some("true")
     );
 }
+
+// ---------------------------------------------------------------------------
+// Classic .THM JFIF thumbnail sidecar — issue #135.
+// Synthetic .MOV + sibling .THM with APP1 EXIF; mirrors the GoPro
+// `gopro_sidecar_synthetic_minimal_fixture_lifts_proxy_and_thumbnail` shape.
+// ---------------------------------------------------------------------------
+
+fn build_minimal_qt_mov() -> Vec<u8> {
+    // Smallest ftyp box the detect+ISOBMFF parser will accept as a Mov.
+    // 4-byte size + "ftyp" + major_brand "qt  " + minor_version 0 + compat "qt  ".
+    let mut payload: Vec<u8> = Vec::new();
+    payload.extend_from_slice(b"qt  ");
+    payload.extend_from_slice(&0u32.to_be_bytes());
+    payload.extend_from_slice(b"qt  ");
+    let size = (8 + payload.len()) as u32;
+    let mut out: Vec<u8> = Vec::new();
+    out.extend_from_slice(&size.to_be_bytes());
+    out.extend_from_slice(b"ftyp");
+    out.extend_from_slice(&payload);
+    out
+}
+
+fn build_thm_with_make_model_datetime(make: &str, model: &str, datetime: &str) -> Vec<u8> {
+    // Minimal little-endian TIFF carrying IFD0 with Make (0x010F),
+    // Model (0x0110), and DateTimeOriginal (0x9003).
+    //
+    // Layout:
+    //   0..2   "II"
+    //   2..4   42 (LE)
+    //   4..8   IFD0 offset = 8
+    //   8..10  entry count = 3
+    //   10..22 entry 0: Make
+    //   22..34 entry 1: Model
+    //   34..46 entry 2: DateTimeOriginal
+    //   46..50 next IFD = 0
+    //   50..   value data (NUL-terminated ASCII strings, 4-byte aligned not required)
+    let make_bytes = {
+        let mut v = make.as_bytes().to_vec();
+        v.push(0);
+        v
+    };
+    let model_bytes = {
+        let mut v = model.as_bytes().to_vec();
+        v.push(0);
+        v
+    };
+    let dt_bytes = {
+        let mut v = datetime.as_bytes().to_vec();
+        v.push(0);
+        v
+    };
+
+    let header_and_ifd_len = 8 + 2 + 12 * 3 + 4; // = 50
+    let make_off = header_and_ifd_len as u32;
+    let model_off = make_off + make_bytes.len() as u32;
+    let dt_off = model_off + model_bytes.len() as u32;
+
+    let mut tiff: Vec<u8> = Vec::new();
+    tiff.extend_from_slice(b"II");
+    tiff.extend_from_slice(&42u16.to_le_bytes());
+    tiff.extend_from_slice(&8u32.to_le_bytes());
+    tiff.extend_from_slice(&3u16.to_le_bytes()); // entry count
+
+    fn ascii_entry(tag: u16, count: usize, value_or_offset: u32) -> [u8; 12] {
+        let mut e = [0u8; 12];
+        e[0..2].copy_from_slice(&tag.to_le_bytes());
+        e[2..4].copy_from_slice(&2u16.to_le_bytes()); // type ASCII
+        e[4..8].copy_from_slice(&(count as u32).to_le_bytes());
+        e[8..12].copy_from_slice(&value_or_offset.to_le_bytes());
+        e
+    }
+
+    tiff.extend_from_slice(&ascii_entry(0x010F, make_bytes.len(), make_off));
+    tiff.extend_from_slice(&ascii_entry(0x0110, model_bytes.len(), model_off));
+    tiff.extend_from_slice(&ascii_entry(0x9003, dt_bytes.len(), dt_off));
+    tiff.extend_from_slice(&0u32.to_le_bytes()); // next IFD = 0
+    tiff.extend_from_slice(&make_bytes);
+    tiff.extend_from_slice(&model_bytes);
+    tiff.extend_from_slice(&dt_bytes);
+
+    // APP1 segment payload = "Exif\0\0" + tiff.
+    let mut app1_payload: Vec<u8> = Vec::new();
+    app1_payload.extend_from_slice(b"Exif\0\0");
+    app1_payload.extend_from_slice(&tiff);
+    let seg_len = (app1_payload.len() + 2) as u16;
+
+    let mut out: Vec<u8> = Vec::new();
+    out.extend_from_slice(&[0xFF, 0xD8]); // SOI
+    out.extend_from_slice(&[0xFF, 0xE1]);
+    out.extend_from_slice(&seg_len.to_be_bytes());
+    out.extend_from_slice(&app1_payload);
+    // SOF0 320x180
+    out.extend_from_slice(&[0xFF, 0xC0, 0x00, 0x0B]);
+    out.extend_from_slice(&[0x08, 0x00, 0xB4, 0x01, 0x40, 0x01, 0x01, 0x11, 0x00]);
+    out.extend_from_slice(&[0xFF, 0xD9]); // EOI
+    out
+}
+
+#[test]
+fn classic_thm_sidecar_projects_app1_exif_into_flat_fields() {
+    use std::time::{SystemTime, UNIX_EPOCH};
+    let stamp = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
+    let dir = std::env::temp_dir().join(format!("xifty-classic-thm-it-{stamp}"));
+    let _ = fs::remove_dir_all(&dir);
+    fs::create_dir_all(&dir).unwrap();
+
+    let mov = dir.join("CLIP0001.MOV");
+    let thm = dir.join("CLIP0001.THM");
+    fs::write(&mov, build_minimal_qt_mov()).unwrap();
+    fs::write(
+        &thm,
+        build_thm_with_make_model_datetime("Canon", "Canon EOS-1D Mark IV", "2009:11:01 12:34:56"),
+    )
+    .unwrap();
+
+    let output = extract_with_sidecars(mov.clone(), ViewMode::Interpreted);
+    let interpreted = output["interpreted"]["metadata"]
+        .as_array()
+        .expect("interpreted view present");
+    let by_tag: std::collections::BTreeMap<String, &Value> = interpreted
+        .iter()
+        .filter(|e| e["namespace"] == "classic_thm")
+        .map(|e| (e["tag_name"].as_str().unwrap().to_string(), e))
+        .collect();
+
+    assert!(
+        by_tag.contains_key("thumbnail.path"),
+        "expected thumbnail.path; got {:?}",
+        by_tag.keys().collect::<Vec<_>>()
+    );
+    assert_eq!(
+        by_tag
+            .get("thumbnail.format")
+            .and_then(|e| e["value"]["value"].as_str()),
+        Some("jfif")
+    );
+    assert_eq!(
+        by_tag
+            .get("thumbnail.dimensions.width")
+            .and_then(|e| e["value"]["value"].as_i64()),
+        Some(320)
+    );
+    assert_eq!(
+        by_tag
+            .get("thumbnail.dimensions.height")
+            .and_then(|e| e["value"]["value"].as_i64()),
+        Some(180)
+    );
+    assert_eq!(
+        by_tag
+            .get("thumbnail.exif.make")
+            .and_then(|e| e["value"]["value"].as_str()),
+        Some("Canon")
+    );
+    assert_eq!(
+        by_tag
+            .get("thumbnail.exif.model")
+            .and_then(|e| e["value"]["value"].as_str()),
+        Some("Canon EOS-1D Mark IV")
+    );
+    assert_eq!(
+        by_tag
+            .get("thumbnail.exif.captured_at")
+            .and_then(|e| e["value"]["value"].as_str()),
+        Some("2009:11:01 12:34:56")
+    );
+    // Raw payload entry must NEVER reach the final output.
+    assert!(
+        !by_tag.contains_key("thumbnail.exif_payload"),
+        "raw thumbnail.exif_payload bytes leaked into interpreted view"
+    );
+
+    let _ = fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn classic_thm_sidecar_skips_gopro_gh_stems() {
+    use std::time::{SystemTime, UNIX_EPOCH};
+    let stamp = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
+    let dir = std::env::temp_dir().join(format!("xifty-classic-thm-skip-{stamp}"));
+    let _ = fs::remove_dir_all(&dir);
+    fs::create_dir_all(&dir).unwrap();
+
+    // GH-stem: classic_thm must NOT claim it (GoPro adapter handles GoPro
+    // THMs). The MOV is detected as Mov but the classic_thm namespace must
+    // have zero `thumbnail.exif.*` projection here.
+    let mov = dir.join("GH010024.MOV");
+    let thm = dir.join("GH010024.THM");
+    fs::write(&mov, build_minimal_qt_mov()).unwrap();
+    fs::write(
+        &thm,
+        build_thm_with_make_model_datetime("GoPro", "HERO12", "2024:01:01 00:00:00"),
+    )
+    .unwrap();
+
+    let output = extract_with_sidecars(mov.clone(), ViewMode::Interpreted);
+    let interpreted = output["interpreted"]["metadata"]
+        .as_array()
+        .expect("interpreted view present");
+    let classic: Vec<&Value> = interpreted
+        .iter()
+        .filter(|e| e["namespace"] == "classic_thm")
+        .collect();
+    assert!(
+        classic.is_empty(),
+        "classic_thm must not claim GH-prefix stems; got {classic:?}"
+    );
+
+    let _ = fs::remove_dir_all(&dir);
+}

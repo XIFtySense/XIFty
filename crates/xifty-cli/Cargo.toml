@@ -55,6 +55,7 @@ xifty-sidecar-mediapro = { path = "../xifty-sidecar-mediapro" }
 xifty-sidecar-subtitles = { path = "../xifty-sidecar-subtitles" }
 xifty-sidecar-gopro = { path = "../xifty-sidecar-gopro" }
 xifty-sidecar-c2pa = { path = "../xifty-sidecar-c2pa" }
+xifty-sidecar-classic-thm = { path = "../xifty-sidecar-classic-thm" }
 xifty-validate = { path = "../xifty-validate" }
 xifty-json = { path = "../xifty-json" }
 

@@ -700,6 +700,23 @@
         "c2pa.ai_generated"
       ],
       "notes": "External JUMBF manifest sibling. Routes raw bytes through `xifty-meta-c2pa::decode_jumbf` and re-namespaces `c2pa.*` entries to `c2pa_sidecar`. Cross-cutting `ai.*` entries keep the bare `ai` namespace."
+    },
+    "classic_thm": {
+      "status": "bounded",
+      "merge_policy": "complement",
+      "priority": 50,
+      "discovery": "same-stem .THM (case-insensitive) next to .mov/.avi/.mp4/.mts; skips GoPro GH/GX-prefix stems (matches gopro_lrv_stem)",
+      "supported_tags": [
+        "thumbnail.path",
+        "thumbnail.size_bytes",
+        "thumbnail.format",
+        "thumbnail.dimensions.width",
+        "thumbnail.dimensions.height",
+        "thumbnail.exif.make",
+        "thumbnail.exif.model",
+        "thumbnail.exif.captured_at"
+      ],
+      "notes": "Sidecar crate emits raw `thumbnail.exif_payload` (TypedValue::Bytes) when the .THM carries APP1 EXIF; the CLI dispatches that payload through the existing TIFF + EXIF decode chain and projects the flat `thumbnail.exif.{make,model,captured_at}` fields into namespace `classic_thm`. The raw payload entry is dropped before normalization. Priority 50 is sort-order only; the GH/GX-prefix stem-skip in discovery is the SOLE collision-avoidance mechanism with the GoPro adapter (`MergePolicy::Complement` does no deduplication). GP-prefix stems are claimed by classic_thm so they are not orphaned."
     }
   },
   "surfaces": {

@@ -1,0 +1,10 @@
+[package]
+name = "xifty-sidecar-classic-thm"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+xifty-core = { path = "../xifty-core" }
+xifty-sidecar = { path = "../xifty-sidecar" }
+xifty-container-jpeg = { path = "../xifty-container-jpeg" }

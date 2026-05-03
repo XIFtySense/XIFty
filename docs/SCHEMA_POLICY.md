@@ -111,7 +111,7 @@ for those entries is:
 
 - `MetadataEntry::namespace` and `Provenance::namespace` carry the adapter
   name (registered adapters: `sony_nrt`, `subtitles`, `gopro_sidecar`,
-  `c2pa_sidecar`, `mediapro`).
+  `c2pa_sidecar`, `classic_thm`, `mediapro`).
   Existing namespaces keep their identity. The `subtitles` adapter discovers
   `.srt`/`.vtt`/`.ass`/`.ssa` siblings of a primary video and emits flat
   `subtitles.<i>.<field>` entries (`format`, `language`, `cue_count`,
@@ -133,6 +133,12 @@ for those entries is:
   aspect ratio, resolved `thumbnail.path`). Orphan thumbnail targets
   surface as `sidecar_target_missing`; primaries not listed in the index
   surface as `sidecar_no_index_entry`.
+  The `classic_thm` namespace surfaces classic-camcorder `<basename>.THM`
+  JFIF thumbnails next to `.mov`/`.avi`/`.mp4`/`.mts` primaries: `thumbnail.*`
+  structural fields (path, size, format, dimensions) plus
+  `thumbnail.exif.{make,model,captured_at}` projected from the THM's APP1
+  EXIF. Skips GoPro `GH/GX`-prefix stems to avoid double-claim with the
+  `gopro_sidecar` adapter.
   Adding a new adapter namespace is additive — no `SCHEMA_VERSION` bump.
 
 The `ai.*` namespace is a cross-cutting (not container-bound) namespace.
