@@ -38,6 +38,7 @@ members = [
   "crates/xifty-policy",
   "crates/xifty-sidecar",
   "crates/xifty-sidecar-sony-nrt",
+  "crates/xifty-sidecar-subtitles",
   "crates/xifty-validate",
   "crates/xifty-json",
   "crates/xifty-ffi",

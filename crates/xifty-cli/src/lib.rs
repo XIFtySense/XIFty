@@ -50,6 +50,7 @@ use xifty_meta_xmp::{XmpPacket, decode_packet, decode_png_text_chunk, decode_web
 use xifty_normalize::normalize_with_policy;
 use xifty_sidecar::SidecarRegistry;
 use xifty_sidecar_sony_nrt::SonyNrtSidecar;
+use xifty_sidecar_subtitles::SubtitlesSidecar;
 use xifty_source::SourceBytes;
 use xifty_validate::build_report;
 
@@ -233,6 +234,7 @@ pub fn extract_bytes_with_options(
 fn default_sidecar_registry() -> SidecarRegistry {
     let mut registry = SidecarRegistry::new();
     registry.register(SonyNrtSidecar::new());
+    registry.register(SubtitlesSidecar::new());
     registry
 }
 

@@ -539,6 +539,21 @@
         "CaptureColorPrimaries",
         "CodingEquations"
       ]
+    },
+    "subtitles": {
+      "status": "bounded",
+      "merge_policy": "complement",
+      "discovery": "<basename>(.<lang>)?.{srt,vtt,ass,ssa} next to primary video",
+      "language_token_policy": "ISO 639 conservative — 2-3 letter primary subtag, optional 2-4 alphanumeric region subtag (e.g. en, eng, en-US, pt-BR, zh-Hans). Anything else is treated as a non-language stem suffix.",
+      "supported_tags": [
+        "subtitles.<i>.format",
+        "subtitles.<i>.language",
+        "subtitles.<i>.cue_count",
+        "subtitles.<i>.duration_seconds",
+        "subtitles.<i>.path",
+        "subtitles.<i>.first_cue_text",
+        "subtitles.<i>.style_count (ASS/SSA only)"
+      ]
     }
   },
   "surfaces": {

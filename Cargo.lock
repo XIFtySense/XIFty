@@ -838,6 +838,7 @@ dependencies = [
  "xifty-policy",
  "xifty-sidecar",
  "xifty-sidecar-sony-nrt",
+ "xifty-sidecar-subtitles",
  "xifty-source",
  "xifty-validate",
 ]
@@ -1151,6 +1152,14 @@ name = "xifty-sidecar-sony-nrt"
 version = "0.1.14"
 dependencies = [
  "quick-xml",
+ "xifty-core",
+ "xifty-sidecar",
+]
+
+[[package]]
+name = "xifty-sidecar-subtitles"
+version = "0.1.14"
+dependencies = [
  "xifty-core",
  "xifty-sidecar",
 ]
