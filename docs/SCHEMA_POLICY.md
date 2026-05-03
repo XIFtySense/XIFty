@@ -120,6 +120,20 @@ for those entries is:
   `xifty_extract_json_with_options` entrypoint with `enable_sidecars: true`,
   and (in WASM, where it's a no-op) emits an `info`-severity issue
   (`sidecar_discovery_unavailable_in_wasm`).
+- Sidecar adapters surface problems through the standard `report.issues`
+  channel. The stable issue codes are:
+  - `sidecar_target_missing` — adapter referenced a sidecar but the file
+    could not be read.
+  - `sidecar_no_index_entry` — adapter looked up a primary asset in an
+    index sidecar (e.g. MEDIAPRO `mediapro.xml`) and did not find a
+    matching entry.
+  - `sidecar_unknown_schema_version` — the sidecar's declared schema /
+    namespace is not recognized by the adapter; partial parse may still
+    proceed.
+  - `sidecar_parse_error` — the underlying sidecar file failed to parse
+    (e.g. malformed XML); embedded metadata still flows through.
+  - `sidecar_discovery_unavailable_in_wasm` — caller asked for sidecar
+    discovery on a surface (WASM) with no filesystem access.
 - Sidecar additions are *additive only* — no `SCHEMA_VERSION` bump.
 
 ## Design Intent

@@ -19,7 +19,8 @@ use quick_xml::events::{BytesStart, Event};
 use quick_xml::reader::Reader;
 use xifty_core::{Issue, MetadataEntry, Provenance, Severity, TypedValue};
 use xifty_sidecar::{
-    MergeContext, MergePolicy, SIDECAR_UNKNOWN_SCHEMA_VERSION, Sidecar, SidecarPayload, SidecarRef,
+    MergeContext, MergePolicy, SIDECAR_PARSE_ERROR, SIDECAR_UNKNOWN_SCHEMA_VERSION, Sidecar,
+    SidecarPayload, SidecarRef,
 };
 
 const NAMESPACE: &str = "sony_nrt";
@@ -158,8 +159,6 @@ fn parse_nrt(sidecar: &SidecarRef, bytes: &[u8]) -> SidecarPayload {
     let mut entries: Vec<MetadataEntry> = Vec::new();
     let mut issues: Vec<Issue> = Vec::new();
     let mut buf = Vec::new();
-    #[allow(unused_assignments)]
-    let mut schema = SchemaVersion::Unknown;
     let mut in_acquisition_camera_unit = false;
     // Track first vs last LtcChange (per Sony NRT XSD §LtcChangeTable
     // schema, the table sorts by `frameCount`; we capture the first/last
@@ -176,7 +175,7 @@ fn parse_nrt(sidecar: &SidecarRef, bytes: &[u8]) -> SidecarPayload {
                 // Root element — capture the schema version from xmlns.
                 // per Sony NRT XSD ver.2.20 root <NonRealTimeMeta>.
                 if local == "NonRealTimeMeta" {
-                    schema = detect_schema(e);
+                    let schema = detect_schema(e);
                     if schema == SchemaVersion::Unknown {
                         let xmlns = attr_value(e, b"xmlns").unwrap_or_default();
                         issues.push(Issue {
@@ -470,7 +469,7 @@ fn parse_nrt(sidecar: &SidecarRef, bytes: &[u8]) -> SidecarPayload {
             Err(error) => {
                 issues.push(Issue {
                     severity: Severity::Warning,
-                    code: "sidecar_parse_error".into(),
+                    code: SIDECAR_PARSE_ERROR.into(),
                     message: format!("Sony NRT XML parse error: {error}"),
                     offset: Some(reader.buffer_position()),
                     context: Some(NAMESPACE.into()),
@@ -544,6 +543,22 @@ fn bytes_to_local_name(name: &[u8]) -> String {
     }
 }
 
+/// Read a Sony NRT attribute value as a UTF-8 string.
+///
+/// We deliberately do NOT call `attr.decode_and_unescape_value(...)` here.
+/// Every Sony NRT attribute payload defined in XSD ver.2.10 / ver.2.20 is
+/// constrained to ASCII-clean tokens (UMID hex, FPS strings, codec names,
+/// SMPTE timecodes, serial numbers, enum-style values like `s-log3` /
+/// `rec2020` / `normal`). None carry XML entity references in real-world
+/// camera output, and the `xmlns` attribute we read at the root is a fixed
+/// schema URN.
+///
+/// If a future Sony schema version (or a hand-edited sidecar) introduces
+/// entity-encoded values such as `manufacturer="Foo &amp; Bar"`, this reader
+/// would surface them with `&amp;` intact. Switching to
+/// `decode_and_unescape_value(reader.decoder())` would fix that, but requires
+/// threading the decoder through every call site. Defer until we see a real
+/// fixture that needs it.
 fn attr_value(e: &BytesStart<'_>, key: &[u8]) -> Option<String> {
     for attr in e.attributes().flatten() {
         // Match by local part — Sony NRT does not prefix its own attributes

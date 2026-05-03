@@ -3187,12 +3187,17 @@ fn sony_nrt_sidecar_synthetic_minimal_fixture_lifts_fields() {
         .iter()
         .map(|f| (f["field"].as_str().unwrap().to_string(), f.clone()))
         .collect();
+    // All 12 normalized fields lifted by `derive_sony_nrt_fields` for Phase 1.
+    // Keep this list in lockstep with the unit-test coverage in
+    // `xifty-normalize::tests::lifts_sony_nrt_sidecar_fields_from_namespace`.
     for required in [
         "umid",
         "recording.mode",
+        "recording.cache_rec",
         "recording.capture_fps",
         "recording.format_fps",
         "timecode.fps",
+        "timecode.half_step",
         "timecode.ltc.start",
         "timecode.ltc.end",
         "color.gamma_equation",
