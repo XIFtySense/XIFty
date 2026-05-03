@@ -32,6 +32,31 @@
         "Copyright"
       ]
     },
+    "ai_gen": {
+      "status": "bounded",
+      "supported_tags": [
+        "ai_gen.tool",
+        "ai_gen.prompt",
+        "ai_gen.negative_prompt",
+        "ai_gen.seed",
+        "ai_gen.steps",
+        "ai_gen.cfg_scale",
+        "ai_gen.sampler",
+        "ai_gen.scheduler",
+        "ai_gen.model.name",
+        "ai_gen.model.hash",
+        "ai_gen.dimensions.width",
+        "ai_gen.dimensions.height",
+        "ai_gen.lora.<i>.name",
+        "ai_gen.lora.<i>.weight",
+        "ai_gen.controlnet.<i>.name",
+        "ai_gen.controlnet.<i>.weight",
+        "ai_gen.midjourney.job_id",
+        "ai_gen.workflow_json",
+        "ai_gen.tool_extra.<key>"
+      ],
+      "notes": "Decoded from PNG tEXt/iTXt/zTXt chunks emitted by Automatic1111/Forge (`parameters`), ComfyUI (`prompt` + `workflow`), InvokeAI (`invokeai_metadata`), Midjourney (`Description`/`Comment`), and Fooocus (`parameters` JSON). Confidence is recorded per-entry as a `confidence: 0.95` (exact-shape) or `confidence: 0.70` (heuristic) note."
+    },
     "vorbis_comment": {
       "status": "bounded",
       "supported_tags": [
@@ -365,6 +390,7 @@
         "xmp": "supported",
         "icc": "supported",
         "iptc": "supported",
+        "ai_gen": "bounded",
         "png": "bounded",
         "filesystem": "supported"
       }

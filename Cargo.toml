@@ -18,6 +18,7 @@ members = [
   "crates/xifty-meta-exif",
   "crates/xifty-meta-icc",
   "crates/xifty-meta-iptc",
+  "crates/xifty-meta-ai-gen",
   "crates/xifty-meta-id3v2",
   "crates/xifty-meta-apple",
   "crates/xifty-meta-bwf",

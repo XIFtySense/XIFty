@@ -29,6 +29,7 @@ xifty-container-rw2 = { path = "../xifty-container-rw2" }
 xifty-meta-exif = { path = "../xifty-meta-exif" }
 xifty-meta-icc = { path = "../xifty-meta-icc" }
 xifty-meta-iptc = { path = "../xifty-meta-iptc" }
+xifty-meta-ai-gen = { path = "../xifty-meta-ai-gen" }
 xifty-meta-id3v2 = { path = "../xifty-meta-id3v2" }
 xifty-meta-apple = { path = "../xifty-meta-apple" }
 xifty-meta-bwf = { path = "../xifty-meta-bwf" }

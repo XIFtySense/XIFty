@@ -1,0 +1,9 @@
+[package]
+name = "xifty-meta-ai-gen"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+xifty-core = { path = "../xifty-core" }
+serde_json.workspace = true

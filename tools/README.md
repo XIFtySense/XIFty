@@ -74,6 +74,21 @@ Validates CLI probe and extract output against the checked-in JSON schemas in
 Regenerates the deterministic files under `fixtures/minimal/`. Run when
 container parsing or fixture shape changes.
 
+## gen_raw_profile_fixtures.py
+
+One-off generator (issue #136) for `fixtures/minimal/raw_profile_app1.png` — a
+synthetic PNG that wraps the EXIF APP1 segment from `happy.jpg` inside a
+`zTXt` chunk, mirroring what ImageMagick / libvips emit when transcoding a
+JPEG-with-EXIF to PNG. Stdlib only (`zlib`, `struct`, `binascii`); rerun
+manually when `happy.jpg` changes.
+
+## gen_ai_gen_fixtures.py
+
+One-off generator (issue #137) for the synthetic `fixtures/minimal/ai_gen_*.png`
+family used by the `xifty-meta-ai-gen` decoders (Automatic1111, ComfyUI,
+InvokeAI, Midjourney, Fooocus). Stdlib only (`zlib`, `struct`, `binascii`,
+`json`); rerun manually when the embedded test bodies change.
+
 ## build-runtime-artifact.py / validate-runtime-artifact.py
 
 Build and validate the `xifty_runtime_targeted_bundle` artifact produced by
