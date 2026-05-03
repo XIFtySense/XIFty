@@ -364,7 +364,7 @@
         "exif": "supported",
         "xmp": "supported",
         "icc": "supported",
-        "iptc": "bounded",
+        "iptc": "supported",
         "png": "bounded",
         "filesystem": "supported"
       }

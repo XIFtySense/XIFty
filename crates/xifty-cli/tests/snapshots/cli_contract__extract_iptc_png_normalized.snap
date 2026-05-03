@@ -47,6 +47,9 @@ expression: "extract_json(\"iptc.png\", ViewMode::Normalized)"
           {
             "container": "png",
             "namespace": "iptc",
+            "notes": [
+              "decoded from PNG zTXt 'Raw profile type iptc' chunk"
+            ],
             "offset_end": 175,
             "offset_start": 33,
             "path": "png_iptc"
@@ -64,6 +67,9 @@ expression: "extract_json(\"iptc.png\", ViewMode::Normalized)"
           {
             "container": "png",
             "namespace": "iptc",
+            "notes": [
+              "decoded from PNG zTXt 'Raw profile type iptc' chunk"
+            ],
             "offset_end": 175,
             "offset_start": 33,
             "path": "png_iptc"
@@ -81,6 +87,9 @@ expression: "extract_json(\"iptc.png\", ViewMode::Normalized)"
           {
             "container": "png",
             "namespace": "iptc",
+            "notes": [
+              "decoded from PNG zTXt 'Raw profile type iptc' chunk"
+            ],
             "offset_end": 175,
             "offset_start": 33,
             "path": "png_iptc"
@@ -98,6 +107,9 @@ expression: "extract_json(\"iptc.png\", ViewMode::Normalized)"
           {
             "container": "png",
             "namespace": "iptc",
+            "notes": [
+              "decoded from PNG zTXt 'Raw profile type iptc' chunk"
+            ],
             "offset_end": 175,
             "offset_start": 33,
             "path": "png_iptc"
@@ -118,6 +130,9 @@ expression: "extract_json(\"iptc.png\", ViewMode::Normalized)"
           {
             "container": "png",
             "namespace": "iptc",
+            "notes": [
+              "decoded from PNG zTXt 'Raw profile type iptc' chunk"
+            ],
             "offset_end": 175,
             "offset_start": 33,
             "path": "png_iptc"
