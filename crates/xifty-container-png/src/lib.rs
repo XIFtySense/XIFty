@@ -1,6 +1,12 @@
 use xifty_core::{ContainerNode, Issue, Severity, XiftyError, issue};
 use xifty_source::{Cursor, Endian, SourceBytes};
 
+pub mod profile;
+pub use profile::{
+    RawProfileKind, RawProfilePayload, classify_raw_profile_keyword, decode_iccp_payload,
+    decode_raw_profile, decode_text_chunk,
+};
+
 #[derive(Debug, Clone)]
 pub struct PngChunk {
     pub chunk_type: [u8; 4],
@@ -184,17 +190,39 @@ mod tests {
 
     #[test]
     fn routes_text_chunks_for_iptc() {
-        let mut bytes = vec![0x89, b'P', b'N', b'G', 0x0D, 0x0A, 0x1A, 0x0A];
-        let keyword = b"Raw profile type iptc\x00";
-        let data: Vec<u8> = keyword.iter().copied().chain([0u8]).collect();
-        bytes.extend_from_slice(&(data.len() as u32).to_be_bytes());
-        bytes.extend_from_slice(b"zTXt");
-        bytes.extend_from_slice(&data);
-        bytes.extend_from_slice(&0u32.to_be_bytes());
-        bytes.extend_from_slice(&0u32.to_be_bytes());
-        bytes.extend_from_slice(b"IEND");
-        bytes.extend_from_slice(&0u32.to_be_bytes());
-        let parsed = parse_bytes(&bytes, 0).unwrap();
-        assert!(parsed.iptc_payloads().next().is_some());
+        // Each keyword in the `Raw profile type *` family must be surfaced
+        // by `text_payloads()` / `iptc_payloads()` so the CLI dispatcher can
+        // hand them to `xifty_container_png::decode_raw_profile`.
+        for keyword in [
+            b"Raw profile type iptc\x00".as_slice(),
+            b"Raw profile type APP1\x00".as_slice(),
+            b"Raw profile type exif\x00".as_slice(),
+            b"Raw profile type xmp\x00".as_slice(),
+            b"Raw profile type icc\x00".as_slice(),
+            b"Raw profile type icm\x00".as_slice(),
+            b"Raw profile type APP13\x00".as_slice(),
+            b"Raw profile type 8bim\x00".as_slice(),
+        ] {
+            let mut bytes = vec![0x89, b'P', b'N', b'G', 0x0D, 0x0A, 0x1A, 0x0A];
+            let data: Vec<u8> = keyword.iter().copied().chain([0u8]).collect();
+            bytes.extend_from_slice(&(data.len() as u32).to_be_bytes());
+            bytes.extend_from_slice(b"zTXt");
+            bytes.extend_from_slice(&data);
+            bytes.extend_from_slice(&0u32.to_be_bytes());
+            bytes.extend_from_slice(&0u32.to_be_bytes());
+            bytes.extend_from_slice(b"IEND");
+            bytes.extend_from_slice(&0u32.to_be_bytes());
+            let parsed = parse_bytes(&bytes, 0).unwrap();
+            assert!(
+                parsed.iptc_payloads().next().is_some(),
+                "iptc_payloads should surface keyword {:?}",
+                String::from_utf8_lossy(keyword)
+            );
+            assert!(
+                parsed.text_payloads().next().is_some(),
+                "text_payloads should surface keyword {:?}",
+                String::from_utf8_lossy(keyword)
+            );
+        }
     }
 }

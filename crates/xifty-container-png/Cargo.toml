@@ -7,3 +7,4 @@ license.workspace = true
 [dependencies]
 xifty-core = { path = "../xifty-core" }
 xifty-source = { path = "../xifty-source" }
+flate2.workspace = true

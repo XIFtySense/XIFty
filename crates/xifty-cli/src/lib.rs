@@ -1,7 +1,6 @@
-use flate2::read::ZlibDecoder;
 #[cfg(target_os = "macos")]
 use std::process::Command;
-use std::{fs, io::Read, path::PathBuf, time::SystemTime};
+use std::{fs, path::PathBuf, time::SystemTime};
 use xifty_container_aiff::{AiffContainer, parse as parse_aiff};
 use xifty_container_flac::{FlacContainer, parse as parse_flac};
 use xifty_container_gif::{GifContainer, parse as parse_gif};
@@ -9,7 +8,7 @@ use xifty_container_id3::{Id3Container, parse as parse_mp3};
 use xifty_container_isobmff::parse as parse_isobmff;
 use xifty_container_jpeg::parse as parse_jpeg;
 use xifty_container_ogg::{OggCodec, OggContainer, parse as parse_ogg};
-use xifty_container_png::parse as parse_png;
+use xifty_container_png::{RawProfileKind, RawProfilePayload, parse as parse_png};
 use xifty_container_raf::{embedded_tiff_slice as raf_embedded_tiff_slice, parse as parse_raf};
 use xifty_container_riff::parse as parse_riff;
 use xifty_container_rw2::parse as parse_rw2;
@@ -418,7 +417,7 @@ fn extract_source(
                     ));
                 }
             }
-            for chunk in png.iptc_payloads() {
+            for chunk in png.text_payloads() {
                 let Some(payload) = payload_slice(
                     source.bytes(),
                     chunk.data_offset,
@@ -426,34 +425,142 @@ fn extract_source(
                 ) else {
                     continue;
                 };
-                let Some(iptc_bytes) = decode_png_iptc_payload(&chunk.chunk_type, payload) else {
+                let Some((keyword, body)) =
+                    xifty_container_png::decode_text_chunk(&chunk.chunk_type, payload)
+                else {
                     continue;
                 };
-                if iptc_bytes.is_empty() {
-                    issues.push(namespace_issue(
-                        "png_iptc_payload_invalid",
-                        "PNG IPTC text chunk could not be decoded",
-                        chunk.offset_start,
-                        &String::from_utf8_lossy(&chunk.chunk_type),
-                    ));
+
+                // Direct IPTC keywords (no `Raw profile type *` framing): the
+                // body is already an IIM stream or a `Photoshop 3.0` IRB.
+                let keyword_bytes = keyword.as_bytes();
+                if keyword_bytes == b"IPTC-NAA" || keyword_bytes.eq_ignore_ascii_case(b"iptc") {
+                    let decoded = decode_iptc_payload(IptcPayload {
+                        bytes: &body,
+                        container: "png",
+                        path: "png_iptc",
+                        offset_start: chunk.offset_start,
+                        offset_end: chunk.offset_end,
+                    });
+                    if decoded.is_empty() {
+                        issues.push(namespace_issue(
+                            "iptc_decode_empty",
+                            "recognized IPTC payload but could not decode bounded IPTC datasets",
+                            chunk.offset_start,
+                            "png_iptc",
+                        ));
+                    }
+                    entries.extend(decoded);
                     continue;
                 }
-                let decoded = decode_iptc_payload(IptcPayload {
-                    bytes: &iptc_bytes,
-                    container: "png",
-                    path: "png_iptc",
-                    offset_start: chunk.offset_start,
-                    offset_end: chunk.offset_end,
-                });
-                if decoded.is_empty() {
+
+                // `Raw profile type *` family — JPEG segments hex-wrapped in
+                // a PNG text chunk by ImageMagick / libvips / GraphicsMagick.
+                let Some(kind) = xifty_container_png::classify_raw_profile_keyword(&keyword) else {
+                    continue;
+                };
+                let Some(decoded_payload) =
+                    xifty_container_png::decode_raw_profile(&keyword, &body)
+                else {
                     issues.push(namespace_issue(
-                        "iptc_decode_empty",
-                        "recognized IPTC payload but could not decode bounded IPTC datasets",
+                        "png_raw_profile_invalid",
+                        "PNG `Raw profile type *` chunk could not be decoded",
                         chunk.offset_start,
-                        "png_iptc",
+                        &keyword,
                     ));
+                    continue;
+                };
+                let path = png_raw_profile_path(kind);
+                let note = format!(
+                    "decoded from PNG {} 'Raw profile type {}' chunk",
+                    chunk_type_label(&chunk.chunk_type),
+                    raw_profile_keyword_suffix(kind)
+                );
+                match decoded_payload {
+                    RawProfilePayload::Exif(bytes) => match xifty_container_tiff::parse_bytes(
+                        &bytes,
+                        chunk.data_offset,
+                        "png_profile_exif",
+                    ) {
+                        Ok(tiff) => {
+                            let mut decoded =
+                                decode_from_tiff(&bytes, chunk.data_offset, "png", &tiff);
+                            decorate_png_raw_profile(
+                                &mut decoded,
+                                path,
+                                &note,
+                                chunk.offset_start,
+                                chunk.offset_end,
+                            );
+                            entries.extend(decoded);
+                        }
+                        Err(_) => issues.push(namespace_issue(
+                            "png_raw_profile_exif_invalid",
+                            "PNG `Raw profile type` EXIF/APP1 payload could not be parsed",
+                            chunk.offset_start,
+                            &keyword,
+                        )),
+                    },
+                    RawProfilePayload::Xmp(bytes) => {
+                        let mut decoded = decode_packet(XmpPacket {
+                            bytes: &bytes,
+                            container: "png",
+                            offset_start: chunk.offset_start,
+                            offset_end: chunk.offset_end,
+                        });
+                        decorate_png_raw_profile(
+                            &mut decoded,
+                            path,
+                            &note,
+                            chunk.offset_start,
+                            chunk.offset_end,
+                        );
+                        entries.extend(decoded);
+                    }
+                    RawProfilePayload::Iptc(bytes) => {
+                        let mut decoded = decode_iptc_payload(IptcPayload {
+                            bytes: &bytes,
+                            container: "png",
+                            path,
+                            offset_start: chunk.offset_start,
+                            offset_end: chunk.offset_end,
+                        });
+                        decorate_png_raw_profile(
+                            &mut decoded,
+                            path,
+                            &note,
+                            chunk.offset_start,
+                            chunk.offset_end,
+                        );
+                        entries.extend(decoded);
+                    }
+                    RawProfilePayload::Icc(bytes) => {
+                        let mut decoded = decode_icc_payload(IccPayload {
+                            bytes: &bytes,
+                            container: "png",
+                            path,
+                            offset_start: chunk.offset_start,
+                            offset_end: chunk.offset_end,
+                        });
+                        decorate_png_raw_profile(
+                            &mut decoded,
+                            path,
+                            &note,
+                            chunk.offset_start,
+                            chunk.offset_end,
+                        );
+                        entries.extend(decoded);
+                    }
+                    RawProfilePayload::App1Unknown(_) => {
+                        issues.push(Issue {
+                            severity: Severity::Info,
+                            code: "png_profile_app1_unknown".into(),
+                            message: "PNG `Raw profile type APP1` chunk has an unrecognised signature; bytes preserved but not decoded".into(),
+                            offset: Some(chunk.offset_start),
+                            context: Some(keyword.clone()),
+                        });
+                    }
                 }
-                entries.extend(decoded);
             }
             for chunk in png.icc_payloads() {
                 if let Some(payload) = payload_slice(
@@ -461,7 +568,7 @@ fn extract_source(
                     chunk.data_offset,
                     chunk.data_length as usize,
                 ) {
-                    if let Some(icc_bytes) = decode_png_iccp_payload(payload) {
+                    if let Some(icc_bytes) = xifty_container_png::decode_iccp_payload(payload) {
                         let decoded = decode_icc_payload(IccPayload {
                             bytes: &icc_bytes,
                             container: "png",
@@ -1284,88 +1391,24 @@ fn civil_from_days(days_since_unix_epoch: i64) -> Option<(i64, u32, u32)> {
     Some((year, u32::try_from(month).ok()?, u32::try_from(day).ok()?))
 }
 
-fn decode_png_iccp_payload(payload: &[u8]) -> Option<Vec<u8>> {
-    let separator = payload.iter().position(|byte| *byte == 0)?;
-    let compression_method = *payload.get(separator + 1)?;
-    if compression_method != 0 {
-        return None;
-    }
-    let compressed = payload.get(separator + 2..)?;
-    let mut decoder = ZlibDecoder::new(compressed);
-    let mut decoded = Vec::new();
-    decoder.read_to_end(&mut decoded).ok()?;
-    Some(decoded)
-}
-
 fn decode_png_creation_time_payload(
     chunk_type: &[u8; 4],
     payload: &[u8],
 ) -> Result<Option<String>, ()> {
-    let Some((keyword, text)) = decode_png_text_payload(chunk_type, payload)? else {
+    // `decode_text_chunk` returns None for malformed framing or unknown chunk
+    // types; the keeper distinguishes a missing keeper-keyword (`Ok(None)`)
+    // from a corrupt chunk (`Err(())`). We approximate the original behaviour:
+    // a chunk with an unrecognised type is `Ok(None)`; a malformed
+    // tEXt/zTXt/iTXt is `Err(())`.
+    if !matches!(chunk_type, b"tEXt" | b"zTXt" | b"iTXt") {
         return Ok(None);
-    };
-    if keyword.eq_ignore_ascii_case("Creation Time") {
-        return Ok(Some(text.trim().to_string()));
     }
-    Ok(None)
-}
-
-fn decode_png_text_payload(
-    chunk_type: &[u8; 4],
-    payload: &[u8],
-) -> Result<Option<(String, String)>, ()> {
-    let nul = payload.iter().position(|byte| *byte == 0).ok_or(())?;
-    let keyword = String::from_utf8_lossy(&payload[..nul]).into_owned();
-    let content = match chunk_type {
-        b"tEXt" => payload.get(nul + 1..).ok_or(())?.to_vec(),
-        b"zTXt" => {
-            let method = *payload.get(nul + 1).ok_or(())?;
-            if method != 0 {
-                return Err(());
-            }
-            let compressed = payload.get(nul + 2..).ok_or(())?;
-            let mut decoder = ZlibDecoder::new(compressed);
-            let mut decoded = Vec::new();
-            decoder.read_to_end(&mut decoded).map_err(|_| ())?;
-            decoded
-        }
-        b"iTXt" => {
-            let mut cursor = nul + 1;
-            let compression_flag = *payload.get(cursor).ok_or(())?;
-            cursor += 1;
-            let compression_method = *payload.get(cursor).ok_or(())?;
-            cursor += 1;
-            let lang_end = payload
-                .get(cursor..)
-                .ok_or(())?
-                .iter()
-                .position(|byte| *byte == 0)
-                .ok_or(())?;
-            cursor += lang_end + 1;
-            let translated_end = payload
-                .get(cursor..)
-                .ok_or(())?
-                .iter()
-                .position(|byte| *byte == 0)
-                .ok_or(())?;
-            cursor += translated_end + 1;
-            let text = payload.get(cursor..).ok_or(())?;
-            if compression_flag == 0 {
-                text.to_vec()
-            } else {
-                if compression_method != 0 {
-                    return Err(());
-                }
-                let mut decoder = ZlibDecoder::new(text);
-                let mut decoded = Vec::new();
-                decoder.read_to_end(&mut decoded).map_err(|_| ())?;
-                decoded
-            }
-        }
-        _ => return Ok(None),
-    };
-    let text = String::from_utf8(content).map_err(|_| ())?;
-    Ok(Some((keyword, text)))
+    let (keyword, body) = xifty_container_png::decode_text_chunk(chunk_type, payload).ok_or(())?;
+    if !keyword.eq_ignore_ascii_case("Creation Time") {
+        return Ok(None);
+    }
+    let text = String::from_utf8(body).map_err(|_| ())?;
+    Ok(Some(text.trim().to_string()))
 }
 
 fn decode_png_time_payload(payload: &[u8]) -> Option<String> {
@@ -1416,106 +1459,56 @@ fn png_timestamp_entry(
     }
 }
 
-/// Decode a PNG text chunk (tEXt/zTXt/iTXt) into raw IPTC IIM bytes.
-///
-/// Returns `None` when the chunk does not carry IPTC metadata. Returns
-/// `Some(empty)` when the keyword matches but the payload is malformed
-/// (so the caller can emit a targeted issue).
-fn decode_png_iptc_payload(chunk_type: &[u8; 4], payload: &[u8]) -> Option<Vec<u8>> {
-    let nul = payload.iter().position(|byte| *byte == 0)?;
-    let keyword = &payload[..nul];
-    let is_raw_profile_iptc = keyword.eq_ignore_ascii_case(b"Raw profile type iptc")
-        || keyword.eq_ignore_ascii_case(b"Raw profile type 8bim");
-    let is_direct_iptc = keyword == b"IPTC-NAA" || keyword.eq_ignore_ascii_case(b"iptc");
-    if !is_raw_profile_iptc && !is_direct_iptc {
-        return None;
+/// Stable provenance `path` string for entries decoded from a PNG
+/// `Raw profile type *` chunk. The `iptc`/`8bim`/`APP13` family keeps the
+/// legacy `png_iptc` path so existing snapshot expectations stay byte-stable.
+fn png_raw_profile_path(kind: RawProfileKind) -> &'static str {
+    match kind {
+        RawProfileKind::App1 => "png_profile_app1",
+        RawProfileKind::Exif => "png_profile_exif",
+        RawProfileKind::Xmp => "png_profile_xmp",
+        RawProfileKind::Icc | RawProfileKind::Icm => "png_profile_icc",
+        RawProfileKind::Iptc | RawProfileKind::App13 | RawProfileKind::EightBim => "png_iptc",
     }
-
-    // Extract the content bytes after the keyword framing, honoring chunk type.
-    let content: Vec<u8> = match chunk_type {
-        b"tEXt" => payload.get(nul + 1..)?.to_vec(),
-        b"zTXt" => {
-            // after keyword nul: 1-byte compression method, then zlib stream
-            let method = *payload.get(nul + 1)?;
-            if method != 0 {
-                return Some(Vec::new());
-            }
-            let compressed = payload.get(nul + 2..)?;
-            let mut decoder = ZlibDecoder::new(compressed);
-            let mut decoded = Vec::new();
-            if decoder.read_to_end(&mut decoded).is_err() {
-                return Some(Vec::new());
-            }
-            decoded
-        }
-        b"iTXt" => {
-            // after keyword nul: compression flag (1), compression method (1),
-            // language tag (nul-terminated), translated keyword (nul-terminated), text
-            let mut cursor = nul + 1;
-            let compression_flag = *payload.get(cursor)?;
-            cursor += 1;
-            let compression_method = *payload.get(cursor)?;
-            cursor += 1;
-            let lang_end = payload.get(cursor..)?.iter().position(|b| *b == 0)?;
-            cursor += lang_end + 1;
-            let tr_end = payload.get(cursor..)?.iter().position(|b| *b == 0)?;
-            cursor += tr_end + 1;
-            let text = payload.get(cursor..)?;
-            if compression_flag == 0 {
-                text.to_vec()
-            } else {
-                if compression_method != 0 {
-                    return Some(Vec::new());
-                }
-                let mut decoder = ZlibDecoder::new(text);
-                let mut decoded = Vec::new();
-                if decoder.read_to_end(&mut decoded).is_err() {
-                    return Some(Vec::new());
-                }
-                decoded
-            }
-        }
-        _ => return None,
-    };
-
-    if is_direct_iptc {
-        return Some(content);
-    }
-
-    // ImageMagick "Raw profile type iptc" framing:
-    //   "\n<profile-name>\n<spaces><decimal length>\n<hex bytes>\n"
-    Some(decode_imagemagick_raw_profile(&content).unwrap_or_default())
 }
 
-fn decode_imagemagick_raw_profile(content: &[u8]) -> Option<Vec<u8>> {
-    // Skip leading newline, then profile-name line, then length line, then hex.
-    let text = std::str::from_utf8(content).ok()?;
-    let trimmed = text.trim_start_matches('\n');
-    let mut lines = trimmed.splitn(3, '\n');
-    let _name = lines.next()?;
-    let _length = lines.next()?.trim();
-    let rest = lines.next()?;
-    // rest contains hex possibly with whitespace; stop at terminating newline/content.
-    let hex: String = rest.chars().filter(|c| c.is_ascii_hexdigit()).collect();
-    if hex.is_empty() || hex.len() % 2 != 0 {
-        return None;
+fn raw_profile_keyword_suffix(kind: RawProfileKind) -> &'static str {
+    match kind {
+        RawProfileKind::App1 => "APP1",
+        RawProfileKind::Exif => "exif",
+        RawProfileKind::Xmp => "xmp",
+        RawProfileKind::Icc => "icc",
+        RawProfileKind::Icm => "icm",
+        RawProfileKind::Iptc => "iptc",
+        RawProfileKind::App13 => "APP13",
+        RawProfileKind::EightBim => "8bim",
     }
-    let mut out = Vec::with_capacity(hex.len() / 2);
-    let bytes = hex.as_bytes();
-    for chunk in bytes.chunks(2) {
-        let high = hex_digit(chunk[0])?;
-        let low = hex_digit(chunk[1])?;
-        out.push((high << 4) | low);
-    }
-    Some(out)
 }
 
-fn hex_digit(byte: u8) -> Option<u8> {
-    match byte {
-        b'0'..=b'9' => Some(byte - b'0'),
-        b'a'..=b'f' => Some(byte - b'a' + 10),
-        b'A'..=b'F' => Some(byte - b'A' + 10),
-        _ => None,
+fn chunk_type_label(chunk_type: &[u8; 4]) -> String {
+    String::from_utf8_lossy(chunk_type).into_owned()
+}
+
+/// Override provenance `path` and append a structured note on every entry
+/// produced by a downstream meta decoder for a PNG `Raw profile type *`
+/// chunk. The decoders set their own paths (`IFD0`, `xmp_packet`, ...) which
+/// are correct for JPEG/TIFF carriers but not what the CLI advertises for
+/// PNG raw-profile chunks.
+fn decorate_png_raw_profile(
+    entries: &mut [MetadataEntry],
+    path: &str,
+    note: &str,
+    offset_start: u64,
+    offset_end: u64,
+) {
+    for entry in entries.iter_mut() {
+        entry.provenance.container = "png".into();
+        entry.provenance.path = Some(path.into());
+        entry.provenance.offset_start = Some(offset_start);
+        entry.provenance.offset_end = Some(offset_end);
+        if !entry.provenance.notes.iter().any(|n| n == note) {
+            entry.provenance.notes.push(note.into());
+        }
     }
 }
 
@@ -2785,7 +2778,6 @@ fn mp3_scalar_entry(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use flate2::{Compression, write::ZlibEncoder};
     use std::io::Write;
 
@@ -2815,6 +2807,11 @@ mod tests {
         out
     }
 
+    // These exercise the public PNG container API that replaced the old
+    // private CLI helpers `decode_png_iptc_payload` /
+    // `decode_imagemagick_raw_profile`. They cover the keyword paths the CLI
+    // dispatcher feeds into `decode_iptc_payload`.
+
     #[test]
     fn decodes_raw_profile_iptc_ztxt() {
         let iim = iim_sample();
@@ -2826,8 +2823,15 @@ mod tests {
         payload.extend_from_slice(b"Raw profile type iptc\x00");
         payload.push(0u8); // compression method
         payload.extend_from_slice(&compressed);
-        let decoded = decode_png_iptc_payload(b"zTXt", &payload).expect("keyword matches");
-        assert_eq!(decoded, iim);
+        let (keyword, body) =
+            xifty_container_png::decode_text_chunk(b"zTXt", &payload).expect("framing");
+        assert_eq!(keyword, "Raw profile type iptc");
+        let decoded =
+            xifty_container_png::decode_raw_profile(&keyword, &body).expect("raw profile decodes");
+        match decoded {
+            xifty_container_png::RawProfilePayload::Iptc(bytes) => assert_eq!(bytes, iim),
+            other => panic!("expected Iptc, got {other:?}"),
+        }
     }
 
     #[test]
@@ -2837,8 +2841,15 @@ mod tests {
         let mut payload = Vec::new();
         payload.extend_from_slice(b"Raw profile type iptc\x00");
         payload.extend_from_slice(&framing);
-        let decoded = decode_png_iptc_payload(b"tEXt", &payload).expect("keyword matches");
-        assert_eq!(decoded, iim);
+        let (keyword, body) =
+            xifty_container_png::decode_text_chunk(b"tEXt", &payload).expect("framing");
+        assert_eq!(keyword, "Raw profile type iptc");
+        let decoded =
+            xifty_container_png::decode_raw_profile(&keyword, &body).expect("raw profile decodes");
+        match decoded {
+            xifty_container_png::RawProfilePayload::Iptc(bytes) => assert_eq!(bytes, iim),
+            other => panic!("expected Iptc, got {other:?}"),
+        }
     }
 
     #[test]
@@ -2847,8 +2858,14 @@ mod tests {
         let mut payload = Vec::new();
         payload.extend_from_slice(b"IPTC-NAA\x00");
         payload.extend_from_slice(&iim);
-        let decoded = decode_png_iptc_payload(b"tEXt", &payload).expect("keyword matches");
-        assert_eq!(decoded, iim);
+        let (keyword, body) =
+            xifty_container_png::decode_text_chunk(b"tEXt", &payload).expect("framing");
+        assert_eq!(keyword, "IPTC-NAA");
+        // Direct-IPTC keywords are not part of the `Raw profile type *` family,
+        // so `decode_raw_profile` returns None — the CLI dispatches them
+        // straight into `decode_iptc_payload`.
+        assert!(xifty_container_png::decode_raw_profile(&keyword, &body).is_none());
+        assert_eq!(body, iim);
     }
 
     #[test]
@@ -2861,8 +2878,10 @@ mod tests {
         payload.extend_from_slice(b"IPTC-NAA\x00");
         payload.push(0u8);
         payload.extend_from_slice(&compressed);
-        let decoded = decode_png_iptc_payload(b"zTXt", &payload).expect("keyword matches");
-        assert_eq!(decoded, iim);
+        let (keyword, body) =
+            xifty_container_png::decode_text_chunk(b"zTXt", &payload).expect("framing");
+        assert_eq!(keyword, "IPTC-NAA");
+        assert_eq!(body, iim);
     }
 
     #[test]
@@ -2870,6 +2889,13 @@ mod tests {
         let mut payload = Vec::new();
         payload.extend_from_slice(b"XML:com.adobe.xmp\x00");
         payload.extend_from_slice(b"irrelevant");
-        assert!(decode_png_iptc_payload(b"tEXt", &payload).is_none());
+        let (keyword, body) =
+            xifty_container_png::decode_text_chunk(b"tEXt", &payload).expect("framing");
+        // Not in the raw-profile family.
+        assert!(xifty_container_png::classify_raw_profile_keyword(&keyword).is_none());
+        // And not direct IPTC.
+        assert_ne!(keyword, "IPTC-NAA");
+        assert!(!keyword.eq_ignore_ascii_case("iptc"));
+        let _ = body;
     }
 }

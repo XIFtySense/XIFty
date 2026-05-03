@@ -902,6 +902,7 @@ dependencies = [
 name = "xifty-container-png"
 version = "0.1.14"
 dependencies = [
+ "flate2",
  "xifty-core",
  "xifty-source",
 ]
