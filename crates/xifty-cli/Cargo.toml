@@ -50,6 +50,7 @@ xifty-policy = { path = "../xifty-policy" }
 xifty-sidecar = { path = "../xifty-sidecar" }
 xifty-sidecar-sony-nrt = { path = "../xifty-sidecar-sony-nrt" }
 xifty-sidecar-subtitles = { path = "../xifty-sidecar-subtitles" }
+xifty-sidecar-gopro = { path = "../xifty-sidecar-gopro" }
 xifty-validate = { path = "../xifty-validate" }
 xifty-json = { path = "../xifty-json" }
 

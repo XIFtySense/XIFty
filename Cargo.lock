@@ -837,6 +837,7 @@ dependencies = [
  "xifty-normalize",
  "xifty-policy",
  "xifty-sidecar",
+ "xifty-sidecar-gopro",
  "xifty-sidecar-sony-nrt",
  "xifty-sidecar-subtitles",
  "xifty-source",
@@ -1146,6 +1147,16 @@ name = "xifty-sidecar"
 version = "0.1.14"
 dependencies = [
  "xifty-core",
+]
+
+[[package]]
+name = "xifty-sidecar-gopro"
+version = "0.1.14"
+dependencies = [
+ "xifty-container-isobmff",
+ "xifty-container-jpeg",
+ "xifty-core",
+ "xifty-sidecar",
 ]
 
 [[package]]

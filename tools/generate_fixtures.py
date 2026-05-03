@@ -1834,6 +1834,67 @@ def build_sony_nrt_pair():
     return mp4, xml
 
 
+def build_gopro_sidecar_triplet():
+    """Synthetic GoPro `.MP4` + `.LRV` + `.THM` triplet for `fixtures/minimal/gopro/`.
+
+    Pairs a tiny but valid MP4 primary (Format::Mp4 detection only) with a
+    smaller LRV proxy (640x360 @ 3s) and a 320x180 SOF0 JFIF thumbnail. All
+    three filenames follow the GoPro Hero5+ naming convention so the
+    GH/GX -> GL prefix-shift discovery path is exercised by the
+    `xifty-sidecar-gopro` adapter.
+    """
+    primary_mp4 = build_mp4()
+
+    # Build a smaller LRV — 640x360 @ 3s — using the same building blocks as
+    # build_mp4(), so the proxy's `media_duration_seconds` is well-defined.
+    timescale = 1000
+    duration_s = 3.0
+    movie_duration = int(duration_s * timescale)
+    mvhd_payload = (
+        struct.pack(">I", qt_epoch_seconds(2024, 4, 16, 12, 34, 56))
+        + struct.pack(">I", qt_epoch_seconds(2024, 4, 16, 13, 0, 0))
+        + struct.pack(">I", timescale)
+        + struct.pack(">I", movie_duration)
+        + b"\x00" * 8
+    )
+    mvhd = full_box(b"mvhd", mvhd_payload)
+    video_timescale = 24000
+    video_duration = int(duration_s * video_timescale)
+    video_track = build_track(
+        handler=b"vide",
+        codec=b"avc1",
+        duration=video_duration,
+        timescale=video_timescale,
+        width=640,
+        height=360,
+        frame_rate=23.976,
+        bitrate=2_000_000,
+    )
+    moov = iso_box(b"moov", mvhd + video_track)
+    ftyp = iso_box(b"ftyp", b"mp42" + b"\x00\x00\x00\x00" + b"mp42")
+    lrv = ftyp + moov
+
+    # 320x180 SOF0 JFIF — minimal valid SOI+APP0+SOF0+EOI.
+    # SOF0 length = 11 (length itself + precision + height + width + Nf + 1 component triplet).
+    thm = (
+        b"\xff\xd8"  # SOI
+        b"\xff\xe0\x00\x10"  # APP0 length=16
+        b"JFIF\x00"
+        b"\x01\x01"  # version 1.1
+        b"\x00"      # units
+        b"\x00\x01\x00\x01"  # x/y density
+        b"\x00\x00"  # thumbnail x/y
+        b"\xff\xc0\x00\x0b"  # SOF0 length=11
+        b"\x08"            # precision 8
+        b"\x00\xb4"        # height 180
+        b"\x01\x40"        # width  320
+        b"\x01"            # Nf=1
+        b"\x01\x11\x00"    # component
+        b"\xff\xd9"        # EOI
+    )
+    return primary_mp4, lrv, thm
+
+
 def main():
     ROOT.mkdir(parents=True, exist_ok=True)
     xmp = build_xmp()
@@ -1953,6 +2014,14 @@ def main():
     nrt_mp4, nrt_xml = build_sony_nrt_pair()
     (nrt_dir / "clip.mp4").write_bytes(nrt_mp4)
     (nrt_dir / "clipM01.XML").write_bytes(nrt_xml)
+
+    # GoPro sidecar triplet: GH-prefixed primary, GL-shifted LRV, same-prefix THM.
+    gopro_dir = ROOT / "gopro"
+    gopro_dir.mkdir(parents=True, exist_ok=True)
+    gopro_mp4, gopro_lrv, gopro_thm = build_gopro_sidecar_triplet()
+    (gopro_dir / "GH010001.MP4").write_bytes(gopro_mp4)
+    (gopro_dir / "GL010001.LRV").write_bytes(gopro_lrv)
+    (gopro_dir / "GH010001.THM").write_bytes(gopro_thm)
 
 
 if __name__ == "__main__":
