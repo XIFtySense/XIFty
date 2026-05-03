@@ -38,8 +38,16 @@ impl DecodedAiGen {
 /// Recognised PNG text-chunk keywords for AI-gen shapes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AiGenShape {
-    /// `parameters` keyword. May be Fooocus JSON or A1111 plaintext.
+    /// `parameters` keyword, A1111/Forge plaintext shape. When dispatched via
+    /// this variant, [`decode_payload`] still tries Fooocus JSON first (the
+    /// two share the same keyword on disk), but consumers that have already
+    /// disambiguated the body should prefer the explicit
+    /// [`AiGenShape::FooocusParameters`] variant instead.
     A1111Parameters,
+    /// `parameters` keyword, Fooocus JSON shape. Distinct from
+    /// [`AiGenShape::A1111Parameters`] so downstream consumers can route
+    /// Fooocus payloads explicitly when the body is already known to be JSON.
+    FooocusParameters,
     /// ComfyUI API graph (`prompt` keyword).
     ComfyPrompt,
     /// ComfyUI editor graph (`workflow` keyword).
@@ -97,6 +105,9 @@ pub fn decode_payload(payload: AiGenPayload<'_>) -> (Vec<MetadataEntry>, Vec<Iss
                 a1111::try_decode(&payload).unwrap_or_else(DecodedAiGen::empty)
             }
         }
+        AiGenShape::FooocusParameters => fooocus::try_decode(&payload)
+            .or_else(|| a1111::try_decode(&payload))
+            .unwrap_or_else(DecodedAiGen::empty),
         AiGenShape::ComfyPrompt | AiGenShape::ComfyWorkflow => {
             comfyui::try_decode(&payload).unwrap_or_else(DecodedAiGen::empty)
         }

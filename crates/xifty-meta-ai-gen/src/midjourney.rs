@@ -4,17 +4,20 @@
 //! false-positives we accept the body as Midjourney **only** when:
 //!
 //! - a 36-character `8-4-4-4-12` UUID is present (the Midjourney Job ID), or
-//! - the body contains a Midjourney-specific flag substring (`--ar`, `--v`,
-//!   `--style`, `--niji`).
+//! - the body contains a Midjourney-specific *strong* flag substring
+//!   (`--ar`, `--v`, `--style`, `--niji`).
 //!
-//! When neither is present, we return `None` so other classifiers can try.
+//! Generic flags such as `--seed` / `--chaos` are not unique to Midjourney
+//! (other CLI-style tools use them too); they are not sufficient on their
+//! own to claim the body as Midjourney. When neither a UUID nor a strong
+//! flag is present, we return `None` so other classifiers can try.
 
 use crate::{AiGenPayload, DecodedAiGen, entry};
 use xifty_core::TypedValue;
 
-const MJ_FLAGS: &[&str] = &[
-    "--ar ", "--v ", "--style ", "--niji ", "--chaos ", "--seed ",
-];
+/// Flags unique enough to Midjourney that their presence is a strong
+/// declarative marker. `--seed` / `--chaos` are intentionally *not* here.
+const MJ_FLAGS: &[&str] = &["--ar ", "--v ", "--style ", "--niji "];
 
 pub(super) fn try_decode(payload: &AiGenPayload<'_>) -> Option<DecodedAiGen> {
     let text = std::str::from_utf8(payload.body).ok()?;

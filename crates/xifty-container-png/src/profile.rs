@@ -324,6 +324,29 @@ mod tests {
         assert_eq!(classify_raw_profile_keyword("Raw profile type bogus"), None);
     }
 
+    /// Regression guard: AI-gen text-chunk keywords (`parameters`, `prompt`,
+    /// `workflow`, `invokeai_metadata`, `Description`, `Comment`) must not be
+    /// classifiable as `Raw profile type *` aliases. If a future change adds
+    /// a `parameters` profile-type alias here, A1111 routing in
+    /// `xifty-meta-ai-gen` would silently break.
+    #[test]
+    fn ai_gen_keywords_are_not_raw_profile_aliases() {
+        for kw in [
+            "parameters",
+            "prompt",
+            "workflow",
+            "invokeai_metadata",
+            "Description",
+            "Comment",
+        ] {
+            assert_eq!(
+                classify_raw_profile_keyword(kw),
+                None,
+                "keyword `{kw}` must not classify as a Raw profile type",
+            );
+        }
+    }
+
     #[test]
     fn app1_exif_strips_six_byte_prefix() {
         let mut raw = Vec::new();

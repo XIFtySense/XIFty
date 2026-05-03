@@ -214,19 +214,24 @@ pub(super) fn try_decode(payload: &AiGenPayload<'_>) -> Option<DecodedAiGen> {
 /// `Sampler:`, `Seed:`, `CFG scale:`, `Size:`, `Model:`, `Model hash:`) is
 /// the kv line. Everything before is the prompt body, which may itself
 /// contain a `\nNegative prompt:` separator.
+///
+/// We scan *all* line starts and take the last match because prompt text
+/// itself can begin with a KV-shaped fragment (e.g. `Seed: planted last
+/// spring` as a literal prompt). A1111 always emits the real KV line as
+/// the final line of the body, so last-wins is the correct disambiguator.
 fn split_sections(text: &str) -> (&str, Option<&str>, Option<&str>) {
     let mut kv_split: Option<usize> = None;
-    for (i, line) in text.match_indices('\n') {
+    // First line: no leading newline.
+    if looks_like_kv_line(text) {
+        kv_split = Some(0);
+    }
+    // Subsequent lines: scan every '\n' and keep updating the candidate so
+    // the *last* matching line wins.
+    for (i, _) in text.match_indices('\n') {
         let after = &text[i + 1..];
         if looks_like_kv_line(after) {
             kv_split = Some(i + 1);
-            break;
         }
-        let _ = line;
-    }
-    // Also accept the very first line being a kv line (no prompt).
-    if kv_split.is_none() && looks_like_kv_line(text) {
-        kv_split = Some(0);
     }
 
     let (prompt_section, kv_line) = match kv_split {
@@ -412,6 +417,48 @@ mod tests {
         let body = b"";
         let d = try_decode(&pl(body)).unwrap();
         assert!(d.entries.is_empty());
+    }
+
+    #[test]
+    fn last_kv_line_wins_when_prompt_starts_with_kv_shape() {
+        // The first line "Seed: planted last spring" looks KV-like but is
+        // actually prompt text. The real KV line is the second line. The
+        // splitter must pick the *last* match, not the first.
+        let body = b"Seed: planted last spring\nSteps: 20, Sampler: Euler, CFG scale: 7, Seed: 42, Size: 512x512";
+        let d = try_decode(&pl(body)).unwrap();
+
+        let prompt = d
+            .entries
+            .iter()
+            .find(|e| e.tag_name == "ai_gen.prompt")
+            .expect("prompt entry");
+        if let TypedValue::String(s) = &prompt.value {
+            assert_eq!(s, "Seed: planted last spring");
+        } else {
+            panic!("prompt not string");
+        }
+
+        let steps = d
+            .entries
+            .iter()
+            .find(|e| e.tag_name == "ai_gen.steps")
+            .expect("steps entry");
+        if let TypedValue::Integer(n) = steps.value {
+            assert_eq!(n, 20);
+        } else {
+            panic!("steps not int");
+        }
+
+        let seed = d
+            .entries
+            .iter()
+            .find(|e| e.tag_name == "ai_gen.seed")
+            .expect("seed entry");
+        if let TypedValue::Integer(n) = seed.value {
+            assert_eq!(n, 42);
+        } else {
+            panic!("seed not int");
+        }
     }
 
     #[test]
