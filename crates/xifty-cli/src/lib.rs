@@ -48,6 +48,7 @@ use xifty_meta_vorbis_comment::{
 use xifty_meta_xmp::{XmpPacket, decode_packet, decode_png_text_chunk, decode_webp_xmp_chunk};
 use xifty_normalize::normalize_with_policy;
 use xifty_sidecar::SidecarRegistry;
+use xifty_sidecar_gopro::GoProSidecar;
 use xifty_sidecar_sony_nrt::SonyNrtSidecar;
 use xifty_sidecar_subtitles::SubtitlesSidecar;
 use xifty_source::SourceBytes;
@@ -234,6 +235,7 @@ fn default_sidecar_registry() -> SidecarRegistry {
     let mut registry = SidecarRegistry::new();
     registry.register(SonyNrtSidecar::new());
     registry.register(SubtitlesSidecar::new());
+    registry.register(GoProSidecar::new());
     registry
 }
 

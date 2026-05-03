@@ -554,6 +554,25 @@
         "subtitles.<i>.first_cue_text",
         "subtitles.<i>.style_count (ASS/SSA only)"
       ]
+    },
+    "gopro": {
+      "status": "bounded",
+      "merge_policy": "complement",
+      "discovery": "GH/GX -> GL prefix shift for LRV; same-prefix <stem>.THM for thumbnail; generic <stem>.LRV / <stem>.THM fallback",
+      "supported_tags": [
+        "proxy.path",
+        "proxy.size_bytes",
+        "proxy.format",
+        "proxy.codec",
+        "proxy.dimensions.width",
+        "proxy.dimensions.height",
+        "proxy.bitrate_bps",
+        "thumbnail.path",
+        "thumbnail.size_bytes",
+        "thumbnail.format",
+        "thumbnail.dimensions.width",
+        "thumbnail.dimensions.height"
+      ]
     }
   },
   "surfaces": {

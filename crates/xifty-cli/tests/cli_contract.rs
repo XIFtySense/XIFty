@@ -3339,3 +3339,85 @@ fn subtitles_sidecar_is_off_by_default() {
 
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+// ---------------------------------------------------------------------------
+// Sidecar (GoPro `.lrv` / `.thm`) integration tests — issue #134.
+// ---------------------------------------------------------------------------
+
+#[test]
+fn gopro_sidecar_is_off_by_default() {
+    // Without `--sidecars`, the sibling `.LRV` / `.THM` files must not
+    // surface any `gopro_sidecar` entries through `extract_path`. Confirms
+    // the flag is opt-in for GoPro just like Sony NRT.
+    let mp4 =
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/minimal/gopro/GH010001.MP4");
+    if !mp4.exists() {
+        eprintln!("skipping synthetic GoPro fixture test; run tools/generate_fixtures.py");
+        return;
+    }
+    let analysis = xifty_cli::extract_path(mp4, ViewMode::Interpreted).unwrap();
+    let value = serde_json::to_value(&analysis).unwrap();
+    let interpreted = value["interpreted"]["metadata"]
+        .as_array()
+        .expect("interpreted view present");
+    let gopro_entries: Vec<_> = interpreted
+        .iter()
+        .filter(|e| e["namespace"] == "gopro_sidecar")
+        .collect();
+    assert!(
+        gopro_entries.is_empty(),
+        "default extract_path must not surface gopro_sidecar entries (sidecars are opt-in)"
+    );
+}
+
+#[test]
+fn gopro_sidecar_synthetic_minimal_fixture_lifts_proxy_and_thumbnail() {
+    // Synthetic GH/GL/THM triplet checked in under `fixtures/minimal/gopro/`.
+    // Asserts the structural proxy + thumbnail entries land in the
+    // interpreted view under namespace `gopro_sidecar` when the sidecar
+    // option is enabled.
+    let mp4 =
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/minimal/gopro/GH010001.MP4");
+    if !mp4.exists() {
+        eprintln!("skipping synthetic GoPro fixture test; run tools/generate_fixtures.py");
+        return;
+    }
+    let output = extract_with_sidecars(mp4, ViewMode::Interpreted);
+    let interpreted = output["interpreted"]["metadata"]
+        .as_array()
+        .expect("interpreted view present");
+    let by_tag: std::collections::BTreeMap<String, &Value> = interpreted
+        .iter()
+        .filter(|e| e["namespace"] == "gopro_sidecar")
+        .map(|e| (e["tag_name"].as_str().unwrap().to_string(), e))
+        .collect();
+    assert!(
+        !by_tag.is_empty(),
+        "expected gopro_sidecar entries to surface from sibling LRV/THM"
+    );
+    // Thumbnail dimensions from the 320x180 SOF0 JFIF.
+    assert_eq!(
+        by_tag
+            .get("thumbnail.dimensions.width")
+            .and_then(|e| e["value"]["value"].as_i64()),
+        Some(320),
+        "expected thumbnail.dimensions.width=320, got entries: {:?}",
+        by_tag.keys().collect::<Vec<_>>()
+    );
+    assert_eq!(
+        by_tag
+            .get("thumbnail.dimensions.height")
+            .and_then(|e| e["value"]["value"].as_i64()),
+        Some(180)
+    );
+    // Proxy structural fields from the 640x360 LRV.
+    assert_eq!(
+        by_tag
+            .get("proxy.dimensions.width")
+            .and_then(|e| e["value"]["value"].as_i64()),
+        Some(640)
+    );
+    assert!(by_tag.contains_key("proxy.bitrate_bps"));
+    assert!(by_tag.contains_key("proxy.path"));
+    assert!(by_tag.contains_key("thumbnail.path"));
+}

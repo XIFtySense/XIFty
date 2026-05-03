@@ -39,6 +39,7 @@ members = [
   "crates/xifty-sidecar",
   "crates/xifty-sidecar-sony-nrt",
   "crates/xifty-sidecar-subtitles",
+  "crates/xifty-sidecar-gopro",
   "crates/xifty-validate",
   "crates/xifty-json",
   "crates/xifty-ffi",
