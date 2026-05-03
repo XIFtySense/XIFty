@@ -117,6 +117,18 @@ Current namespace coverage:
 - bounded GIF (logical screen, frame count, animation duration, palette, loop count, XMP App Extension)
 - bounded AVIF HDR color (`color.primaries` / `transfer` / `matrix` / `range` / `bit_depth` from `colr` / `cicp` / `pixi` boxes)
 
+Current sidecar coverage (opt-in via CLI `--sidecars` /
+`xifty_extract_json_with_options(enable_sidecars: true)`):
+
+- **Sony NRT** (`<basename>M01.XML` next to XAVC `.MP4` / `.MOV` clips):
+  schemas `ver.2.10` and `ver.2.20`. Surfaces `umid`, `recording.mode`,
+  `recording.cache_rec`, `recording.capture_fps`, `recording.format_fps`,
+  `timecode.fps` / `half_step` / `ltc.start` / `ltc.end`,
+  `color.gamma_equation`, `color.coding_equations`, `device.serial_no`, plus
+  cross-check entries for codec / channel count / duration. Each
+  sidecar-derived `MetadataEntry` is stamped with `namespace = "sony_nrt"` and
+  `provenance.container = "sidecar"`.
+
 Current product surfaces:
 
 - CLI

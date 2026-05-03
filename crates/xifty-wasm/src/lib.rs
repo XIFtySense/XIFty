@@ -1,4 +1,5 @@
-use xifty_core::{ViewMode, XiftyError};
+use xifty_core::{Severity, ViewMode, XiftyError};
+use xifty_sidecar::SIDECAR_DISCOVERY_UNAVAILABLE_IN_WASM;
 
 pub fn probe_bytes_json(bytes: &[u8], file_name: Option<&str>) -> Result<String, XiftyError> {
     let output = xifty_cli::probe_bytes(bytes.to_vec(), file_name.map(str::to_owned))?;
@@ -10,11 +11,38 @@ pub fn extract_bytes_json(
     file_name: Option<&str>,
     view_mode: Option<&str>,
 ) -> Result<String, XiftyError> {
-    let output = xifty_cli::extract_bytes(
+    extract_bytes_json_with_options(bytes, file_name, view_mode, false)
+}
+
+/// Buffer-only extract with the same option surface the CLI/FFI expose.
+///
+/// The browser/WASM context has no filesystem, so sidecar *discovery* is
+/// always a no-op. When a caller still asks for it (`sidecars == true`),
+/// emit an `info`-severity issue (`sidecar_discovery_unavailable_in_wasm`)
+/// in the report — never silently drop the request — so the caller has a
+/// surfaceable signal that nothing was actually merged.
+pub fn extract_bytes_json_with_options(
+    bytes: &[u8],
+    file_name: Option<&str>,
+    view_mode: Option<&str>,
+    sidecars: bool,
+) -> Result<String, XiftyError> {
+    let mut output = xifty_cli::extract_bytes(
         bytes.to_vec(),
         file_name.map(str::to_owned),
         parse_view_mode(view_mode)?,
     )?;
+    if sidecars {
+        output.report.issues.push(xifty_core::Issue {
+            severity: Severity::Info,
+            code: SIDECAR_DISCOVERY_UNAVAILABLE_IN_WASM.into(),
+            message:
+                "sidecar discovery is unavailable in the WASM surface (no filesystem); ignoring requested sidecar pass"
+                    .into(),
+            offset: None,
+            context: Some("xifty_wasm".into()),
+        });
+    }
     xifty_json::to_json_analysis(&output).map_err(json_error)
 }
 
@@ -54,6 +82,18 @@ pub fn extract_bytes(
     view_mode: Option<String>,
 ) -> Result<String, JsValue> {
     extract_bytes_json(bytes, file_name.as_deref(), view_mode.as_deref()).map_err(error_to_js)
+}
+
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen]
+pub fn extract_bytes_with_options(
+    bytes: &[u8],
+    file_name: Option<String>,
+    view_mode: Option<String>,
+    sidecars: bool,
+) -> Result<String, JsValue> {
+    extract_bytes_json_with_options(bytes, file_name.as_deref(), view_mode.as_deref(), sidecars)
+        .map_err(error_to_js)
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -116,5 +156,38 @@ mod tests {
     fn invalid_view_mode_is_rejected() {
         let error = extract_bytes_json(HAPPY_JPEG, None, Some("bogus")).unwrap_err();
         assert!(error.to_string().contains("unsupported view mode"));
+    }
+
+    #[test]
+    fn requesting_sidecars_in_wasm_emits_info_issue_rather_than_silently_dropping() {
+        let output =
+            extract_bytes_json_with_options(HAPPY_JPEG, Some("x.jpg"), Some("report"), true)
+                .unwrap();
+        let json: Value = serde_json::from_str(&output).unwrap();
+        let codes: Vec<_> = json["report"]["issues"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter_map(|i| i["code"].as_str())
+            .collect();
+        assert!(
+            codes.contains(&"sidecar_discovery_unavailable_in_wasm"),
+            "expected info issue when sidecars requested without filesystem; got {codes:?}"
+        );
+    }
+
+    #[test]
+    fn not_requesting_sidecars_does_not_emit_info_issue() {
+        let output =
+            extract_bytes_json_with_options(HAPPY_JPEG, Some("x.jpg"), Some("report"), false)
+                .unwrap();
+        let json: Value = serde_json::from_str(&output).unwrap();
+        let codes: Vec<_> = json["report"]["issues"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter_map(|i| i["code"].as_str())
+            .collect();
+        assert!(!codes.contains(&"sidecar_discovery_unavailable_in_wasm"));
     }
 }

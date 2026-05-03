@@ -61,6 +61,8 @@ pub fn normalize_with_policy(entries: &[MetadataEntry]) -> PolicyResult {
 
     derive_animation_frame_count(entries, &mut result.fields);
 
+    derive_sony_nrt_fields(entries, &mut result.fields);
+
     if let Some((entry, keywords)) = entry_strings(entries, "Keywords") {
         if !result.fields.iter().any(|field| field.field == "keywords") {
             result.fields.push(NormalizedField {
@@ -147,6 +149,107 @@ fn derive_animation_frame_count(entries: &[MetadataEntry], fields: &mut Vec<Norm
         sources: vec![entry.provenance.clone()],
         notes: Vec::new(),
     });
+}
+
+/// Lift Sony NRT sidecar entries into normalized fields.
+///
+/// All inputs come from `MetadataEntry`s stamped with `namespace ==
+/// "sony_nrt"` by the `xifty-sidecar-sony-nrt` adapter. Most of the lifted
+/// fields are *string* or *timestamp*, not integer, so we push
+/// [`NormalizedField`] directly rather than going through the i64-only
+/// `ensure_field` helper.
+///
+/// Source citations live alongside each tag in the adapter; the field
+/// vocabulary matches the issue #122 mapping table.
+fn derive_sony_nrt_fields(entries: &[MetadataEntry], fields: &mut Vec<NormalizedField>) {
+    let nrt = |tag: &str| -> Option<&MetadataEntry> {
+        entries
+            .iter()
+            .find(|entry| entry.namespace == "sony_nrt" && entry.tag_name == tag)
+    };
+    let push_string_field =
+        |fields: &mut Vec<NormalizedField>, name: &str, entry: &MetadataEntry| {
+            if fields.iter().any(|field| field.field == name) {
+                return;
+            }
+            let value = match &entry.value {
+                TypedValue::String(s) => TypedValue::String(s.clone()),
+                TypedValue::Integer(i) => TypedValue::String(i.to_string()),
+                TypedValue::Timestamp(s) => TypedValue::String(s.clone()),
+                other => other.clone(),
+            };
+            fields.push(NormalizedField {
+                field: name.into(),
+                value,
+                confidence: 0.95,
+                sources: vec![entry.provenance.clone()],
+                notes: Vec::new(),
+            });
+        };
+
+    if let Some(entry) = nrt("Device.serialNo") {
+        push_string_field(fields, "device.serial_no", entry);
+    }
+    if let Some(entry) = nrt("TargetMaterial.umidRef") {
+        push_string_field(fields, "umid", entry);
+    }
+    if let Some(entry) = nrt("RecordingMode.type") {
+        push_string_field(fields, "recording.mode", entry);
+    }
+    if let Some(entry) = nrt("RecordingMode.cacheRec") {
+        push_string_field(fields, "recording.cache_rec", entry);
+    }
+    if let Some(entry) = nrt("VideoFrame.captureFps") {
+        push_string_field(fields, "recording.capture_fps", entry);
+    }
+    if let Some(entry) = nrt("VideoFrame.formatFps") {
+        push_string_field(fields, "recording.format_fps", entry);
+    }
+    if let Some(entry) = nrt("LtcChangeTable.tcFps") {
+        // Plain integer — keep TypedValue::Integer if the adapter parsed it
+        // as such, otherwise fall back to a string carrier.
+        if !fields.iter().any(|f| f.field == "timecode.fps") {
+            fields.push(NormalizedField {
+                field: "timecode.fps".into(),
+                value: entry.value.clone(),
+                confidence: 0.95,
+                sources: vec![entry.provenance.clone()],
+                notes: Vec::new(),
+            });
+        }
+    }
+    if let Some(entry) = nrt("LtcChangeTable.halfStep") {
+        push_string_field(fields, "timecode.half_step", entry);
+    }
+    if let Some(entry) = nrt("LtcChange.first") {
+        push_string_field(fields, "timecode.ltc.start", entry);
+    }
+    if let Some(entry) = nrt("LtcChange.last") {
+        push_string_field(fields, "timecode.ltc.end", entry);
+    }
+    if let Some(entry) = nrt("CaptureGammaEquation") {
+        push_string_field(fields, "color.gamma_equation", entry);
+    }
+    if let Some(entry) = nrt("CodingEquations") {
+        push_string_field(fields, "color.coding_equations", entry);
+    }
+
+    // Lift CreationDate from sidecar into captured_at — only as a fallback;
+    // do not clobber an EXIF/QuickTime-derived value that already won
+    // policy reconciliation. Sidecar carries timezone where the MP4 atom
+    // is UTC-only, so reviewers may push back; the existing
+    // conflict-detector still runs against both.
+    if let Some(entry) = nrt("CreationDate") {
+        if !fields.iter().any(|field| field.field == "captured_at") {
+            fields.push(NormalizedField {
+                field: "captured_at".into(),
+                value: entry.value.clone(),
+                confidence: 0.85,
+                sources: vec![entry.provenance.clone()],
+                notes: vec!["sourced from Sony NRT sidecar".into()],
+            });
+        }
+    }
 }
 
 fn enrich_exif_timestamps(entries: &[MetadataEntry], fields: &mut [NormalizedField]) {
@@ -635,6 +738,104 @@ mod tests {
                 .iter()
                 .any(|field| field.field == "animation.frame_count")
         );
+    }
+
+    #[test]
+    fn lifts_sony_nrt_sidecar_fields_from_namespace() {
+        let prov = Provenance {
+            container: "sidecar".into(),
+            namespace: "sony_nrt".into(),
+            path: Some("/tmp/clip.M01.XML".into()),
+            offset_start: None,
+            offset_end: None,
+            notes: Vec::new(),
+        };
+        let entry = |tag: &str, value: TypedValue| MetadataEntry {
+            namespace: "sony_nrt".into(),
+            tag_id: tag.into(),
+            tag_name: tag.into(),
+            value,
+            provenance: prov.clone(),
+            notes: Vec::new(),
+        };
+        let entries = vec![
+            entry("Device.serialNo", TypedValue::String("0123456".into())),
+            entry(
+                "TargetMaterial.umidRef",
+                TypedValue::String("06...0000".into()),
+            ),
+            entry("RecordingMode.type", TypedValue::String("normal".into())),
+            entry("RecordingMode.cacheRec", TypedValue::String("false".into())),
+            entry("VideoFrame.captureFps", TypedValue::String("29.97p".into())),
+            entry("VideoFrame.formatFps", TypedValue::String("29.97p".into())),
+            entry("LtcChangeTable.tcFps", TypedValue::Integer(29)),
+            entry("LtcChangeTable.halfStep", TypedValue::String("true".into())),
+            entry("LtcChange.first", TypedValue::String("01000000".into())),
+            entry("LtcChange.last", TypedValue::String("01005959".into())),
+            entry("CaptureGammaEquation", TypedValue::String("s-log3".into())),
+            entry("CodingEquations", TypedValue::String("rec709".into())),
+        ];
+        let fields = normalize(&entries);
+        let by_name = |name: &str| {
+            fields
+                .iter()
+                .find(|f| f.field == name)
+                .unwrap_or_else(|| panic!("expected field {name}"))
+        };
+        for name in [
+            "device.serial_no",
+            "umid",
+            "recording.mode",
+            "recording.cache_rec",
+            "recording.capture_fps",
+            "recording.format_fps",
+            "timecode.fps",
+            "timecode.half_step",
+            "timecode.ltc.start",
+            "timecode.ltc.end",
+            "color.gamma_equation",
+            "color.coding_equations",
+        ] {
+            let field = by_name(name);
+            assert_eq!(
+                field.sources.len(),
+                1,
+                "expected one source for {name}, got {:?}",
+                field.sources
+            );
+            assert_eq!(field.sources[0].namespace, "sony_nrt");
+        }
+        assert_eq!(by_name("timecode.fps").value, TypedValue::Integer(29));
+        assert_eq!(
+            by_name("umid").value,
+            TypedValue::String("06...0000".into())
+        );
+    }
+
+    #[test]
+    fn sony_nrt_captured_at_is_a_fallback_when_no_other_source_provides_it() {
+        let prov = Provenance {
+            container: "sidecar".into(),
+            namespace: "sony_nrt".into(),
+            path: None,
+            offset_start: None,
+            offset_end: None,
+            notes: Vec::new(),
+        };
+        let entries = vec![MetadataEntry {
+            namespace: "sony_nrt".into(),
+            tag_id: "CreationDate".into(),
+            tag_name: "CreationDate".into(),
+            value: TypedValue::Timestamp("2024-04-16T12:00:00+09:00".into()),
+            provenance: prov,
+            notes: Vec::new(),
+        }];
+        let fields = normalize(&entries);
+        let captured = fields
+            .iter()
+            .find(|field| field.field == "captured_at")
+            .expect("captured_at present from NRT");
+        assert!(matches!(captured.value, TypedValue::Timestamp(_)));
     }
 
     #[test]

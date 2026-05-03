@@ -836,6 +836,8 @@ dependencies = [
  "xifty-meta-xmp",
  "xifty-normalize",
  "xifty-policy",
+ "xifty-sidecar",
+ "xifty-sidecar-sony-nrt",
  "xifty-source",
  "xifty-validate",
 ]
@@ -1138,6 +1140,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "xifty-sidecar"
+version = "0.1.12"
+dependencies = [
+ "xifty-core",
+]
+
+[[package]]
+name = "xifty-sidecar-sony-nrt"
+version = "0.1.12"
+dependencies = [
+ "quick-xml",
+ "xifty-core",
+ "xifty-sidecar",
+]
+
+[[package]]
 name = "xifty-source"
 version = "0.1.12"
 dependencies = [
@@ -1161,6 +1179,7 @@ dependencies = [
  "xifty-cli",
  "xifty-core",
  "xifty-json",
+ "xifty-sidecar",
 ]
 
 [[package]]

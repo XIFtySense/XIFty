@@ -1792,6 +1792,48 @@ def build_ixml_chunk(project=b"xifty", scene=b"test"):
     return b"<BWFXML><PROJECT>" + project + b"</PROJECT><SCENE>" + scene + b"</SCENE></BWFXML>"
 
 
+def build_sony_nrt_pair():
+    """Synthetic Sony NRT sidecar pair for `fixtures/minimal/sony-nrt/`.
+
+    Pairs a tiny but valid MP4 (Format::Mp4 detection only — no embedded
+    technical metadata required) with a deterministic Sony NRT XML at
+    `urn:schemas-professionalDisc:nonRealTimeMeta:ver.2.20`. Each tag in the
+    XML maps to one of the 14 fields the `xifty-sidecar-sony-nrt` adapter
+    surfaces, so the synthetic pair acts as a self-contained smoke test for
+    the entire sidecar pipeline.
+    """
+    mp4 = build_mp4()
+    xml = (
+        b'<?xml version="1.0" encoding="UTF-8"?>\n'
+        b'<NonRealTimeMeta xmlns="urn:schemas-professionalDisc:nonRealTimeMeta:ver.2.20">\n'
+        b'  <Duration value="3000"/>\n'
+        b'  <LtcChangeTable tcFps="29" halfStep="true">\n'
+        b'    <LtcChange frameCount="0" value="01000000" status="increment"/>\n'
+        b'    <LtcChange frameCount="2999" value="01005959" status="end"/>\n'
+        b'  </LtcChangeTable>\n'
+        b'  <CreationDate value="2024-04-16T12:00:00+09:00"/>\n'
+        b'  <VideoFormat>\n'
+        b'    <VideoFrame videoCodec="AVC_3840_2160_HP@L51" captureFps="29.97p" formatFps="29.97p"/>\n'
+        b'    <VideoLayout pixel="3840" numOfVerticalLine="2160" aspectRatio="16:9"/>\n'
+        b'  </VideoFormat>\n'
+        b'  <AudioFormat numOfChannel="2">\n'
+        b'    <AudioRecPort port="DIRECT1" audioCodec="LPCM16" trackDst="CH1"/>\n'
+        b'  </AudioFormat>\n'
+        b'  <Device manufacturer="Sony" modelName="ILME-FX3" serialNo="0123456"/>\n'
+        b'  <RecordingMode type="normal" cacheRec="false"/>\n'
+        b'  <TargetMaterial umidRef="060A2B340101010501010D0013000000080046A0000000000000000000000000"/>\n'
+        b'  <AcquisitionRecord>\n'
+        b'    <Group name="CameraUnitMetadataSet">\n'
+        b'      <Item name="CaptureGammaEquation" value="s-log3"/>\n'
+        b'      <Item name="CaptureColorPrimaries" value="rec2020"/>\n'
+        b'      <Item name="CodingEquations" value="rec709"/>\n'
+        b'    </Group>\n'
+        b'  </AcquisitionRecord>\n'
+        b'</NonRealTimeMeta>\n'
+    )
+    return mp4, xml
+
+
 def main():
     ROOT.mkdir(parents=True, exist_ok=True)
     xmp = build_xmp()
@@ -1902,6 +1944,15 @@ def main():
 
     for name, data in files.items():
         (ROOT / name).write_bytes(data)
+
+    # Sony NRT sidecar fixture pair lives in its own subdirectory so the
+    # XML sibling is co-located with the primary MP4 — discovery walks
+    # `<basename>M\d+.XML` against the same directory as the MP4.
+    nrt_dir = ROOT / "sony-nrt"
+    nrt_dir.mkdir(parents=True, exist_ok=True)
+    nrt_mp4, nrt_xml = build_sony_nrt_pair()
+    (nrt_dir / "clip.mp4").write_bytes(nrt_mp4)
+    (nrt_dir / "clipM01.XML").write_bytes(nrt_xml)
 
 
 if __name__ == "__main__":

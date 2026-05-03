@@ -12,6 +12,7 @@ serde_json.workspace = true
 xifty-cli = { path = "../xifty-cli" }
 xifty-core = { path = "../xifty-core" }
 xifty-json = { path = "../xifty-json" }
+xifty-sidecar = { path = "../xifty-sidecar" }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 wasm-bindgen = "0.2.105"

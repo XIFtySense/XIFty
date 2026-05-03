@@ -39,9 +39,28 @@ typedef struct XiftyResult {
   struct XiftyBuffer error_message;
 } XiftyResult;
 
+/**
+ * Optional toggles for [`xifty_extract_json_with_options`].
+ *
+ * Designed as a struct (rather than additional positional arguments) so the
+ * ABI can grow new flags without re-breaking the surface — every existing
+ * field stays at its previous offset.
+ */
+typedef struct XiftyExtractOptions {
+  /**
+   * When non-zero (true), discover and merge co-located sidecar files
+   * (currently Sony NRT `<basename>M01.XML`). Defaults to off.
+   */
+  bool enable_sidecars;
+} XiftyExtractOptions;
+
 struct XiftyResult xifty_probe_json(const char *path);
 
 struct XiftyResult xifty_extract_json(const char *path, enum XiftyViewMode view_mode);
+
+struct XiftyResult xifty_extract_json_with_options(const char *path,
+                                                   enum XiftyViewMode view_mode,
+                                                   struct XiftyExtractOptions options);
 
 void xifty_free_buffer(struct XiftyBuffer buffer);
 

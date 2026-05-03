@@ -48,6 +48,8 @@ use xifty_meta_vorbis_comment::{
 };
 use xifty_meta_xmp::{XmpPacket, decode_packet, decode_png_text_chunk, decode_webp_xmp_chunk};
 use xifty_normalize::normalize_with_policy;
+use xifty_sidecar::SidecarRegistry;
+use xifty_sidecar_sony_nrt::SonyNrtSidecar;
 use xifty_source::SourceBytes;
 use xifty_validate::build_report;
 
@@ -177,10 +179,33 @@ fn probe_source(source: &SourceBytes) -> Result<ProbeOutput, XiftyError> {
     })
 }
 
+/// Tunables that gate optional behavior for [`extract_path_with_options`] /
+/// [`extract_bytes_with_options`].
+///
+/// Phase 1 ships a single knob — `enable_sidecars` — gating the new sidecar
+/// discovery + merge pass. The struct exists so future surfaces (FFI, WASM,
+/// Node) can grow additional toggles without a new function-name churn each
+/// time. Defaults preserve the v0.1.x behavior exactly.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct ExtractOptions {
+    /// When `true` *and* a primary path is available, walk the registered
+    /// sidecar adapters and merge any discovered sibling files into the
+    /// extraction stream before normalization.
+    pub enable_sidecars: bool,
+}
+
 pub fn extract_path(path: PathBuf, view_mode: ViewMode) -> Result<AnalysisOutput, XiftyError> {
+    extract_path_with_options(path, view_mode, ExtractOptions::default())
+}
+
+pub fn extract_path_with_options(
+    path: PathBuf,
+    view_mode: ViewMode,
+    options: ExtractOptions,
+) -> Result<AnalysisOutput, XiftyError> {
     let source = SourceBytes::from_path(&path)?;
     let filesystem_metadata = fs::metadata(&path).ok();
-    extract_source(&source, view_mode, filesystem_metadata.as_ref())
+    extract_source(&source, view_mode, filesystem_metadata.as_ref(), options)
 }
 
 pub fn extract_bytes(
@@ -188,14 +213,34 @@ pub fn extract_bytes(
     file_name: Option<String>,
     view_mode: ViewMode,
 ) -> Result<AnalysisOutput, XiftyError> {
+    extract_bytes_with_options(bytes, file_name, view_mode, ExtractOptions::default())
+}
+
+pub fn extract_bytes_with_options(
+    bytes: Vec<u8>,
+    file_name: Option<String>,
+    view_mode: ViewMode,
+    options: ExtractOptions,
+) -> Result<AnalysisOutput, XiftyError> {
     let source = SourceBytes::new(browser_path(file_name), bytes);
-    extract_source(&source, view_mode, None)
+    extract_source(&source, view_mode, None, options)
+}
+
+/// Build the default sidecar registry — the same set every surface sees.
+///
+/// Adding a new vendor adapter is a one-line edit here. Adapters opt into a
+/// priority + merge policy via the trait, so the registry stays declarative.
+fn default_sidecar_registry() -> SidecarRegistry {
+    let mut registry = SidecarRegistry::new();
+    registry.register(SonyNrtSidecar::new());
+    registry
 }
 
 fn extract_source(
     source: &SourceBytes,
     view_mode: ViewMode,
     filesystem_metadata: Option<&fs::Metadata>,
+    options: ExtractOptions,
 ) -> Result<AnalysisOutput, XiftyError> {
     let format = detect(&source)?;
 
@@ -602,6 +647,18 @@ fn extract_source(
         &format,
         filesystem_metadata,
     );
+
+    let mut issues = issues;
+    if options.enable_sidecars {
+        // Sidecar discovery only fires when the caller supplied a real
+        // filesystem path *and* opted in. Buffer-only callers (extract_bytes
+        // / WASM) take the no-op path inside `merge_into`.
+        let registry = default_sidecar_registry();
+        let primary_path: Option<&std::path::Path> = filesystem_metadata
+            .is_some()
+            .then(|| source.source.path.as_path());
+        registry.merge_into(primary_path, &mut entries, &mut issues);
+    }
 
     let normalization = normalize_with_policy(&entries);
     let mut report = build_report(issues, &entries);

@@ -24,6 +24,7 @@ Iteration six keeps the ABI intentionally narrow:
 
 - `xifty_probe_json(const char *path)`
 - `xifty_extract_json(const char *path, XiftyViewMode view_mode)`
+- `xifty_extract_json_with_options(const char *path, XiftyViewMode view_mode, XiftyExtractOptions options)`
 - `xifty_free_buffer(struct XiftyBuffer buffer)`
 - `xifty_version(void)`
 
@@ -60,6 +61,21 @@ Rules:
 - On success, `status == XIFTY_STATUS_CODE_SUCCESS` and `output` contains JSON.
 - On error, `error_message` contains a human-readable UTF-8 message.
 - Callers should free any non-empty `output` and `error_message` buffers.
+
+### `XiftyExtractOptions`
+
+`XiftyExtractOptions` carries optional toggles for `xifty_extract_json_with_options`.
+
+Fields:
+
+- `enable_sidecars`: when non-zero, the engine discovers and merges
+  co-located sidecar files (e.g. Sony NRT `<basename>M01.XML`) into the
+  extraction stream before normalization. Defaults to off so the existing
+  `xifty_extract_json` ABI continues to behave identically.
+
+The struct is laid out so that future additions append new fields without
+shifting existing offsets — callers built against an older header that omit
+new fields get the default-zero behavior.
 
 ## Status Codes
 

@@ -47,6 +47,8 @@ xifty-meta-rtmd = { path = "../xifty-meta-rtmd" }
 xifty-meta-vorbis-comment = { path = "../xifty-meta-vorbis-comment" }
 xifty-normalize = { path = "../xifty-normalize" }
 xifty-policy = { path = "../xifty-policy" }
+xifty-sidecar = { path = "../xifty-sidecar" }
+xifty-sidecar-sony-nrt = { path = "../xifty-sidecar-sony-nrt" }
 xifty-validate = { path = "../xifty-validate" }
 xifty-json = { path = "../xifty-json" }
 

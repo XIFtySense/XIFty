@@ -491,8 +491,56 @@
     "color.matrix",
     "color.range",
     "color.bit_depth",
-    "animation.frame_count"
+    "animation.frame_count",
+    "umid",
+    "recording.mode",
+    "recording.cache_rec",
+    "recording.capture_fps",
+    "recording.format_fps",
+    "timecode.fps",
+    "timecode.half_step",
+    "timecode.ltc.start",
+    "timecode.ltc.end",
+    "color.gamma_equation",
+    "color.coding_equations",
+    "device.serial_no"
   ],
+  "sidecars": {
+    "sony_nrt": {
+      "status": "bounded",
+      "merge_policy": "complement",
+      "schema_versions": [
+        "urn:schemas-professionalDisc:nonRealTimeMeta:ver.2.10",
+        "urn:schemas-professionalDisc:nonRealTimeMeta:ver.2.20"
+      ],
+      "discovery": "<basename>M\\d+.XML next to primary MP4",
+      "supported_tags": [
+        "Device.serialNo",
+        "Device.manufacturer",
+        "Device.modelName",
+        "CreationDate",
+        "RecordingMode.type",
+        "RecordingMode.cacheRec",
+        "VideoFrame.captureFps",
+        "VideoFrame.formatFps",
+        "VideoFrame.videoCodec",
+        "VideoLayout.pixel",
+        "VideoLayout.numOfVerticalLine",
+        "VideoLayout.aspectRatio",
+        "TargetMaterial.umidRef",
+        "LtcChangeTable.tcFps",
+        "LtcChangeTable.halfStep",
+        "LtcChange.first",
+        "LtcChange.last",
+        "AudioFormat.numOfChannel",
+        "AudioRecPort.audioCodec",
+        "Duration.value",
+        "CaptureGammaEquation",
+        "CaptureColorPrimaries",
+        "CodingEquations"
+      ]
+    }
+  },
   "surfaces": {
     "cli": {
       "status": "supported",
@@ -511,6 +559,7 @@
         "xifty_version",
         "xifty_probe_json",
         "xifty_extract_json",
+        "xifty_extract_json_with_options",
         "xifty_free_buffer"
       ]
     },
