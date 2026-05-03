@@ -3330,11 +3330,7 @@ fn subtitles_sidecar_is_off_by_default() {
     // exactly what we want to assert.
     let subtitle_count = value["interpreted"]["metadata"]
         .as_array()
-        .map(|m| {
-            m.iter()
-                .filter(|e| e["namespace"] == "subtitles")
-                .count()
-        })
+        .map(|m| m.iter().filter(|e| e["namespace"] == "subtitles").count())
         .unwrap_or(0);
     assert_eq!(
         subtitle_count, 0,
