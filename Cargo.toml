@@ -40,6 +40,7 @@ members = [
   "crates/xifty-policy",
   "crates/xifty-sidecar",
   "crates/xifty-sidecar-sony-nrt",
+  "crates/xifty-sidecar-mediapro",
   "crates/xifty-sidecar-subtitles",
   "crates/xifty-sidecar-gopro",
   "crates/xifty-sidecar-c2pa",

@@ -111,7 +111,7 @@ for those entries is:
 
 - `MetadataEntry::namespace` and `Provenance::namespace` carry the adapter
   name (registered adapters: `sony_nrt`, `subtitles`, `gopro_sidecar`,
-  `c2pa_sidecar`).
+  `c2pa_sidecar`, `mediapro`).
   Existing namespaces keep their identity. The `subtitles` adapter discovers
   `.srt`/`.vtt`/`.ass`/`.ssa` siblings of a primary video and emits flat
   `subtitles.<i>.<field>` entries (`format`, `language`, `cue_count`,
@@ -123,6 +123,16 @@ for those entries is:
   `c2pa_sidecar` namespace re-uses the bounded `c2pa.*` field set surfaced
   by the embedded C2PA decoder when the JUMBF manifest is delivered as a
   sibling `<basename>.c2pa` file instead of embedded inside the asset bytes.
+  The `mediapro` namespace surfaces card-level index fields from a Sony
+  XAVC `MEDIAPRO.XML` discovered up to 4 parent directories above the
+  primary clip; it emits two key families — card-level header fields under
+  `media_profile.*` (version, master version, media id/kind, system kind,
+  optional pro-cam `recording_session.{start,end}`, total `clip_count`,
+  and a flat `cross_refs.<i>.{kind,umid}` array) and per-clip fields under
+  `mediapro.*` (UMID, video/audio type, FPS, duration in frames, channels,
+  aspect ratio, resolved `thumbnail.path`). Orphan thumbnail targets
+  surface as `sidecar_target_missing`; primaries not listed in the index
+  surface as `sidecar_no_index_entry`.
   Adding a new adapter namespace is additive — no `SCHEMA_VERSION` bump.
 
 The `ai.*` namespace is a cross-cutting (not container-bound) namespace.
