@@ -25,6 +25,10 @@ use xifty_core::{Issue, MetadataEntry, Severity};
 pub const SIDECAR_TARGET_MISSING: &str = "sidecar_target_missing";
 pub const SIDECAR_NO_INDEX_ENTRY: &str = "sidecar_no_index_entry";
 pub const SIDECAR_UNKNOWN_SCHEMA_VERSION: &str = "sidecar_unknown_schema_version";
+/// Emitted by a sidecar adapter when its underlying file fails to parse
+/// (e.g. malformed XML). Severity is left to the adapter — Sony NRT raises
+/// it as `Warning` because the embedded MP4 metadata still flows through.
+pub const SIDECAR_PARSE_ERROR: &str = "sidecar_parse_error";
 
 /// Code emitted by the WASM surface when a caller asks for sidecar discovery
 /// in a context with no filesystem access. Defined here so adapters and
@@ -33,10 +37,13 @@ pub const SIDECAR_DISCOVERY_UNAVAILABLE_IN_WASM: &str = "sidecar_discovery_unava
 
 /// How an adapter wants its parsed entries reconciled with embedded metadata.
 ///
-/// `Override` writes the sidecar-derived value first and downgrades any
-/// embedded entry that targets the same field to a conflict candidate.
+/// `Override`: sidecar entries silently replace embedded entries for the same
+/// field. The embedded value does NOT reach the conflict detector — only the
+/// sidecar value does. Use this for sidecars whose entire purpose is overriding
+/// embedded metadata (e.g. Adobe XMP sidecars carrying non-destructive
+/// Lightroom edits).
 ///
-/// `Complement` lets both entries flow through the normal pipeline; the
+/// `Complement`: lets both entries flow through the normal pipeline; the
 /// existing conflict-detector flags overlap if any.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MergePolicy {
@@ -179,10 +186,10 @@ impl SidecarRegistry {
             issues.extend(payload.issues);
             match hit.adapter.merge_policy() {
                 MergePolicy::Override => {
-                    // Replace embedded entries that target the exact same
-                    // (namespace, tag_name) pair with the sidecar version.
-                    // Conflict-detection downstream catches the cross-source
-                    // disagreement.
+                    // Silently replace embedded entries that target the same
+                    // tag_name from a different namespace. The embedded value
+                    // is dropped before downstream conflict detection runs,
+                    // so only the sidecar value survives.
                     for sidecar_entry in payload.entries {
                         entries.retain(|existing| {
                             !(existing.tag_name == sidecar_entry.tag_name
