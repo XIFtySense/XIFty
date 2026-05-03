@@ -24,6 +24,7 @@ use xifty_meta_ai_gen::{
 };
 use xifty_meta_apple::decode_from_tiff as decode_apple_from_tiff;
 use xifty_meta_bwf::{BwfPayload, decode_payload as decode_bwf_payload};
+use xifty_meta_c2pa::{C2paPayload, decode_jumbf as decode_c2pa_jumbf};
 use xifty_meta_canon::decode_from_tiff as decode_canon_from_tiff;
 use xifty_meta_exif::{decode_from_tiff, exif_payload_from_jpeg};
 use xifty_meta_fuji::decode_from_tiff as decode_fuji_from_tiff;
@@ -52,6 +53,7 @@ use xifty_meta_vorbis_comment::{
 use xifty_meta_xmp::{XmpPacket, decode_packet, decode_png_text_chunk, decode_webp_xmp_chunk};
 use xifty_normalize::normalize_with_policy;
 use xifty_sidecar::SidecarRegistry;
+use xifty_sidecar_c2pa::C2paSidecar;
 use xifty_sidecar_gopro::GoProSidecar;
 use xifty_sidecar_sony_nrt::SonyNrtSidecar;
 use xifty_sidecar_subtitles::SubtitlesSidecar;
@@ -240,6 +242,7 @@ fn default_sidecar_registry() -> SidecarRegistry {
     registry.register(SonyNrtSidecar::new());
     registry.register(SubtitlesSidecar::new());
     registry.register(GoProSidecar::new());
+    registry.register(C2paSidecar::new());
     registry
 }
 
@@ -330,6 +333,23 @@ fn extract_source(
                     ));
                 }
                 entries.extend(decoded);
+            }
+            // C2PA JUMBF manifests in APP11 segments (issue #132). Reassembly
+            // is performed by the JPEG container; the CLI just forwards the
+            // already-contiguous byte stream(s).
+            let (c2pa_payloads, c2pa_issues) = jpeg.jumbf_app11_payloads();
+            issues.extend(c2pa_issues);
+            for (i, manifest_bytes) in c2pa_payloads.iter().enumerate() {
+                let path = format!("app11_jumbf_{i}");
+                let (decoded, manifest_issues) = decode_c2pa_jumbf(C2paPayload {
+                    bytes: manifest_bytes,
+                    container: "jpeg",
+                    path: &path,
+                    offset_start: 0,
+                    offset_end: manifest_bytes.len() as u64,
+                });
+                entries.extend(decoded);
+                issues.extend(manifest_issues);
             }
             ("jpeg".to_string(), jpeg.nodes, entries, issues)
         }
@@ -592,6 +612,24 @@ fn extract_source(
                             context: Some(keyword.clone()),
                         });
                     }
+                }
+            }
+            // C2PA `caBX` JUMBF manifests (issue #132).
+            for chunk in png.c2pa_payloads() {
+                if let Some(payload) = payload_slice(
+                    source.bytes(),
+                    chunk.data_offset,
+                    chunk.data_length as usize,
+                ) {
+                    let (decoded, c2pa_issues) = decode_c2pa_jumbf(C2paPayload {
+                        bytes: payload,
+                        container: "png",
+                        path: "caBX",
+                        offset_start: chunk.offset_start,
+                        offset_end: chunk.offset_end,
+                    });
+                    entries.extend(decoded);
+                    issues.extend(c2pa_issues);
                 }
             }
             for chunk in png.icc_payloads() {
@@ -1840,6 +1878,24 @@ fn isobmff_entries(
                 offset_end: payload.offset_end,
             }));
         }
+    }
+
+    // C2PA JUMBF manifests carried in `uuid` boxes (issue #132).
+    for payload in container.c2pa_payloads() {
+        let Some(payload_bytes) =
+            payload_slice(bytes, payload.data_offset, payload.data_length as usize)
+        else {
+            continue;
+        };
+        let (decoded, c2pa_issues) = decode_c2pa_jumbf(C2paPayload {
+            bytes: payload_bytes,
+            container: format_name,
+            path: &payload.path,
+            offset_start: payload.offset_start,
+            offset_end: payload.offset_end,
+        });
+        entries.extend(decoded);
+        issues.extend(c2pa_issues);
     }
 
     // Sony video user-data UUID atoms (PROF/USMT/...). The container parser

@@ -57,6 +57,37 @@
       ],
       "notes": "Decoded from PNG tEXt/iTXt/zTXt chunks emitted by Automatic1111/Forge (`parameters`), ComfyUI (`prompt` + `workflow`), InvokeAI (`invokeai_metadata`), Midjourney (`Description`/`Comment`), and Fooocus (`parameters` JSON). Confidence is recorded per-entry as a `confidence: 0.95` (exact-shape) or `confidence: 0.70` (heuristic) note."
     },
+    "c2pa": {
+      "status": "bounded",
+      "supported_tags": [
+        "c2pa.claim_generator",
+        "c2pa.format",
+        "c2pa.instance_id",
+        "c2pa.signature.alg",
+        "c2pa.signature.issuer",
+        "c2pa.signature.verified",
+        "c2pa.assertions.<i>.label",
+        "c2pa.assertions.<i>.action",
+        "c2pa.assertions.<i>.description",
+        "c2pa.assertions.<i>.digitalSourceType",
+        "c2pa.assertions.<i>.softwareAgent",
+        "c2pa.assertions.<i>.when",
+        "c2pa.ingredients.<i>.title",
+        "c2pa.ingredients.<i>.format",
+        "c2pa.ingredients.<i>.relationship",
+        "c2pa.ai_generated"
+      ],
+      "notes": "Level-A (parse-only) C2PA / ISO 22144 content provenance. JUMBF (ISO 19566-5) byte streams arrive via PNG `caBX` chunks, JPEG APP11 segments (multi-segment reassembly happens inside `xifty-container-jpeg`), and ISOBMFF `uuid` boxes carrying the C2PA UUID. `c2pa.signature.verified` is always emitted as the string `\"unknown\"` at level A; level B (cryptographic verification) will populate `\"verified\" | \"invalid\" | \"untrusted\"` without a schema bump."
+    },
+    "ai": {
+      "status": "bounded",
+      "supported_tags": [
+        "ai.source_type",
+        "ai.generator",
+        "ai.synthid_disclosed"
+      ],
+      "notes": "Cross-cutting AI-derived fields populated today from C2PA assertions (IPTC newscode `digitalSourceType` set + claim-generator heuristics). Forward-compatible with future XMP `Iptc4xmpExt:DigitalSourceType` derivations; the namespace is intentionally bare (no `c2pa.` prefix) so consumers can ask `is this AI?` without disambiguating sources."
+    },
     "vorbis_comment": {
       "status": "bounded",
       "supported_tags": [
@@ -315,7 +346,9 @@
         "exif": "supported",
         "xmp": "bounded",
         "icc": "supported",
-        "iptc": "supported"
+        "iptc": "supported",
+        "c2pa": "bounded",
+        "ai": "bounded"
       }
     },
     "tiff": {
@@ -391,6 +424,8 @@
         "icc": "supported",
         "iptc": "supported",
         "ai_gen": "bounded",
+        "ai": "bounded",
+        "c2pa": "bounded",
         "png": "bounded",
         "filesystem": "supported"
       }
@@ -409,7 +444,9 @@
         "xmp": "supported",
         "icc": "bounded",
         "iptc": "bounded",
-        "heif": "supported"
+        "heif": "supported",
+        "c2pa": "bounded",
+        "ai": "bounded"
       }
     },
     "avif": {
@@ -419,7 +456,9 @@
         "icc": "bounded",
         "iptc": "bounded",
         "avif": "bounded",
-        "quicktime": "bounded"
+        "quicktime": "bounded",
+        "c2pa": "bounded",
+        "ai": "bounded"
       }
     },
     "mp4": {
@@ -427,13 +466,17 @@
         "quicktime": "bounded",
         "rtmd": "bounded",
         "dji": "supported",
-        "sony_video": "bounded"
+        "sony_video": "bounded",
+        "c2pa": "bounded",
+        "ai": "bounded"
       }
     },
     "mov": {
       "namespaces": {
         "quicktime": "bounded",
-        "sony_video": "bounded"
+        "sony_video": "bounded",
+        "c2pa": "bounded",
+        "ai": "bounded"
       }
     },
     "m4a": {
@@ -599,6 +642,30 @@
         "thumbnail.dimensions.width",
         "thumbnail.dimensions.height"
       ]
+    },
+    "c2pa_sidecar": {
+      "status": "bounded",
+      "merge_policy": "complement",
+      "discovery": "<basename>.c2pa next to primary asset (case-insensitive extension)",
+      "supported_tags": [
+        "c2pa.claim_generator",
+        "c2pa.format",
+        "c2pa.instance_id",
+        "c2pa.signature.alg",
+        "c2pa.signature.issuer",
+        "c2pa.signature.verified",
+        "c2pa.assertions.<i>.label",
+        "c2pa.assertions.<i>.action",
+        "c2pa.assertions.<i>.description",
+        "c2pa.assertions.<i>.digitalSourceType",
+        "c2pa.assertions.<i>.softwareAgent",
+        "c2pa.assertions.<i>.when",
+        "c2pa.ingredients.<i>.title",
+        "c2pa.ingredients.<i>.format",
+        "c2pa.ingredients.<i>.relationship",
+        "c2pa.ai_generated"
+      ],
+      "notes": "External JUMBF manifest sibling. Routes raw bytes through `xifty-meta-c2pa::decode_jumbf` and re-namespaces `c2pa.*` entries to `c2pa_sidecar`. Cross-cutting `ai.*` entries keep the bare `ai` namespace."
     }
   },
   "surfaces": {

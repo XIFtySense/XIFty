@@ -37,6 +37,13 @@ const SONY_USERDATA_UUID_TAIL: [u8; 12] = [
     0x21, 0xd2, 0x4f, 0xce, 0xbb, 0x88, 0x69, 0x5c, 0xfa, 0xc9, 0xc7, 0x40,
 ];
 
+/// C2PA "uuid" box usertype, per the C2PA 2.0 specification (also published
+/// in ISO 22144). The payload of a matching `uuid` box is a contiguous JUMBF
+/// byte stream.
+const C2PA_UUID: [u8; 16] = [
+    0xd8, 0xfe, 0xc5, 0xd8, 0x76, 0xcc, 0xb9, 0xee, 0x9c, 0xc0, 0x50, 0x4d, 0x8a, 0x16, 0xb1, 0x13,
+];
+
 /// Recognised payload `kind` discriminants:
 /// `"exif"`, `"xmp"`, `"icc"`, `"iptc"`, `"quicktime"`, `"quicktime-udta"`,
 /// `"itunes"`, `"canon-cmt"` (Canon CR3 CMT2/CMT3/CMT4 maker-note IFDs), and
@@ -162,6 +169,15 @@ impl IsobmffContainer {
         self.payloads
             .iter()
             .filter(|payload| payload.kind == "canon-cmt")
+    }
+
+    /// C2PA JUMBF manifests surfaced from `uuid` boxes whose 16-byte usertype
+    /// matches the canonical C2PA UUID. The payload of such a box is a
+    /// contiguous JUMBF byte stream consumable by `xifty-meta-c2pa`.
+    pub fn c2pa_payloads(&self) -> impl Iterator<Item = &IsobmffPayload> {
+        self.payloads
+            .iter()
+            .filter(|payload| payload.kind == "c2pa")
     }
 
     /// Sony video user-data atoms surfaced from `uuid` boxes whose 16-byte
@@ -1865,6 +1881,22 @@ fn parse_uuid(
     usertype.copy_from_slice(usertype_slice);
     let inner_start = parsed.data_offset + 16;
     if usertype != CANON_CMT_UUID {
+        // C2PA JUMBF manifests carried inside a `uuid` box (HEIF/AVIF/MP4/MOV
+        // path). The payload after the 16-byte usertype is a contiguous
+        // JUMBF byte stream that `xifty-meta-c2pa::decode_jumbf` consumes
+        // directly.
+        if usertype == C2PA_UUID {
+            payloads.push(IsobmffPayload {
+                kind: "c2pa",
+                tag: Some("uuid_c2pa".into()),
+                offset_start: cursor.absolute_offset(parsed.start),
+                offset_end: cursor.absolute_offset(parsed.end),
+                data_offset: cursor.absolute_offset(inner_start),
+                data_length: (parsed.end - inner_start) as u64,
+                path: format!("{}/c2pa", parsed.path),
+            });
+            return;
+        }
         // Sony "User Data Atom UUID family": usertype tail bytes 4..16 match
         // SONY_USERDATA_UUID_TAIL and bytes 0..4 carry the atom name in
         // ASCII (PROF/USMT/PRPF/AOLY/MTDT/...). Surface as a single payload
@@ -2308,6 +2340,40 @@ mod tests {
                     .as_deref()
                     .is_some_and(|ctx| ctx.contains("uuid"))),
             "Sony-PROF UUID should not produce an uninterpreted info issue: {:?}",
+            parsed.issues,
+        );
+    }
+
+    #[test]
+    fn recognizes_c2pa_uuid_box() {
+        // ftyp + uuid(C2PA UUID + minimal JUMBF-shaped payload).
+        let mut uuid_payload = Vec::new();
+        uuid_payload.extend_from_slice(&[
+            0xd8, 0xfe, 0xc5, 0xd8, 0x76, 0xcc, 0xb9, 0xee, 0x9c, 0xc0, 0x50, 0x4d, 0x8a, 0x16,
+            0xb1, 0x13,
+        ]);
+        let jumbf_bytes = b"\x00\x00\x00\x10jumbXXXXXXXX";
+        uuid_payload.extend_from_slice(jumbf_bytes);
+        let uuid = boxed(b"uuid", &uuid_payload);
+        let bytes = [boxed(b"ftyp", b"isom\0\0\0\0mp42"), uuid].concat();
+
+        let parsed = parse_bytes(&bytes, 0).unwrap();
+        let c2pa: Vec<_> = parsed.c2pa_payloads().collect();
+        assert_eq!(c2pa.len(), 1, "expected one c2pa payload");
+        let entry = c2pa[0];
+        assert_eq!(entry.kind, "c2pa");
+        assert_eq!(entry.tag.as_deref(), Some("uuid_c2pa"));
+        assert_eq!(entry.data_length, jumbf_bytes.len() as u64);
+        let slice =
+            &bytes[entry.data_offset as usize..(entry.data_offset + entry.data_length) as usize];
+        assert_eq!(slice, jumbf_bytes);
+        // C2PA UUID is recognized — no uninterpreted-info-issue.
+        assert!(
+            !parsed
+                .issues
+                .iter()
+                .any(|issue| issue.code == "isobmff_structure_recognized_uninterpreted"),
+            "C2PA UUID should not raise uninterpreted info issue: {:?}",
             parsed.issues,
         );
     }

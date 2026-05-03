@@ -56,6 +56,16 @@ impl PngContainer {
             .filter(|chunk| &chunk.chunk_type == b"iCCP")
     }
 
+    /// PNG `caBX` chunks carry C2PA JUMBF byte streams. The chunk payload is
+    /// the JUMBF stream verbatim (no length / sequence framing); each
+    /// occurrence is one logical manifest. Most signed PNGs surface exactly
+    /// one `caBX` chunk.
+    pub fn c2pa_payloads(&self) -> impl Iterator<Item = &PngChunk> {
+        self.chunks
+            .iter()
+            .filter(|chunk| &chunk.chunk_type == b"caBX")
+    }
+
     pub fn iptc_payloads(&self) -> impl Iterator<Item = &PngChunk> {
         self.chunks.iter().filter(|chunk| {
             &chunk.chunk_type == b"iTXt"
@@ -173,6 +183,21 @@ mod tests {
         let parsed = parse_bytes(&bytes, 0).unwrap();
         assert_eq!(parsed.chunks.len(), 1);
         assert_eq!(&parsed.chunks[0].chunk_type, b"IEND");
+    }
+
+    #[test]
+    fn routes_cabx_chunks() {
+        let payload = vec![0u8; 16];
+        let mut bytes = vec![0x89, b'P', b'N', b'G', 0x0D, 0x0A, 0x1A, 0x0A];
+        bytes.extend_from_slice(&(payload.len() as u32).to_be_bytes());
+        bytes.extend_from_slice(b"caBX");
+        bytes.extend_from_slice(&payload);
+        bytes.extend_from_slice(&0u32.to_be_bytes()); // CRC (ignored)
+        bytes.extend_from_slice(&0u32.to_be_bytes());
+        bytes.extend_from_slice(b"IEND");
+        bytes.extend_from_slice(&0u32.to_be_bytes());
+        let parsed = parse_bytes(&bytes, 0).unwrap();
+        assert_eq!(parsed.c2pa_payloads().count(), 1);
     }
 
     #[test]

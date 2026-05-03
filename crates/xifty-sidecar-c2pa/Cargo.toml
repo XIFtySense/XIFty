@@ -1,0 +1,10 @@
+[package]
+name = "xifty-sidecar-c2pa"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+xifty-core = { path = "../xifty-core" }
+xifty-sidecar = { path = "../xifty-sidecar" }
+xifty-meta-c2pa = { path = "../xifty-meta-c2pa" }
