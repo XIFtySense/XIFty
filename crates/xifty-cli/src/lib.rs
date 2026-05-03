@@ -55,6 +55,7 @@ use xifty_normalize::normalize_with_policy;
 use xifty_sidecar::SidecarRegistry;
 use xifty_sidecar_c2pa::C2paSidecar;
 use xifty_sidecar_gopro::GoProSidecar;
+use xifty_sidecar_mediapro::MediaproSidecar;
 use xifty_sidecar_sony_nrt::SonyNrtSidecar;
 use xifty_sidecar_subtitles::SubtitlesSidecar;
 use xifty_source::SourceBytes;
@@ -243,6 +244,7 @@ fn default_sidecar_registry() -> SidecarRegistry {
     registry.register(SubtitlesSidecar::new());
     registry.register(GoProSidecar::new());
     registry.register(C2paSidecar::new());
+    registry.register(MediaproSidecar::new());
     registry
 }
 

@@ -885,6 +885,7 @@ dependencies = [
  "xifty-sidecar",
  "xifty-sidecar-c2pa",
  "xifty-sidecar-gopro",
+ "xifty-sidecar-mediapro",
  "xifty-sidecar-sony-nrt",
  "xifty-sidecar-subtitles",
  "xifty-source",
@@ -1228,6 +1229,15 @@ version = "0.1.15"
 dependencies = [
  "xifty-container-isobmff",
  "xifty-container-jpeg",
+ "xifty-core",
+ "xifty-sidecar",
+]
+
+[[package]]
+name = "xifty-sidecar-mediapro"
+version = "0.1.15"
+dependencies = [
+ "quick-xml",
  "xifty-core",
  "xifty-sidecar",
 ]

@@ -645,6 +645,38 @@
         "thumbnail.dimensions.height"
       ]
     },
+    "mediapro": {
+      "status": "bounded",
+      "merge_policy": "complement",
+      "schema_versions": [
+        "http://xmlns.sony.net/pro/metadata/mediaprofile"
+      ],
+      "discovery": "MEDIAPRO.XML in any parent directory up to 4 hops above primary (case-insensitive)",
+      "supported_tags": [
+        "media_profile.version",
+        "media_profile.created_at",
+        "media_profile.system_id",
+        "media_profile.system_kind",
+        "media_profile.master_version",
+        "media_profile.media_id",
+        "media_profile.media_kind",
+        "media_profile.media_name",
+        "media_profile.recording_session.start",
+        "media_profile.recording_session.end",
+        "media_profile.clip_count",
+        "media_profile.cross_refs.<i>.kind",
+        "media_profile.cross_refs.<i>.umid",
+        "mediapro.umid",
+        "mediapro.video_type",
+        "mediapro.audio_type",
+        "mediapro.fps",
+        "mediapro.duration_frames",
+        "mediapro.channels",
+        "mediapro.aspect_ratio",
+        "mediapro.thumbnail.path"
+      ],
+      "notes": "Sony XAVC card-level index (PRIVATE/M4ROOT/MEDIAPRO.XML). Walks parents up to 4 hops to locate the index, encodes the present clip's basename in SidecarRef.label, and matches the present clip by basename suffix on Material@uri. Header fields (media_profile.*) emit unconditionally; per-clip mediapro.* entries emit only on a match. Pro-cam-only fields (recording_session.*, cross_refs.*) are absent on consumer-cam fixtures. Orphan thumbnail targets surface as info-severity sidecar_target_missing issues, never panics."
+    },
     "c2pa_sidecar": {
       "status": "bounded",
       "merge_policy": "complement",
