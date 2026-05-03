@@ -1,4 +1,5 @@
 use clap::{Parser, Subcommand, ValueEnum};
+use xifty_cli::ExtractOptions;
 use xifty_core::{ViewMode, XiftyError};
 use xifty_json::{to_json_analysis, to_json_probe};
 
@@ -26,6 +27,11 @@ enum Command {
         path: std::path::PathBuf,
         #[arg(long, value_enum, help = "Select a single output view")]
         view: Option<ViewArg>,
+        /// Discover and merge co-located sidecar files (e.g. Sony NRT
+        /// `<basename>M01.XML`) into the extraction stream. Default off so
+        /// existing buffer-only / oracle-driven workflows are unchanged.
+        #[arg(long, default_value_t = false)]
+        sidecars: bool,
     },
 }
 
@@ -45,7 +51,11 @@ fn main() {
                 message: error.to_string(),
             })
         }),
-        Command::Extract { path, view } => {
+        Command::Extract {
+            path,
+            view,
+            sidecars,
+        } => {
             let view_mode = match view {
                 None => ViewMode::Full,
                 Some(ViewArg::Raw) => ViewMode::Raw,
@@ -53,7 +63,10 @@ fn main() {
                 Some(ViewArg::Normalized) => ViewMode::Normalized,
                 Some(ViewArg::Report) => ViewMode::Report,
             };
-            xifty_cli::extract_path(path, view_mode).and_then(|output| {
+            let options = ExtractOptions {
+                enable_sidecars: sidecars,
+            };
+            xifty_cli::extract_path_with_options(path, view_mode, options).and_then(|output| {
                 to_json_analysis(&output).map_err(|error| XiftyError::Parse {
                     message: error.to_string(),
                 })

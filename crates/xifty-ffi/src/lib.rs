@@ -3,6 +3,7 @@ use std::mem::ManuallyDrop;
 use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::path::PathBuf;
 
+use xifty_cli::ExtractOptions;
 use xifty_core::{ViewMode, XiftyError};
 use xifty_json::{to_json_analysis, to_json_probe};
 
@@ -114,9 +115,44 @@ pub unsafe extern "C" fn xifty_extract_json(
     path: *const c_char,
     view_mode: XiftyViewMode,
 ) -> XiftyResult {
+    // Preserved for ABI stability: callers pinned to v0.1.x continue to get
+    // the pre-sidecar behavior. New callers wanting the sidecar pass should
+    // call `xifty_extract_json_with_options` and pass `enable_sidecars: true`.
+    let options = XiftyExtractOptions {
+        enable_sidecars: false,
+    };
+    unsafe { xifty_extract_json_with_options(path, view_mode, options) }
+}
+
+/// Optional toggles for [`xifty_extract_json_with_options`].
+///
+/// Designed as a struct (rather than additional positional arguments) so the
+/// ABI can grow new flags without re-breaking the surface — every existing
+/// field stays at its previous offset.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct XiftyExtractOptions {
+    /// When non-zero (true), discover and merge co-located sidecar files
+    /// (currently Sony NRT `<basename>M01.XML`). Defaults to off.
+    pub enable_sidecars: bool,
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn xifty_extract_json_with_options(
+    path: *const c_char,
+    view_mode: XiftyViewMode,
+    options: XiftyExtractOptions,
+) -> XiftyResult {
     ffi_boundary(|| {
         let path = path_from_c(path)?;
-        let output = xifty_cli::extract_path(path, view_mode.into()).map_err(map_error)?;
+        let output = xifty_cli::extract_path_with_options(
+            path,
+            view_mode.into(),
+            ExtractOptions {
+                enable_sidecars: options.enable_sidecars,
+            },
+        )
+        .map_err(map_error)?;
         let json = to_json_analysis(&output).map_err(|error| {
             XiftyResult::error(
                 XiftyStatusCode::InternalError,
@@ -252,6 +288,26 @@ mod tests {
         let json = buffer_to_string(result.output);
         assert!(json.contains("\"normalized\""));
         assert!(json.contains("\"device.make\""));
+        let error = buffer_to_string(result.error_message);
+        assert!(error.is_empty());
+    }
+
+    #[test]
+    fn extract_json_with_options_passes_through_sidecars_flag() {
+        // The minimal happy.jpg fixture has no sibling sidecar, so the
+        // `enable_sidecars: true` path is a no-op behaviorally — what we
+        // assert is that the new ABI entrypoint still produces a valid
+        // analysis envelope rather than erroring out.
+        let path = fixture_path("happy.jpg");
+        let options = XiftyExtractOptions {
+            enable_sidecars: true,
+        };
+        let result = unsafe {
+            xifty_extract_json_with_options(path.as_ptr(), XiftyViewMode::Normalized, options)
+        };
+        assert_eq!(result.status, XiftyStatusCode::Success);
+        let json = buffer_to_string(result.output);
+        assert!(json.contains("\"normalized\""));
         let error = buffer_to_string(result.error_message);
         assert!(error.is_empty());
     }

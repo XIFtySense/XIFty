@@ -103,6 +103,25 @@ When the public JSON contract changes:
 4. update snapshot/contract tests
 5. document the change in `README.md` or `STATE_OF_THE_PROJECT.md` when helpful
 
+## Sidecar-derived Fields
+
+XIFty can fold metadata from co-located vendor sidecar files (e.g. Sony NRT
+`<basename>M01.XML`) into the same envelope as embedded metadata. The contract
+for those entries is:
+
+- `MetadataEntry::namespace` and `Provenance::namespace` carry the adapter
+  name (currently `sony_nrt` only). Existing namespaces keep their identity.
+- `Provenance::container` is the literal string `sidecar` so consumers can
+  cheaply distinguish embedded vs sidecar-derived entries.
+- `Provenance::path` points at the sidecar file (not the primary asset).
+- `NormalizedField::sources[]` carries the same provenance through, so
+  callers can audit which fields came from which sidecar.
+- Sidecar discovery is **opt-in**: the CLI `--sidecars` flag, the FFI
+  `xifty_extract_json_with_options` entrypoint with `enable_sidecars: true`,
+  and (in WASM, where it's a no-op) emits an `info`-severity issue
+  (`sidecar_discovery_unavailable_in_wasm`).
+- Sidecar additions are *additive only* — no `SCHEMA_VERSION` bump.
+
 ## Design Intent
 
 The schema should stay:
