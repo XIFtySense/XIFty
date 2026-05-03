@@ -482,7 +482,9 @@
     "m4a": {
       "namespaces": {
         "quicktime": "bounded",
-        "itunes": "bounded"
+        "itunes": "bounded",
+        "c2pa": "bounded",
+        "ai": "bounded"
       }
     },
     "flac": {

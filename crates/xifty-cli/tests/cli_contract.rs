@@ -3554,6 +3554,7 @@ fn c2pa_notebooklm_png_real_fixture() {
         .filter_map(|(_, v)| v["value"]["value"].as_str())
         .collect();
     assert!(actions.contains(&"c2pa.created"), "actions={actions:?}");
+    assert!(actions.contains(&"c2pa.edited"), "actions={actions:?}");
     assert_eq!(
         by_tag
             .get("c2pa.ai_generated")
@@ -3571,5 +3572,11 @@ fn c2pa_notebooklm_png_real_fixture() {
             .get("ai.generator")
             .and_then(|e| e["value"]["value"].as_str()),
         Some("Google")
+    );
+    assert_eq!(
+        by_tag
+            .get("ai.synthid_disclosed")
+            .and_then(|e| e["value"]["value"].as_str()),
+        Some("true")
     );
 }
