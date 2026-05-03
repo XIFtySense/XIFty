@@ -884,6 +884,7 @@ dependencies = [
  "xifty-policy",
  "xifty-sidecar",
  "xifty-sidecar-c2pa",
+ "xifty-sidecar-classic-thm",
  "xifty-sidecar-gopro",
  "xifty-sidecar-mediapro",
  "xifty-sidecar-sony-nrt",
@@ -1220,6 +1221,15 @@ version = "0.1.15"
 dependencies = [
  "xifty-core",
  "xifty-meta-c2pa",
+ "xifty-sidecar",
+]
+
+[[package]]
+name = "xifty-sidecar-classic-thm"
+version = "0.1.15"
+dependencies = [
+ "xifty-container-jpeg",
+ "xifty-core",
  "xifty-sidecar",
 ]
 

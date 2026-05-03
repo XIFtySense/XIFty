@@ -44,6 +44,7 @@ members = [
   "crates/xifty-sidecar-subtitles",
   "crates/xifty-sidecar-gopro",
   "crates/xifty-sidecar-c2pa",
+  "crates/xifty-sidecar-classic-thm",
   "crates/xifty-validate",
   "crates/xifty-json",
   "crates/xifty-ffi",

@@ -54,6 +54,7 @@ use xifty_meta_xmp::{XmpPacket, decode_packet, decode_png_text_chunk, decode_web
 use xifty_normalize::normalize_with_policy;
 use xifty_sidecar::SidecarRegistry;
 use xifty_sidecar_c2pa::C2paSidecar;
+use xifty_sidecar_classic_thm::ClassicThmSidecar;
 use xifty_sidecar_gopro::GoProSidecar;
 use xifty_sidecar_mediapro::MediaproSidecar;
 use xifty_sidecar_sony_nrt::SonyNrtSidecar;
@@ -244,8 +245,90 @@ fn default_sidecar_registry() -> SidecarRegistry {
     registry.register(SubtitlesSidecar::new());
     registry.register(GoProSidecar::new());
     registry.register(C2paSidecar::new());
+    registry.register(ClassicThmSidecar::new());
     registry.register(MediaproSidecar::new());
     registry
+}
+
+/// Project the raw `thumbnail.exif_payload` (Bytes) entries emitted by the
+/// classic-`.THM` sidecar into flat `thumbnail.exif.{make,model,captured_at}`
+/// fields under namespace `classic_thm`, then drop the raw payload entry.
+///
+/// The sidecar crate is deliberately ignorant of EXIF tag semantics — it
+/// hands raw APP1 EXIF bytes off to the CLI, which already depends on
+/// `xifty-container-tiff` and `xifty-meta-exif`. We mirror the JPEG primary
+/// path here: parse TIFF, decode EXIF, then pluck the three flat fields we
+/// promote into the public `thumbnail.exif.*` surface.
+///
+/// Tag-id projection matches on the string form `format!("0x{:04X}",
+/// tag_id)` per `xifty_meta_exif::decode_from_tiff` — `0x010F` Make,
+/// `0x0110` Model, `0x9003` DateTimeOriginal.
+///
+/// Parse issues from the embedded TIFF are pushed (not propagated via `?`)
+/// so a malformed THM EXIF can never break primary media extraction.
+fn project_classic_thm_exif(entries: &mut Vec<MetadataEntry>, issues: &mut Vec<Issue>) {
+    // Pull every raw payload entry out of `entries` so we can re-emit only
+    // the projected flat fields. Borrow check forces us to take ownership.
+    let mut keep: Vec<MetadataEntry> = Vec::with_capacity(entries.len());
+    let mut payloads: Vec<MetadataEntry> = Vec::new();
+    for entry in entries.drain(..) {
+        if entry.namespace == "classic_thm"
+            && entry.tag_id == "thumbnail.exif_payload"
+            && matches!(entry.value, TypedValue::Bytes(_))
+        {
+            payloads.push(entry);
+        } else {
+            keep.push(entry);
+        }
+    }
+    *entries = keep;
+
+    for payload_entry in payloads {
+        let TypedValue::Bytes(bytes) = payload_entry.value else {
+            continue;
+        };
+        let base_offset = payload_entry.provenance.offset_start.unwrap_or(0);
+        let sidecar_path = payload_entry.provenance.path.clone();
+        let tiff = match xifty_container_tiff::parse_bytes(&bytes, base_offset, "classic_thm_exif")
+        {
+            Ok(tiff) => tiff,
+            Err(error) => {
+                issues.push(Issue {
+                    severity: Severity::Warning,
+                    code: "classic_thm_exif_parse_error".into(),
+                    message: format!("classic THM EXIF TIFF parse error: {error}"),
+                    offset: Some(base_offset),
+                    context: Some("classic_thm".into()),
+                });
+                continue;
+            }
+        };
+        issues.extend(tiff.issues.clone());
+        let decoded = decode_from_tiff(&bytes, base_offset, "sidecar", &tiff);
+        for entry in decoded {
+            let (flat_name, value) = match entry.tag_id.as_str() {
+                "0x010F" => ("thumbnail.exif.make", entry.value.clone()),
+                "0x0110" => ("thumbnail.exif.model", entry.value.clone()),
+                "0x9003" => ("thumbnail.exif.captured_at", entry.value.clone()),
+                _ => continue,
+            };
+            entries.push(MetadataEntry {
+                namespace: "classic_thm".into(),
+                tag_id: flat_name.into(),
+                tag_name: flat_name.into(),
+                value,
+                provenance: Provenance {
+                    container: "sidecar".into(),
+                    namespace: "classic_thm".into(),
+                    path: sidecar_path.clone(),
+                    offset_start: None,
+                    offset_end: None,
+                    notes: vec!["projected from classic .thm app1 exif".into()],
+                },
+                notes: Vec::new(),
+            });
+        }
+    }
 }
 
 fn extract_source(
@@ -837,6 +920,12 @@ fn extract_source(
             .is_some()
             .then(|| source.source.path.as_path());
         registry.merge_into(primary_path, &mut entries, &mut issues);
+        // Project raw `thumbnail.exif_payload` Bytes (emitted by the
+        // classic-thm sidecar) into flat `thumbnail.exif.{make,model,
+        // captured_at}` fields, then drop the raw payload entry. This must
+        // run AFTER merge_into so the payload exists, and BEFORE conflict
+        // detection / normalization so the raw Bytes never reach the user.
+        project_classic_thm_exif(&mut entries, &mut issues);
     }
 
     let normalization = normalize_with_policy(&entries);
