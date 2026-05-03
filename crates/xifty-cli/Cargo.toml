@@ -30,6 +30,7 @@ xifty-meta-exif = { path = "../xifty-meta-exif" }
 xifty-meta-icc = { path = "../xifty-meta-icc" }
 xifty-meta-iptc = { path = "../xifty-meta-iptc" }
 xifty-meta-ai-gen = { path = "../xifty-meta-ai-gen" }
+xifty-meta-c2pa = { path = "../xifty-meta-c2pa" }
 xifty-meta-id3v2 = { path = "../xifty-meta-id3v2" }
 xifty-meta-apple = { path = "../xifty-meta-apple" }
 xifty-meta-bwf = { path = "../xifty-meta-bwf" }
@@ -52,6 +53,7 @@ xifty-sidecar = { path = "../xifty-sidecar" }
 xifty-sidecar-sony-nrt = { path = "../xifty-sidecar-sony-nrt" }
 xifty-sidecar-subtitles = { path = "../xifty-sidecar-subtitles" }
 xifty-sidecar-gopro = { path = "../xifty-sidecar-gopro" }
+xifty-sidecar-c2pa = { path = "../xifty-sidecar-c2pa" }
 xifty-validate = { path = "../xifty-validate" }
 xifty-json = { path = "../xifty-json" }
 

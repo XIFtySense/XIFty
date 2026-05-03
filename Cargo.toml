@@ -19,6 +19,7 @@ members = [
   "crates/xifty-meta-icc",
   "crates/xifty-meta-iptc",
   "crates/xifty-meta-ai-gen",
+  "crates/xifty-meta-c2pa",
   "crates/xifty-meta-id3v2",
   "crates/xifty-meta-apple",
   "crates/xifty-meta-bwf",
@@ -41,6 +42,7 @@ members = [
   "crates/xifty-sidecar-sony-nrt",
   "crates/xifty-sidecar-subtitles",
   "crates/xifty-sidecar-gopro",
+  "crates/xifty-sidecar-c2pa",
   "crates/xifty-validate",
   "crates/xifty-json",
   "crates/xifty-ffi",
@@ -64,3 +66,4 @@ plist = "1.7.0"
 quick-xml = "0.38"
 thiserror = "2.0.17"
 insta = { version = "1.43.2", features = ["json"] }
+ciborium = "0.2"

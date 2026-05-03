@@ -110,7 +110,8 @@ XIFty can fold metadata from co-located vendor sidecar files (e.g. Sony NRT
 for those entries is:
 
 - `MetadataEntry::namespace` and `Provenance::namespace` carry the adapter
-  name (registered adapters: `sony_nrt`, `subtitles`, `gopro_sidecar`).
+  name (registered adapters: `sony_nrt`, `subtitles`, `gopro_sidecar`,
+  `c2pa_sidecar`).
   Existing namespaces keep their identity. The `subtitles` adapter discovers
   `.srt`/`.vtt`/`.ass`/`.ssa` siblings of a primary video and emits flat
   `subtitles.<i>.<field>` entries (`format`, `language`, `cue_count`,
@@ -118,8 +119,18 @@ for those entries is:
   The `gopro_sidecar` namespace surfaces structural `proxy.*` and
   `thumbnail.*` tag names lifted from `<basename>.LRV` and `<basename>.THM`
   siblings; promotion to generic normalized fields will follow once a second
-  adapter (e.g. Sony THMBNL) exists to validate the shape. Adding a new
-  adapter namespace is additive — no `SCHEMA_VERSION` bump.
+  adapter (e.g. Sony THMBNL) exists to validate the shape. The
+  `c2pa_sidecar` namespace re-uses the bounded `c2pa.*` field set surfaced
+  by the embedded C2PA decoder when the JUMBF manifest is delivered as a
+  sibling `<basename>.c2pa` file instead of embedded inside the asset bytes.
+  Adding a new adapter namespace is additive — no `SCHEMA_VERSION` bump.
+
+The `ai.*` namespace is a cross-cutting (not container-bound) namespace.
+Today it is populated from C2PA assertions (`ai.source_type`,
+`ai.generator`, `ai.synthid_disclosed`); tomorrow XMP
+`Iptc4xmpExt:DigitalSourceType` will fill the same names. Consumers that
+only want to ask "is this AI?" should index by `ai.*` rather than
+disambiguate every container-bound provenance namespace.
 - `Provenance::container` is the literal string `sidecar` so consumers can
   cheaply distinguish embedded vs sidecar-derived entries.
 - `Provenance::path` points at the sidecar file (not the primary asset).

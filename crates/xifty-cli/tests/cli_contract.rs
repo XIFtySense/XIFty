@@ -3421,3 +3421,162 @@ fn gopro_sidecar_synthetic_minimal_fixture_lifts_proxy_and_thumbnail() {
     assert!(by_tag.contains_key("proxy.path"));
     assert!(by_tag.contains_key("thumbnail.path"));
 }
+
+// ---------------------------------------------------------------------------
+// C2PA content provenance tests — issue #132. Synthetic fixture is
+// committed; real-device fixtures are gated behind `optional_fixture` so
+// they skip silently when absent.
+// ---------------------------------------------------------------------------
+
+fn c2pa_entries_by_tag<'a>(value: &'a Value) -> std::collections::BTreeMap<String, &'a Value> {
+    let interpreted = value["interpreted"]["metadata"]
+        .as_array()
+        .expect("interpreted view present");
+    interpreted
+        .iter()
+        .filter(|e| {
+            let ns = e["namespace"].as_str().unwrap_or("");
+            ns == "c2pa" || ns == "ai"
+        })
+        .map(|e| (e["tag_name"].as_str().unwrap().to_string(), e))
+        .collect()
+}
+
+#[test]
+fn c2pa_synthetic_png_minimal_fixture() {
+    let value = extract_json("c2pa_synthetic.png", ViewMode::Interpreted);
+    let by_tag = c2pa_entries_by_tag(&value);
+    assert_eq!(
+        by_tag
+            .get("c2pa.claim_generator")
+            .and_then(|e| e["value"]["value"].as_str()),
+        Some("XIFty Test Suite/0.1.0"),
+        "claim_generator missing or wrong; got entries {:?}",
+        by_tag.keys().collect::<Vec<_>>()
+    );
+    assert_eq!(
+        by_tag
+            .get("c2pa.format")
+            .and_then(|e| e["value"]["value"].as_str()),
+        Some("image/png")
+    );
+    assert_eq!(
+        by_tag
+            .get("c2pa.signature.alg")
+            .and_then(|e| e["value"]["value"].as_str()),
+        Some("eddsa")
+    );
+    assert_eq!(
+        by_tag
+            .get("c2pa.signature.verified")
+            .and_then(|e| e["value"]["value"].as_str()),
+        Some("unknown")
+    );
+    assert_eq!(
+        by_tag
+            .get("c2pa.ai_generated")
+            .and_then(|e| e["value"]["value"].as_str()),
+        Some("true")
+    );
+    assert_eq!(
+        by_tag
+            .get("ai.source_type")
+            .and_then(|e| e["value"]["value"].as_str()),
+        Some("trainedAlgorithmicMedia")
+    );
+    assert_eq!(
+        by_tag
+            .get("c2pa.assertions.0.action")
+            .and_then(|e| e["value"]["value"].as_str()),
+        Some("c2pa.created")
+    );
+}
+
+#[test]
+fn c2pa_copilot_png_real_fixture() {
+    let Some(path) = optional_fixture("Copilot_20260407_185229.png") else {
+        skip_missing_local_fixture("Copilot_20260407_185229.png");
+        return;
+    };
+    let mut value =
+        serde_json::to_value(xifty_cli::extract_path(path, ViewMode::Interpreted).unwrap())
+            .unwrap();
+    scrub_path(&mut value);
+    let by_tag = c2pa_entries_by_tag(&value);
+    let claim_gen = by_tag
+        .get("c2pa.claim_generator")
+        .and_then(|e| e["value"]["value"].as_str())
+        .unwrap_or("");
+    assert!(
+        claim_gen.to_lowercase().contains("microsoft")
+            || claim_gen.to_lowercase().contains("copilot")
+            || claim_gen.to_lowercase().contains("designer"),
+        "expected Microsoft/Copilot generator; got {claim_gen:?}"
+    );
+    let issuer = by_tag
+        .get("c2pa.signature.issuer")
+        .and_then(|e| e["value"]["value"].as_str())
+        .unwrap_or("");
+    assert!(
+        issuer.to_lowercase().contains("microsoft") || issuer == "unknown",
+        "expected Microsoft signer issuer or unknown; got {issuer:?}"
+    );
+    assert_eq!(
+        by_tag
+            .get("c2pa.ai_generated")
+            .and_then(|e| e["value"]["value"].as_str()),
+        Some("true")
+    );
+}
+
+#[test]
+fn c2pa_notebooklm_png_real_fixture() {
+    let Some(path) = optional_fixture("unnamed-6.png") else {
+        skip_missing_local_fixture("unnamed-6.png");
+        return;
+    };
+    let mut value =
+        serde_json::to_value(xifty_cli::extract_path(path, ViewMode::Interpreted).unwrap())
+            .unwrap();
+    scrub_path(&mut value);
+    let by_tag = c2pa_entries_by_tag(&value);
+    let claim_gen = by_tag
+        .get("c2pa.claim_generator")
+        .and_then(|e| e["value"]["value"].as_str())
+        .unwrap_or("");
+    assert!(
+        claim_gen.contains("Google C2PA"),
+        "expected Google C2PA generator; got {claim_gen:?}"
+    );
+    let actions: Vec<&str> = by_tag
+        .iter()
+        .filter(|(k, _)| k.starts_with("c2pa.assertions.") && k.ends_with(".action"))
+        .filter_map(|(_, v)| v["value"]["value"].as_str())
+        .collect();
+    assert!(actions.contains(&"c2pa.created"), "actions={actions:?}");
+    assert!(actions.contains(&"c2pa.edited"), "actions={actions:?}");
+    assert_eq!(
+        by_tag
+            .get("c2pa.ai_generated")
+            .and_then(|e| e["value"]["value"].as_str()),
+        Some("true")
+    );
+    assert_eq!(
+        by_tag
+            .get("ai.source_type")
+            .and_then(|e| e["value"]["value"].as_str()),
+        Some("trainedAlgorithmicMedia")
+    );
+    assert_eq!(
+        by_tag
+            .get("ai.generator")
+            .and_then(|e| e["value"]["value"].as_str()),
+        Some("Google")
+    );
+    assert_eq!(
+        by_tag
+            .get("ai.synthid_disclosed")
+            .and_then(|e| e["value"]["value"].as_str()),
+        Some("true")
+    );
+}

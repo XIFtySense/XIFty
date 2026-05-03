@@ -60,6 +60,83 @@ impl JpegContainer {
             }
         })
     }
+
+    /// Reassemble JUMBF (C2PA) payloads carried in APP11 segments per
+    /// ISO 19566-5 §A.4. Each APP11 JUMBF segment payload starts with:
+    ///
+    /// ```text
+    /// <2-byte CI = 'JP'> <2-byte En (Entity Identifier, BE)>
+    /// <4-byte Z (sequence number, BE)> <box bytes>
+    /// ```
+    ///
+    /// `En` identifies a logical manifest; manifests > ~64 KB span multiple
+    /// segments with a strictly increasing `Z`. Segments are grouped by `En`
+    /// and concatenated in `Z`-ascending order. Segments whose CI prefix
+    /// is not `'JP'` are silently skipped (they are not C2PA carriers).
+    /// True structural defects are surfaced as `Issue`s.
+    pub fn jumbf_app11_payloads(&self) -> (Vec<Vec<u8>>, Vec<Issue>) {
+        use std::collections::BTreeMap;
+        let mut groups: BTreeMap<u16, BTreeMap<u32, Vec<u8>>> = BTreeMap::new();
+        let mut issues: Vec<Issue> = Vec::new();
+        for segment in &self.segments {
+            if segment.marker != 0xEB {
+                continue;
+            }
+            if segment.payload.len() < 8 {
+                // Don't issue — this is just a non-C2PA APP11 (or a tiny
+                // segment); silently skip.
+                continue;
+            }
+            if &segment.payload[0..2] != b"JP" {
+                continue;
+            }
+            let en = u16::from_be_bytes([segment.payload[2], segment.payload[3]]);
+            let z = u32::from_be_bytes([
+                segment.payload[4],
+                segment.payload[5],
+                segment.payload[6],
+                segment.payload[7],
+            ]);
+            let entry = groups.entry(en).or_default().entry(z).or_default();
+            if !entry.is_empty() {
+                issues.push(Issue {
+                    severity: Severity::Warning,
+                    code: "jpeg_app11_duplicate_sequence".into(),
+                    message: format!(
+                        "duplicate JUMBF APP11 sequence En={en} Z={z}; later segment ignored"
+                    ),
+                    offset: Some(segment.offset_start),
+                    context: Some(format!("APP11 En={en} Z={z}")),
+                });
+                continue;
+            }
+            entry.extend_from_slice(&segment.payload[8..]);
+        }
+        let mut payloads = Vec::with_capacity(groups.len());
+        for (en, by_z) in groups {
+            let mut combined = Vec::new();
+            let mut expected: Option<u32> = None;
+            for (z, chunk) in &by_z {
+                if let Some(prev) = expected {
+                    if *z != prev {
+                        issues.push(Issue {
+                            severity: Severity::Warning,
+                            code: "jpeg_app11_sequence_gap".into(),
+                            message: format!(
+                                "JUMBF APP11 En={en} has gap in Z (expected {prev}, found {z})"
+                            ),
+                            offset: None,
+                            context: Some(format!("APP11 En={en}")),
+                        });
+                    }
+                }
+                expected = Some(z + 1);
+                combined.extend_from_slice(chunk);
+            }
+            payloads.push(combined);
+        }
+        (payloads, issues)
+    }
 }
 
 pub fn parse(source: &SourceBytes) -> Result<JpegContainer, XiftyError> {
@@ -189,6 +266,79 @@ mod tests {
         let parsed = parse_bytes(&bytes, 0).unwrap();
         assert!(parsed.nodes.iter().any(|node| node.label == "marker_DB"));
         assert!(parsed.nodes.iter().any(|node| node.label == "marker_C0"));
+    }
+
+    fn build_app11_segment(en: u16, z: u32, box_bytes: &[u8]) -> Vec<u8> {
+        let mut payload = Vec::new();
+        payload.extend_from_slice(b"JP");
+        payload.extend_from_slice(&en.to_be_bytes());
+        payload.extend_from_slice(&z.to_be_bytes());
+        payload.extend_from_slice(box_bytes);
+        let length = (payload.len() + 2) as u16;
+        let mut out = Vec::new();
+        out.extend_from_slice(&[0xFF, 0xEB]);
+        out.extend_from_slice(&length.to_be_bytes());
+        out.extend_from_slice(&payload);
+        out
+    }
+
+    #[test]
+    fn app11_single_segment_reassembly() {
+        let mut box_bytes = Vec::new();
+        box_bytes.extend_from_slice(&32u32.to_be_bytes());
+        box_bytes.extend_from_slice(b"jumb");
+        box_bytes.extend_from_slice(&[0u8; 24]);
+
+        let mut bytes = vec![0xFF, 0xD8];
+        bytes.extend_from_slice(&build_app11_segment(1, 1, &box_bytes));
+        bytes.extend_from_slice(&[0xFF, 0xD9]);
+
+        let parsed = parse_bytes(&bytes, 0).unwrap();
+        let (payloads, issues) = parsed.jumbf_app11_payloads();
+        assert!(issues.is_empty(), "no issues, got {:?}", issues);
+        assert_eq!(payloads.len(), 1);
+        assert_eq!(payloads[0], box_bytes);
+    }
+
+    #[test]
+    fn app11_multi_segment_reassembly_orders_by_z() {
+        let part_a = vec![0xAA; 10];
+        let part_b = vec![0xBB; 10];
+
+        let mut bytes = vec![0xFF, 0xD8];
+        // Insert in REVERSE Z order; reassembler must sort.
+        bytes.extend_from_slice(&build_app11_segment(7, 2, &part_b));
+        bytes.extend_from_slice(&build_app11_segment(7, 1, &part_a));
+        bytes.extend_from_slice(&[0xFF, 0xD9]);
+
+        let parsed = parse_bytes(&bytes, 0).unwrap();
+        let (payloads, issues) = parsed.jumbf_app11_payloads();
+        assert!(issues.is_empty(), "no issues, got {:?}", issues);
+        assert_eq!(payloads.len(), 1);
+        let mut expected = Vec::new();
+        expected.extend_from_slice(&part_a);
+        expected.extend_from_slice(&part_b);
+        assert_eq!(payloads[0], expected);
+    }
+
+    #[test]
+    fn app11_signature_mismatch_skipped() {
+        // APP11 with non-`JP` CI: skipped silently, no issue.
+        let mut bad = Vec::new();
+        bad.extend_from_slice(b"XX"); // wrong CI
+        bad.extend_from_slice(&1u16.to_be_bytes());
+        bad.extend_from_slice(&1u32.to_be_bytes());
+        bad.extend_from_slice(&[0u8; 4]);
+        let length = (bad.len() + 2) as u16;
+        let mut bytes = vec![0xFF, 0xD8, 0xFF, 0xEB];
+        bytes.extend_from_slice(&length.to_be_bytes());
+        bytes.extend_from_slice(&bad);
+        bytes.extend_from_slice(&[0xFF, 0xD9]);
+
+        let parsed = parse_bytes(&bytes, 0).unwrap();
+        let (payloads, issues) = parsed.jumbf_app11_payloads();
+        assert!(payloads.is_empty());
+        assert!(issues.is_empty());
     }
 
     #[test]
